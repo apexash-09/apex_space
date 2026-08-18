@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex — Personal Diary & Productivity Dashboard</title>
+  <meta name="description" content="Privacy-first local diary, college notes library, work log, timetable, goals, buy list, music hub, and study streak dashboard.">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/transitions.css">
+</head>
+<body>
+
+  <!-- Dynamic Motion Background Canvas -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Main Application Wrapper -->
+  <div id="app-container">
+
+    <!-- UNLOCK / WELCOME SCREEN (Stylistic Local Lock) -->
+    <section id="unlock-screen">
+      <div class="unlock-box">
+        <div class="unlock-logo">▲</div>
+        <h1 class="unlock-title">Apex Space</h1>
+        <p class="unlock-subtitle">Across work and life. Browse with intelligence in your private sanctuary.</p>
+        
+        <form id="unlock-form">
+          <div class="unlock-input-group" id="pin-group" style="display: none;">
+            <label for="unlock-pin">Enter Security PIN</label>
+            <input type="password" id="unlock-pin" class="unlock-input" placeholder="••••" maxlength="8">
+          </div>
+
+          <button type="submit" class="btn-primary">
+            <span>Unlock Dashboard</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </form>
+
+        <p class="unlock-footer-note">🔒 Local & Privacy-First: All entries stored strictly inside your browser's IndexedDB.</p>
+      </div>
+    </section>
+
+    <!-- SIDEBAR NAVIGATION -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">▲</div>
+        <div class="brand-name">Apex Space</div>
+      </div>
+
+      <nav class="nav-menu">
+        <div class="nav-item active" data-tab="diary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          <span>Diary</span>
+        </div>
+
+        <div class="nav-item" data-tab="notes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+          <span>College Notes</span>
+        </div>
+
+        <div class="nav-item" data-tab="worklog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+          <span>Work Log</span>
+        </div>
+
+        <div class="nav-item" data-tab="timetable">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span>Timetable</span>
+        </div>
+
+        <div class="nav-item" data-tab="goals">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+          <span>Goals</span>
+        </div>
+
+        <div class="nav-item" data-tab="buylist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+          <span>Buy List</span>
+        </div>
+
+        <div class="nav-item" data-tab="songs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+          <span>Songs & Audio</span>
+        </div>
+
+        <div class="nav-item" data-tab="streak">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"></path></svg>
+          <span>Study Streak</span>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="btn-export-backup" class="btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Export Backup</span>
+        </button>
+
+        <button id="btn-lock-app" class="btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>Lock App</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main id="main-content">
+      
+      <!-- TOP NAVIGATION & SEARCH HEADER -->
+      <header class="top-header">
+        <div class="search-bar-wrapper">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="global-search-input" class="search-input" placeholder="Search entries, college notes, work logs, goals..." autocomplete="off">
+          
+          <!-- Search Dropdown Overlay -->
+          <div id="search-results-overlay"></div>
+        </div>
+
+        <div class="header-right">
+          <div class="streak-badge-mini" title="Active Study Streak">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"></path></svg>
+            <span id="header-streak-count">0 Days Streak</span>
+          </div>
+
+          <button id="toggle-motion-btn" class="power-toggle-btn" title="Toggle Motion Animation (Battery Saver)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            <span id="motion-btn-text">Motion ON</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEWPANELS CONTAINER -->
+      <div class="views-viewport">
+
+        <!-- 1. DIARY VIEW -->
+        <section id="view-diary" class="view-panel active">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Personal Diary</h2>
+              <p class="section-desc">Date-keyed journal entries with markdown formatting support.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <input type="date" id="diary-date-picker" class="form-control" style="width: auto;">
+              <button id="btn-save-diary" class="btn-primary" style="width: auto; padding: 10px 20px;">Save Entry</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 340px; gap: 24px; height: calc(100% - 80px);">
+            <!-- Editor & Markdown Preview -->
+            <div class="glass-panel" style="display: flex; flex-direction: column; height: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <input type="text" id="diary-entry-title" class="form-control" placeholder="Entry Title..." style="font-size: 18px; font-weight: 600; background: transparent; border: none; border-bottom: 1px solid var(--border-subtle); border-radius: 0; padding-left: 0;">
+                <div style="display: flex; gap: 8px;">
+                  <button id="btn-tab-editor" class="btn-ghost active" style="padding: 6px 12px; font-size: 12px;">Editor</button>
+                  <button id="btn-tab-preview" class="btn-ghost" style="padding: 6px 12px; font-size: 12px;">Preview</button>
+                </div>
+              </div>
+
+              <!-- Markdown Textarea -->
+              <textarea id="diary-content-input" class="form-control" style="flex: 1; min-height: 300px; font-family: var(--font-mono); font-size: 14px; line-height: 1.6;" placeholder="Write your thoughts for today... (Markdown supported: # Title, **bold**, *italic*, - list, > quote)"></textarea>
+
+              <!-- Markdown Rendered View -->
+              <div id="diary-content-preview" class="markdown-body" style="flex: 1; display: none; overflow-y: auto; padding: 12px; background: rgba(10, 10, 10, 0.6); border-radius: var(--radius-sm);"></div>
+
+              <div style="margin-top: 12px; display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+                <span id="diary-word-count">0 words</span>
+                <span>Auto-saved locally</span>
+              </div>
+            </div>
+
+            <!-- Diary History List -->
+            <div class="glass-panel" style="display: flex; flex-direction: column; overflow: hidden;">
+              <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">Journal Entries</h3>
+              <div id="diary-history-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. COLLEGE NOTES & DOCUMENT READER VIEW -->
+        <section id="view-notes" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">College Notes & Reader</h2>
+              <p class="section-desc">Store PDFs, study materials, & notes organized by Subject. Read directly in-app without searching folders!</p>
+            </div>
+            <button id="btn-open-note-modal" class="btn-primary" style="width: auto;">+ Upload / Add Note</button>
+          </div>
+
+          <!-- Subject Filter Tabs -->
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn-ghost note-filter-btn active" data-subject="all">All Subjects</button>
+            <button class="btn-ghost note-filter-btn" data-subject="Computer Science">Computer Science</button>
+            <button class="btn-ghost note-filter-btn" data-subject="Math">Math</button>
+            <button class="btn-ghost note-filter-btn" data-subject="Physics">Physics</button>
+            <button class="btn-ghost note-filter-btn" data-subject="Misc">Misc</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 340px 1fr; gap: 24px; height: calc(100% - 120px);">
+            <!-- Notes List Sidebar -->
+            <div class="glass-panel" style="display: flex; flex-direction: column; overflow: hidden;">
+              <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Subject Library</h3>
+              <div id="notes-list-container" style="flex: 1; overflow-y: auto;">
+                <!-- Dynamically populated notes items -->
+              </div>
+            </div>
+
+            <!-- Main Document Reader Screen -->
+            <div class="glass-panel" style="display: flex; flex-direction: column; height: 100%; position: relative;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+                <div>
+                  <h3 id="note-reader-title" style="font-size: 18px; font-weight: 700;">Select a Note to Read</h3>
+                  <p id="note-reader-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Click any note from your college library on the left</p>
+                </div>
+                <button id="btn-fullscreen-note" class="btn-ghost" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                  <span>⛶</span>
+                  <span id="fullscreen-btn-text">Full Screen</span>
+                </button>
+              </div>
+
+              <!-- Reader Frame Container -->
+              <div id="note-reader-viewer" style="flex: 1; border-radius: var(--radius-md); overflow: hidden; display: none;"></div>
+
+              <div id="note-reader-placeholder" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+                <h4 style="font-size: 16px; font-weight: 600; color: #fff;">In-App College Notes Reader</h4>
+                <p style="font-size: 13px; max-width: 380px; margin-top: 8px; line-height: 1.5;">Select a PDF document or markdown note from the list on the left to read it directly inside Apex Dashboard.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. WORK LOG VIEW -->
+        <section id="view-worklog" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Work Log</h2>
+              <p class="section-desc">Track tasks across projects, college work, freelance, and misc.</p>
+            </div>
+            <button id="btn-open-worklog-modal" class="btn-primary" style="width: auto;">+ New Work Entry</button>
+          </div>
+
+          <!-- Tag Filter Tabs -->
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn-ghost work-filter-btn active" data-tag="all">All</button>
+            <button class="btn-ghost work-filter-btn" data-tag="project">Project</button>
+            <button class="btn-ghost work-filter-btn" data-tag="college">College</button>
+            <button class="btn-ghost work-filter-btn" data-tag="freelance">Freelance</button>
+            <button class="btn-ghost work-filter-btn" data-tag="misc">Misc</button>
+          </div>
+
+          <div id="worklog-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px;">
+            <!-- Dynamically populated worklog items -->
+          </div>
+        </section>
+
+        <!-- 4. TIMETABLE VIEW -->
+        <section id="view-timetable" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Weekly Timetable</h2>
+              <p class="section-desc">Interactive weekly schedule grid. Click any slot to edit activity.</p>
+            </div>
+          </div>
+
+          <div class="glass-panel" style="overflow-x: auto;">
+            <table id="timetable-matrix" style="width: 100%; border-collapse: separate; border-spacing: 6px;">
+              <thead>
+                <tr>
+                  <th style="width: 80px; text-align: left; color: var(--text-muted); font-size: 12px;">Time</th>
+                  <th>Mon</th>
+                  <th>Tue</th>
+                  <th>Wed</th>
+                  <th>Thu</th>
+                  <th>Fri</th>
+                  <th>Sat</th>
+                  <th>Sun</th>
+                </tr>
+              </thead>
+              <tbody id="timetable-body">
+                <!-- Dynamically populated time slots -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 5. GOALS VIEW -->
+        <section id="view-goals" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Goals & Targets</h2>
+              <p class="section-desc">Track medium and long-term milestones with progress meters.</p>
+            </div>
+            <button id="btn-open-goal-modal" class="btn-primary" style="width: auto;">+ Add Goal</button>
+          </div>
+
+          <div id="goals-list-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;">
+            <!-- Dynamically populated goals -->
+          </div>
+        </section>
+
+        <!-- 6. BUY LIST VIEW -->
+        <section id="view-buylist" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Buy List & Savings Tracker</h2>
+              <p class="section-desc">Manage wishlist items and track saved funds towards purchases.</p>
+            </div>
+            <button id="btn-open-buy-modal" class="btn-primary" style="width: auto;">+ Add Item</button>
+          </div>
+
+          <div id="buylist-items-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
+            <!-- Dynamically populated buy items -->
+          </div>
+        </section>
+
+        <!-- 7. SONGS & AUDIO VIEW -->
+        <section id="view-songs" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Music Player & Audio Hub</h2>
+              <p class="section-desc">Uploaded tracks stored in IndexedDB (Max 50MB per file).</p>
+            </div>
+            <div>
+              <input type="file" id="audio-file-input" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.mpeg,.wma" multiple style="display: none;">
+              <button id="btn-upload-song" class="btn-primary" style="width: auto;">🎵 Upload Track</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 380px 1fr; gap: 28px;">
+            
+            <!-- Sleek Circular Vinyl Audio Player Card -->
+            <div class="player-card-container">
+              
+              <!-- Circular Disc Art with Progress Ring -->
+              <div class="circular-art-wrapper">
+                <svg class="art-progress-svg" viewBox="0 0 200 200">
+                  <circle class="art-progress-circle-bg" cx="100" cy="100" r="90"></circle>
+                  <circle id="player-progress-ring" class="art-progress-circle-fill" cx="100" cy="100" r="90"></circle>
+                </svg>
+                
+                <div id="album-disc" class="album-disc-inner">
+                  <div class="album-center-badge">▲</div>
+                </div>
+              </div>
+
+              <!-- Track Metadata -->
+              <h3 id="player-track-title" class="player-song-title">No Track Playing</h3>
+              <p id="player-track-artist" class="player-song-artist">Upload or select a track from library</p>
+
+              <div class="player-time-display">
+                <span id="player-current-time">00:00</span>
+                <span>|</span>
+                <span id="player-total-duration">00:00</span>
+              </div>
+
+              <!-- Seeker Range Slider -->
+              <input type="range" id="player-seeker-input" min="0" max="100" value="0" style="width: 100%; cursor: pointer; margin-bottom: 20px; accent-color: #ffffff;">
+
+              <!-- Playback Controls Bar -->
+              <div class="player-controls-row">
+                <button id="player-shuffle-btn" class="control-icon-btn" title="Shuffle">🔀</button>
+                <button id="player-prev-btn" class="control-icon-btn" title="Previous">⏮</button>
+                
+                <button id="player-play-btn" class="control-play-main" title="Play / Pause">▶</button>
+                
+                <button id="player-next-btn" class="control-icon-btn" title="Next">⏭</button>
+                <button id="player-repeat-btn" class="control-icon-btn" title="Repeat">🔁</button>
+              </div>
+
+              <!-- Animated Audio Waveform Visualizer -->
+              <div id="waveform-visualizer" class="waveform-container">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+
+              <!-- Hidden Native Audio Element -->
+              <audio id="main-audio-player" style="display: none;"></audio>
+            </div>
+
+            <!-- Playlist Library View -->
+            <div class="glass-panel" style="display: flex; flex-direction: column;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-size: 18px; font-weight: 700;">Track Library</h3>
+                <span id="songs-count-badge" style="font-size: 12px; color: var(--text-muted);">0 Tracks</span>
+              </div>
+
+              <div id="songs-playlist-container" style="flex: 1; overflow-y: auto;">
+                <!-- Dynamically populated track list -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 8. STUDY STREAK VIEW -->
+        <section id="view-streak" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Study Streak & Activity</h2>
+              <p class="section-desc">GitHub-style 52-week activity matrix. Earn streak points daily!</p>
+            </div>
+            <button id="btn-check-studied-today" class="btn-primary" style="width: auto;">🔥 Mark "I Studied Today"</button>
+          </div>
+
+          <div class="glass-panel" style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h3 style="font-size: 16px;">365 Days Activity Grid</h3>
+              <span id="streak-total-active-days" style="font-size: 13px; color: #ffffff;">0 Total Active Days</span>
+            </div>
+            
+            <div style="overflow-x: auto; padding-bottom: 8px;">
+              <svg id="streak-heatmap-svg" width="820" height="130"></svg>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--text-muted);">
+              <span>Less</span>
+              <span class="heatmap-cell heatmap-level-0" style="display: inline-block;"></span>
+              <span class="heatmap-cell heatmap-level-1" style="display: inline-block;"></span>
+              <span class="heatmap-cell heatmap-level-2" style="display: inline-block;"></span>
+              <span class="heatmap-cell heatmap-level-3" style="display: inline-block;"></span>
+              <span>More</span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODALS -->
+  <!-- Add College Note Modal -->
+  <div id="modal-note" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Upload / Add College Note</h3>
+        <button class="close-btn" data-close="modal-note">&times;</button>
+      </div>
+      <form id="form-note">
+        <div class="form-group">
+          <label for="note-title">Note Title</label>
+          <input type="text" id="note-title" class="form-control" required placeholder="e.g. Operating Systems Chapter 4 - Memory Management">
+        </div>
+        <div class="form-group">
+          <label for="note-subject">Subject / Course</label>
+          <input type="text" id="note-subject" class="form-control" required placeholder="e.g. Computer Science, Math, Physics...">
+        </div>
+        <div class="form-group">
+          <label for="note-file-input">Attach PDF / Document / Image (Optional)</label>
+          <input type="file" id="note-file-input" class="form-control" accept=".pdf,.txt,.md,.png,.jpg,.jpeg">
+        </div>
+        <div class="form-group">
+          <label for="note-text-content">Or Write Text / Markdown Note Content</label>
+          <textarea id="note-text-content" class="form-control" placeholder="Type key formulas, lecture summary, or study points here..."></textarea>
+        </div>
+        <button type="submit" class="btn-primary">Save Note to Library</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Work Log Modal -->
+  <div id="modal-worklog" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Work Log Entry</h3>
+        <button class="close-btn" data-close="modal-worklog">&times;</button>
+      </div>
+      <form id="form-worklog">
+        <div class="form-group">
+          <label for="work-title">Title</label>
+          <input type="text" id="work-title" class="form-control" required placeholder="e.g. Completed API integration">
+        </div>
+        <div class="form-group">
+          <label for="work-tag">Category Tag</label>
+          <select id="work-tag" class="form-control">
+            <option value="project">Project</option>
+            <option value="college">College</option>
+            <option value="freelance">Freelance</option>
+            <option value="misc">Misc</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="work-date">Date</label>
+          <input type="date" id="work-date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="work-desc">Description</label>
+          <textarea id="work-desc" class="form-control" placeholder="Summary of work performed..."></textarea>
+        </div>
+        <button type="submit" class="btn-primary">Save Work Log</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Timetable Cell Editor Modal -->
+  <div id="modal-timetable" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Timetable Slot</h3>
+        <button class="close-btn" data-close="modal-timetable">&times;</button>
+      </div>
+      <form id="form-timetable">
+        <input type="hidden" id="slot-id">
+        <p id="slot-label" style="font-size: 14px; color: #ffffff; margin-bottom: 16px;"></p>
+        <div class="form-group">
+          <label for="slot-text">Activity / Subject</label>
+          <input type="text" id="slot-text" class="form-control" placeholder="e.g. Data Structures Lecture">
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="button" id="btn-clear-slot" class="btn-ghost" style="flex: 1; color: var(--accent-red);">Clear Slot</button>
+          <button type="submit" class="btn-primary" style="flex: 2;">Save Slot</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Goal Modal -->
+  <div id="modal-goal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Goal</h3>
+        <button class="close-btn" data-close="modal-goal">&times;</button>
+      </div>
+      <form id="form-goal">
+        <div class="form-group">
+          <label for="goal-title">Goal Title</label>
+          <input type="text" id="goal-title" class="form-control" required placeholder="e.g. Learn Rust Programming">
+        </div>
+        <div class="form-group">
+          <label for="goal-desc">Description</label>
+          <textarea id="goal-desc" class="form-control" placeholder="Why this goal matters..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="goal-progress">Initial Progress (%): <span id="goal-progress-val">0%</span></label>
+          <input type="range" id="goal-progress" min="0" max="100" value="0" class="form-control" style="cursor: pointer;">
+        </div>
+        <button type="submit" class="btn-primary">Save Goal</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Buy Item Modal -->
+  <div id="modal-buy" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Wishlist Item</h3>
+        <button class="close-btn" data-close="modal-buy">&times;</button>
+      </div>
+      <form id="form-buy">
+        <div class="form-group">
+          <label for="buy-name">Item Name</label>
+          <input type="text" id="buy-name" class="form-control" required placeholder="e.g. Mechanical Keyboard">
+        </div>
+        <div class="form-group">
+          <label for="buy-price">Price ($)</label>
+          <input type="number" id="buy-price" class="form-control" required min="1" step="0.01" placeholder="150.00">
+        </div>
+        <div class="form-group">
+          <label for="buy-saved">Already Saved ($)</label>
+          <input type="number" id="buy-saved" class="form-control" min="0" step="0.01" value="0">
+        </div>
+        <button type="submit" class="btn-primary">Add to Buy List</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Deposit Funds Modal -->
+  <div id="modal-deposit" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Savings Deposit</h3>
+        <button class="close-btn" data-close="modal-deposit">&times;</button>
+      </div>
+      <form id="form-deposit">
+        <input type="hidden" id="deposit-item-id">
+        <p id="deposit-item-title" style="font-size: 14px; font-weight: 600; margin-bottom: 16px;"></p>
+        <div class="form-group">
+          <label for="deposit-amount">Amount Saved ($)</label>
+          <input type="number" id="deposit-amount" class="form-control" required min="1" step="0.01" placeholder="25.00">
+        </div>
+        <button type="submit" class="btn-primary">Add Savings</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- JS Modules -->
+  <script src="js/db.js"></script>
+  <script src="js/bg.js"></script>
+  <script src="js/diary.js"></script>
+  <script src="js/notes.js"></script>
+  <script src="js/worklog.js"></script>
+  <script src="js/timetable.js"></script>
+  <script src="js/goals.js"></script>
+  <script src="js/buylist.js"></script>
+  <script src="js/songs.js"></script>
+  <script src="js/streak.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
