@@ -708,3 +708,39 @@ select.form-control {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
+
+/* ==========================================================================
+   SOCIAL SPACE, CLOUD COLLABORATION & AUTH WIDGETS
+   ========================================================================== */
+.social-post-card {
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+
+.social-post-card:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.btn-reaction {
+  user-select: none;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.btn-reaction:active {
+  transform: scale(0.92);
+}
+
+.btn-reaction.active {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.user-pill-dropdown {
+  transition: all 0.2s ease;
+}
+
+.user-pill-dropdown:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+

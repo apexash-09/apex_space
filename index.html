@@ -10,6 +10,12 @@
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/transitions.css">
   <link rel="stylesheet" href="styles/responsive.css">
+
+  <!-- Firebase v10 SDKs (Compat client builds for static GitHub Pages hosting) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 </head>
 <body>
 
@@ -67,6 +73,11 @@
           <span>College Notes</span>
         </div>
 
+        <div class="nav-item" data-tab="social">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span>Social Hub</span>
+        </div>
+
         <div class="nav-item" data-tab="worklog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
           <span>Work Log</span>
@@ -99,6 +110,8 @@
       </nav>
 
       <div class="sidebar-footer">
+        <div id="sidebar-user-card" style="margin-bottom: 8px;"></div>
+
         <button id="btn-export-backup" class="btn-ghost">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           <span>Export Backup</span>
@@ -125,6 +138,8 @@
         </div>
 
         <div class="header-right">
+          <div id="header-user-profile"></div>
+
           <div class="streak-badge-mini" title="Active Study Streak">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z"></path></svg>
             <span id="header-streak-count">0 Days Streak</span>
@@ -239,7 +254,50 @@
           </div>
         </section>
 
-        <!-- 3. WORK LOG VIEW -->
+        <!-- 3. SOCIAL SPACE & CLOUD COLLABORATION VIEW -->
+        <section id="view-social" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Social Hub & Collaboration</h2>
+              <p class="section-desc">Share notes, photos, links, and music with friends in real-time. Personal diary stays local & private.</p>
+            </div>
+            <button id="btn-open-social-post-modal" class="btn-primary" style="width: auto;">+ Share with Friends</button>
+          </div>
+
+          <!-- Signed-out Prompt -->
+          <div id="social-auth-notice" class="glass-panel" style="text-align: center; padding: 48px 24px; max-width: 600px; margin: 40px auto;">
+            <div style="font-size: 48px; margin-bottom: 16px;">☁️</div>
+            <h3 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px;">Connect to Apex Cloud</h3>
+            <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px;">
+              Your diary, work log, timetable, and study streak remain strictly local in your browser's IndexedDB. Connect your account to share notes, photos, comments, and songs with friends in realtime!
+            </p>
+            <button id="btn-open-auth-modal-banner" class="btn-primary btn-open-auth-trigger" style="width: auto; margin: 0 auto; padding: 12px 28px;" onclick="if(window.authManager) window.authManager.openAuthModal();">
+              <span>Sign In / Create Account</span>
+            </button>
+          </div>
+
+          <!-- Signed-in Main Social Content -->
+          <div id="social-main-content" style="display: none;">
+            
+            <!-- Social Tabs -->
+            <div class="filter-tabs-row" style="margin-bottom: 24px;">
+              <button class="btn-ghost social-nav-tab active" data-social-tab="notes">📝 Shared Notes & Posts</button>
+              <button class="btn-ghost social-nav-tab" data-social-tab="music">🎵 Shared Music</button>
+              <button id="btn-social-tab-admin" class="btn-ghost social-nav-tab" data-social-tab="admin_users" style="display: none; border-color: rgba(255,255,255,0.4); color: #fff;">🛡️ Admin & Users Directory</button>
+            </div>
+
+            <!-- Notes Feed -->
+            <div id="social-notes-feed" style="max-width: 800px; margin: 0 auto;"></div>
+
+            <!-- Shared Songs Feed -->
+            <div id="social-songs-feed" style="display: none; max-width: 800px; margin: 0 auto;"></div>
+
+            <!-- Admin Users Directory -->
+            <div id="social-admin-users-view" style="display: none; max-width: 800px; margin: 0 auto;"></div>
+          </div>
+        </section>
+
+        <!-- 4. WORK LOG VIEW -->
         <section id="view-worklog" class="view-panel">
           <div class="section-header">
             <div>
@@ -597,11 +655,140 @@
     </div>
   </div>
 
+  <!-- AUTHENTICATION MODAL (Firebase Sign-in / Sign-up) -->
+  <div id="modal-auth" class="modal-overlay">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 800;">▲</div>
+          <h3 class="modal-title">Apex Cloud Account</h3>
+        </div>
+        <button class="close-btn" data-close="modal-auth">&times;</button>
+      </div>
+
+      <!-- Sign In Box -->
+      <div id="auth-box-login">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
+          Connect your account to collaborate, share notes, post comments, and listen to music with friends.
+        </p>
+
+        <div id="login-error-msg" style="display: none; padding: 10px; margin-bottom: 16px; border-radius: var(--radius-sm); background: rgba(255,77,77,0.15); border: 1px solid var(--accent-red); color: #ff8080; font-size: 12px;"></div>
+
+        <form id="form-login">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <input type="email" id="login-email" class="form-control" required placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" class="form-control" required placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn-primary" style="margin-top: 8px;">Sign In</button>
+        </form>
+
+        <div style="display: flex; align-items: center; gap: 12px; margin: 18px 0;">
+          <div style="flex: 1; height: 1px; background: var(--border-subtle);"></div>
+          <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">or</span>
+          <div style="flex: 1; height: 1px; background: var(--border-subtle);"></div>
+        </div>
+
+        <button type="button" class="btn-ghost btn-google-signin" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px;">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <p style="text-align: center; margin-top: 20px; font-size: 12px; color: var(--text-muted);">
+          Don't have an account? <a href="#" id="btn-switch-to-signup" style="color: #fff; font-weight: 600; text-decoration: underline;">Create one now</a>
+        </p>
+      </div>
+
+      <!-- Sign Up Box -->
+      <div id="auth-box-signup" style="display: none;">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
+          Create a free account to collaborate with friends on Apex Cloud.
+        </p>
+
+        <div id="signup-error-msg" style="display: none; padding: 10px; margin-bottom: 16px; border-radius: var(--radius-sm); background: rgba(255,77,77,0.15); border: 1px solid var(--accent-red); color: #ff8080; font-size: 12px;"></div>
+
+        <form id="form-signup">
+          <div class="form-group">
+            <label for="signup-name">Your Name / Handle</label>
+            <input type="text" id="signup-name" class="form-control" required placeholder="e.g. Apex User">
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email Address</label>
+            <input type="email" id="signup-email" class="form-control" required placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Choose Password</label>
+            <input type="password" id="signup-password" class="form-control" required minlength="6" placeholder="At least 6 characters" autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn-primary" style="margin-top: 8px;">Create Account</button>
+        </form>
+
+        <div style="display: flex; align-items: center; gap: 12px; margin: 18px 0;">
+          <div style="flex: 1; height: 1px; background: var(--border-subtle);"></div>
+          <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">or</span>
+          <div style="flex: 1; height: 1px; background: var(--border-subtle);"></div>
+        </div>
+
+        <button type="button" class="btn-ghost btn-google-signin" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 11px;">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <p style="text-align: center; margin-top: 20px; font-size: 12px; color: var(--text-muted);">
+          Already have an account? <a href="#" id="btn-switch-to-login" style="color: #fff; font-weight: 600; text-decoration: underline;">Sign In</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE SHARED POST / NOTE MODAL -->
+  <div id="modal-social-post" class="modal-overlay">
+    <div class="modal-container" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Share Note / Post with Friends</h3>
+        <button class="close-btn" data-close="modal-social-post">&times;</button>
+      </div>
+      <form id="form-social-post">
+        <div class="form-group">
+          <label for="social-post-title">Title / Headline (Optional)</label>
+          <input type="text" id="social-post-title" class="form-control" placeholder="e.g. Key pointers from Algorithms lecture">
+        </div>
+        
+        <div class="form-group">
+          <label for="social-post-content">Message / Note Content</label>
+          <textarea id="social-post-content" class="form-control" placeholder="Write thoughts, markdown notes, code snippets, or formulas to share with friends..." style="min-height: 140px;"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="social-post-file">Attach Photo / Image (Optional, stored in Firebase Storage)</label>
+          <input type="file" id="social-post-file" class="form-control" accept="image/*">
+        </div>
+
+        <div class="form-group">
+          <label for="social-post-audience">Who can view this post?</label>
+          <select id="social-post-audience" class="form-control">
+            <option value="all">🌐 All Friends (Shared Space)</option>
+            <option value="custom">✉️ Specific Friend by Email...</option>
+          </select>
+          <input type="email" id="social-post-custom-email" class="form-control" placeholder="friend@example.com" style="display: none; margin-top: 8px;">
+        </div>
+
+        <button type="submit" class="btn-primary">Share with Friends</button>
+      </form>
+    </div>
+  </div>
+
   <!-- JS Modules -->
   <script src="js/db.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/bg.js"></script>
   <script src="js/diary.js"></script>
   <script src="js/notes.js"></script>
+  <script src="js/social.js"></script>
   <script src="js/worklog.js"></script>
   <script src="js/timetable.js"></script>
   <script src="js/goals.js"></script>

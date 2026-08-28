@@ -148,7 +148,7 @@ class AppRouter {
     targetPanel.classList.add('active');
     targetPanel.classList.remove('slide-in-right', 'slide-in-left');
 
-    const navOrder = ['diary', 'notes', 'worklog', 'timetable', 'goals', 'buylist', 'songs', 'streak'];
+    const navOrder = ['diary', 'notes', 'social', 'worklog', 'timetable', 'goals', 'buylist', 'songs', 'streak'];
     const prevIdx = navOrder.indexOf(this.activeTab);
     const newIdx = navOrder.indexOf(targetTab);
 
@@ -164,6 +164,7 @@ class AppRouter {
     // Refresh modules on tab switch
     if (targetTab === 'diary' && window.diaryModule) window.diaryModule.loadHistoryList();
     if (targetTab === 'notes' && window.notesModule) window.notesModule.renderNotesList();
+    if (targetTab === 'social' && window.socialModule) window.socialModule.handleAuthUpdate();
     if (targetTab === 'worklog' && window.worklogModule) window.worklogModule.renderWorklogs();
     if (targetTab === 'timetable' && window.timetableModule) window.timetableModule.renderGrid();
     if (targetTab === 'goals' && window.goalsModule) window.goalsModule.renderGoals();

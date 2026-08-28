@@ -332,7 +332,8 @@ class SongsModule {
               <div style="font-size: 11px; color: var(--text-muted);">${sizeMB} MB • ${item.artist}</div>
             </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="btn-ghost share-track-btn" style="padding: 4px 10px; font-size: 12px; color: #ffffff; border-color: rgba(255,255,255,0.3);" title="Share with friends on Cloud">📤 Share</button>
             <button class="btn-ghost delete-track-btn" style="padding: 4px 8px; font-size: 12px; color: var(--accent-red); border-color: rgba(255,77,77,0.2);">Delete</button>
           </div>
         `;
@@ -346,6 +347,10 @@ class SongsModule {
           }
         });
 
+        div.querySelector('.share-track-btn').addEventListener('click', () => {
+          this.shareTrack(item);
+        });
+
         div.querySelector('.delete-track-btn').addEventListener('click', () => {
           this.deleteTrack(item.id);
         });
@@ -354,6 +359,64 @@ class SongsModule {
       });
     } catch (err) {
       console.error('Error rendering playlist:', err);
+    }
+  }
+
+  async shareTrack(song) {
+    if (!window.fbAuth || !window.fbAuth.currentUser) {
+      alert('Please connect your Apex Cloud account first to share songs with friends!');
+      if (window.authManager) window.authManager.openAuthModal();
+      return;
+    }
+
+    const recipientInput = prompt(
+      `Share "${song.title}" with friends!\n\nEnter recipient:\n- Type "all" for All Friends\n- Or enter a specific friend's email (e.g. friend@example.com)`,
+      'all'
+    );
+
+    if (!recipientInput) return; // User cancelled
+
+    const recipient = recipientInput.trim().toLowerCase();
+    const isAll = recipient === 'all';
+    const user = window.fbAuth.currentUser;
+
+    try {
+      const shareBtn = document.activeElement;
+      if (shareBtn && shareBtn.classList.contains('share-track-btn')) {
+        shareBtn.disabled = true;
+        shareBtn.innerText = 'Uploading...';
+      }
+
+      // 1. Upload audio Blob to Firebase Storage
+      const sanitizedName = (song.title || 'track').replace(/[^a-zA-Z0-9_\-]/g, '_');
+      const storagePath = `shared_songs/${user.uid}/${Date.now()}_${sanitizedName}.mp3`;
+      const storageRef = window.fbStorage.ref(storagePath);
+      
+      const snapshot = await storageRef.put(song.blob);
+      const downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // 2. Add document to Firestore shared_songs
+      const sharedSongDoc = {
+        title: song.title,
+        artist: song.artist || user.displayName || user.email.split('@')[0],
+        audioUrl: downloadUrl,
+        storagePath: storagePath,
+        authorId: user.uid,
+        authorName: user.displayName || user.email.split('@')[0],
+        authorEmail: user.email,
+        sharedWith: isAll ? ['all'] : [recipient],
+        sharedWithEmails: isAll ? ['all'] : [recipient],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      await window.fbDb.collection('shared_songs').add(sharedSongDoc);
+
+      alert(`🎵 "${song.title}" successfully shared with ${isAll ? 'all friends' : recipient} in the Social Hub!`);
+    } catch (err) {
+      console.error('Failed to share song:', err);
+      alert('Failed to share song: ' + err.message);
+    } finally {
+      this.renderPlaylist();
     }
   }
 
