@@ -268,20 +268,8 @@
             </div>
           </div>
 
-          <!-- Signed-out Prompt -->
-          <div id="social-auth-notice" class="glass-panel" style="text-align: center; padding: 48px 24px; max-width: 600px; margin: 40px auto;">
-            <div style="font-size: 48px; margin-bottom: 16px;">☁️</div>
-            <h3 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px;">Connect to Apex Cloud</h3>
-            <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px;">
-              Your personal diary, work log, timetable, and study streak remain strictly local in IndexedDB. Connect your account to chat in realtime groups, message friends directly, and share content!
-            </p>
-            <button id="btn-open-auth-modal-banner" class="btn-primary btn-open-auth-trigger" style="width: auto; margin: 0 auto; padding: 12px 28px;" onclick="if(window.authManager) window.authManager.openAuthModal();">
-              <span>Sign In / Create Account</span>
-            </button>
-          </div>
-
-          <!-- Signed-in Main Social Content -->
-          <div id="social-main-content" style="display: none; height: calc(100% - 90px);">
+          <!-- Main Social Content -->
+          <div id="social-main-content" style="display: block; height: calc(100% - 90px);">
             
             <!-- Social Navigation Tabs -->
             <div class="filter-tabs-row" style="margin-bottom: 18px;">
