@@ -318,7 +318,7 @@ html, body {
 }
 
 .btn-ghost {
-  width: 100%;
+  width: auto;
   padding: 10px 14px;
   background: transparent;
   border: 1px solid var(--border-subtle);
