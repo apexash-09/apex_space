@@ -279,11 +279,11 @@
               <button id="btn-social-tab-admin" class="btn-ghost social-nav-tab" data-social-tab="admin_users" style="display: none; border-color: rgba(255,255,255,0.4); color: #fff;">👑 Admin & Users</button>
             </div>
 
-            <!-- 1. WhatsApp-Style Realtime Chat & Groups Section -->
-            <div id="social-chat-section" class="responsive-grid chat-grid" style="display: grid; grid-template-columns: 300px 1fr; gap: 20px; height: 600px; max-height: calc(100vh - 220px); min-height: 480px;">
+            <!-- 1. WhatsApp-Style Single Unified Container Realtime Chat Window -->
+            <div id="social-chat-section" class="glass-panel" style="display: flex; height: 580px; max-height: calc(100vh - 230px); min-height: 480px; padding: 0; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: rgba(18, 18, 18, 0.7);">
               
-              <!-- Left Sidebar: Channels & Friends List -->
-              <div id="chat-sidebar-panel" class="glass-panel" style="display: flex; flex-direction: column; overflow: hidden; padding: 16px; height: 100%;">
+              <!-- Left Sidebar: Channels & Friends List (Internal column with dividing line) -->
+              <div id="chat-sidebar-panel" style="width: 300px; min-width: 270px; border-right: 1px solid var(--border-subtle); background: rgba(12, 12, 12, 0.75); display: flex; flex-direction: column; height: 100%; padding: 16px; flex-shrink: 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
                   <h3 style="font-size: 15px; font-weight: 700; color: #fff;">👥 Group Channels</h3>
                   <button id="btn-quick-create-group" class="btn-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="if(window.socialModule) window.socialModule.openCreateGroupModal();">+ New</button>
@@ -298,17 +298,17 @@
                 </div>
 
                 <!-- Direct Chats List -->
-                <div id="chat-direct-list" style="flex: 1; overflow-y: auto;"></div>
+                <div id="chat-direct-list" style="flex: 1; overflow-y: auto; min-height: 0;"></div>
               </div>
 
               <!-- Right Area: WhatsApp-style Active Conversation Window -->
-              <div id="chat-main-window" class="glass-panel" style="display: flex; flex-direction: column; height: 100%; position: relative; padding: 0; overflow: hidden;">
+              <div id="chat-main-window" style="flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; position: relative; background: rgba(16, 16, 16, 0.4); overflow: hidden;">
                 
                 <!-- Chat Active View Container -->
-                <div id="chat-active-window" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                <div id="chat-active-window" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
                   
                   <!-- Conversation Header -->
-                  <div style="padding: 12px 18px; border-bottom: 1px solid var(--border-subtle); background: rgba(18, 18, 18, 0.85); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; flex-shrink: 0;">
+                  <div style="padding: 12px 18px; border-bottom: 1px solid var(--border-subtle); background: rgba(14, 14, 14, 0.85); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; flex-shrink: 0;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                       <!-- Mobile Back Button -->
                       <button id="btn-mobile-chat-back" class="btn-ghost" style="display: none; padding: 4px 8px; font-size: 12px;" title="Back to Channels">← Channels</button>
@@ -333,8 +333,8 @@
                     </div>
                   </div>
 
-                  <!-- Messages Stream Body -->
-                  <div id="active-chat-messages" style="flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column;"></div>
+                  <!-- Messages Stream Body (Scrollable, min-height 0 ensures it doesn't push form down) -->
+                  <div id="active-chat-messages" style="flex: 1; min-height: 0; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column;"></div>
 
                   <!-- Attachment Preview Chip -->
                   <div id="chat-attachment-preview" style="display: none; padding: 8px 16px; background: rgba(255,255,255,0.08); border-top: 1px solid var(--border-subtle); align-items: center; justify-content: space-between; flex-shrink: 0;">
@@ -344,8 +344,8 @@
                     <button type="button" id="btn-remove-attachment" class="btn-ghost" style="padding: 2px 6px; font-size: 11px; color: var(--accent-red);" title="Remove Attachment">✕</button>
                   </div>
 
-                  <!-- Chat Input Bar (Fully visible and fixed at bottom of window) -->
-                  <form id="form-chat-send" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: rgba(14, 14, 14, 0.95); display: flex; gap: 8px; align-items: center; flex-shrink: 0; position: relative; z-index: 10;">
+                  <!-- Chat Input Bar (Fully pinned at bottom of window) -->
+                  <form id="form-chat-send" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: rgba(10, 10, 10, 0.98); display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
                     <!-- Hidden File Input for Audio & Images -->
                     <input type="file" id="chat-file-input" accept="audio/*,image/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.png,.jpg,.jpeg,.gif" style="display: none;">
                     
