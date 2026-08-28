@@ -189,16 +189,16 @@ class AuthManager {
     const displayName = user.displayName || user.email.split('@')[0];
     const initial = (displayName.charAt(0) || 'U').toUpperCase();
 
-    // Top Header User Widget
+    // Top Header User Widget (Clean, rounded, non-stretched pill)
     if (this.headerUserContainer) {
       this.headerUserContainer.innerHTML = `
-        <div class="user-pill-dropdown" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); border-radius: 20px;">
-          <div style="width: 28px; height: 28px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; overflow: hidden;">
+        <div class="user-header-pill" style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); border-radius: 20px;">
+          <div style="width: 26px; height: 26px; min-width: 26px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; overflow: hidden; flex-shrink: 0;">
             ${user.photoURL ? `<img src="${user.photoURL}" style="width: 100%; height: 100%; object-fit: cover;">` : initial}
           </div>
-          <span style="font-size: 13px; font-weight: 600; color: #fff; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(displayName)}</span>
-          ${this.isAdmin ? '<span class="badge badge-project" style="font-size: 9px; padding: 2px 6px; background: #ffffff; color: #000000; font-weight: 800;">ADMIN</span>' : ''}
-          <button id="btn-header-signout" class="btn-ghost" style="padding: 2px 6px; font-size: 10px; margin-left: 4px;" title="Sign Out">Sign Out</button>
+          <span style="font-size: 13px; font-weight: 600; color: #fff; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(displayName)}</span>
+          ${this.isAdmin ? '<span class="badge badge-project" style="font-size: 8px; padding: 2px 5px; background: #ffffff; color: #000000; font-weight: 800;">ADMIN</span>' : ''}
+          <button id="btn-header-signout" class="btn-ghost" style="padding: 3px 8px; font-size: 11px; border-radius: 12px; margin-left: 2px; line-height: 1; border: 1px solid rgba(255,255,255,0.25);" title="Sign Out">Sign out</button>
         </div>
       `;
 
@@ -211,19 +211,20 @@ class AuthManager {
       }
     }
 
-    // Sidebar footer cloud indicator
+    // Sidebar footer user card
     if (this.sidebarUserContainer) {
       this.sidebarUserContainer.innerHTML = `
-        <div style="padding: 10px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-            <div style="width: 24px; height: 24px; border-radius: 50%; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
+        <div style="padding: 10px 12px; border-radius: var(--radius-md); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+            <div style="width: 28px; height: 28px; min-width: 28px; border-radius: 50%; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;">
               ${initial}
             </div>
-            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #fff;">
-              ${this.escapeHtml(displayName)}
+            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div style="font-size: 13px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(displayName)}</div>
+              <div style="font-size: 10px; color: var(--text-muted);">${this.isAdmin ? '👑 Administrator' : '👤 Member'}</div>
             </div>
           </div>
-          <button id="btn-sidebar-signout" class="btn-ghost" style="padding: 2px 6px; font-size: 10px;" title="Sign Out">✕</button>
+          <button id="btn-sidebar-signout" class="btn-ghost" style="padding: 3px 8px; font-size: 11px; border-radius: 6px; flex-shrink: 0;" title="Sign Out">Sign out</button>
         </div>
       `;
 

@@ -250,6 +250,11 @@
     grid-template-columns: 1fr;
   }
 
+  .chat-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+  }
+
   /* View panel remove fixed height for stacked layouts */
   .view-panel {
     height: auto;
@@ -265,6 +270,11 @@
   .notes-grid .glass-panel {
     min-height: 300px;
     max-height: 500px;
+  }
+
+  .chat-grid .glass-panel {
+    min-height: 320px;
+    max-height: 520px;
   }
 
   /* Music player card */

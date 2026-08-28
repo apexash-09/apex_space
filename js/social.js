@@ -1,45 +1,68 @@
 /**
- * Apex Personal Dashboard - Social Space & Cloud Collaboration Module
- * Realtime Firestore notes, comments, emoji reactions, shared music hub, and Admin moderation.
+ * Apex Personal Dashboard - WhatsApp-style Realtime Social Hub & Group Chat Module
+ * Includes Realtime Group Channels, Personal 1-on-1 Direct Messaging (DMs),
+ * Shared Feed, Music Sharing, and Admin Moderation.
  */
 
 class SocialModule {
   constructor() {
     this.currentUser = null;
     this.isAdmin = false;
-    this.activeTab = 'notes'; // 'notes' | 'music' | 'admin_users'
+    this.activeTab = 'chat'; // 'chat' | 'feed' | 'music' | 'admin_users'
+    this.activeRoomId = null;
+    this.activeRoomData = null;
+
+    // Listeners
+    this.unsubscribeRooms = null;
+    this.unsubscribeMessages = null;
     this.unsubscribeNotes = null;
     this.unsubscribeSongs = null;
-    this.commentListeners = new Map(); // noteId -> unsubscribe function
     this.friendsList = [];
+    this.roomsList = [];
 
     // DOM Elements
     this.socialView = document.getElementById('view-social');
+    this.authNotice = document.getElementById('social-auth-notice');
+    this.socialMainContent = document.getElementById('social-main-content');
+
+    // Chat Layout Elements
+    this.chatSection = document.getElementById('social-chat-section');
+    this.roomsListContainer = document.getElementById('chat-rooms-list');
+    this.directListContainer = document.getElementById('chat-direct-list');
+    this.chatMessagesContainer = document.getElementById('active-chat-messages');
+    this.chatHeaderTitle = document.getElementById('active-chat-title');
+    this.chatHeaderSubtitle = document.getElementById('active-chat-subtitle');
+    this.chatHeaderAvatar = document.getElementById('active-chat-avatar');
+    this.chatInput = document.getElementById('chat-message-input');
+    this.chatForm = document.getElementById('form-chat-send');
+    this.chatEmptyState = document.getElementById('chat-empty-state');
+    this.chatActiveWindow = document.getElementById('chat-active-window');
+
+    // Other Tabs
     this.notesFeed = document.getElementById('social-notes-feed');
     this.sharedSongsFeed = document.getElementById('social-songs-feed');
     this.adminUsersView = document.getElementById('social-admin-users-view');
     this.adminTabBtn = document.getElementById('btn-social-tab-admin');
-    this.authNotice = document.getElementById('social-auth-notice');
-    this.socialMainContent = document.getElementById('social-main-content');
 
+    // Modals
+    this.createGroupModal = document.getElementById('modal-create-group');
+    this.createGroupForm = document.getElementById('form-create-group');
+    this.startDmModal = document.getElementById('modal-start-dm');
     this.postModal = document.getElementById('modal-social-post');
     this.postForm = document.getElementById('form-social-post');
-    this.postFileInput = document.getElementById('social-post-file');
-    this.postAudienceSelect = document.getElementById('social-post-audience');
-    this.postCustomEmailInput = document.getElementById('social-post-custom-email');
 
     this.init();
   }
 
   init() {
-    // 1. Listen for Auth State Changes
+    // 1. Auth Listener
     window.addEventListener('apex-auth-changed', (e) => {
       this.currentUser = e.detail.user;
       this.isAdmin = e.detail.isAdmin;
       this.handleAuthUpdate();
     });
 
-    // 2. Tab Switchers (Shared Notes / Shared Music / Admin Users)
+    // 2. Main Social Navigation Tabs
     document.querySelectorAll('.social-nav-tab').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const tab = e.currentTarget.getAttribute('data-social-tab');
@@ -47,24 +70,60 @@ class SocialModule {
       });
     });
 
-    // 3. Post Modal Triggers
-    const btnOpenPostModal = document.getElementById('btn-open-social-post-modal');
-    if (btnOpenPostModal) {
-      btnOpenPostModal.addEventListener('click', () => this.openPostModal());
+    // 3. Chat Send Form
+    if (this.chatForm) {
+      this.chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.sendMessage();
+      });
+    }
+
+    if (this.chatInput) {
+      this.chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.sendMessage();
+        }
+      });
+    }
+
+    // 4. Create Group Triggers
+    const btnOpenGroupModal = document.getElementById('btn-open-create-group-modal');
+    if (btnOpenGroupModal) {
+      btnOpenGroupModal.addEventListener('click', () => this.openCreateGroupModal());
+    }
+
+    document.querySelectorAll('[data-close="modal-create-group"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeCreateGroupModal());
+    });
+
+    if (this.createGroupForm) {
+      this.createGroupForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.createGroup();
+      });
+    }
+
+    // 5. Start DM Triggers
+    const btnOpenDmModal = document.getElementById('btn-open-dm-modal');
+    if (btnOpenDmModal) {
+      btnOpenDmModal.addEventListener('click', () => this.openStartDmModal());
+    }
+
+    document.querySelectorAll('[data-close="modal-start-dm"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeStartDmModal());
+    });
+
+    // 6. Post Modal Triggers
+    const btnOpenPost = document.getElementById('btn-open-social-post-modal');
+    if (btnOpenPost) {
+      btnOpenPost.addEventListener('click', () => this.openPostModal());
     }
 
     document.querySelectorAll('[data-close="modal-social-post"]').forEach((btn) => {
       btn.addEventListener('click', () => this.closePostModal());
     });
 
-    // 4. Post Audience Dropdown Change
-    if (this.postAudienceSelect && this.postCustomEmailInput) {
-      this.postAudienceSelect.addEventListener('change', (e) => {
-        this.postCustomEmailInput.style.display = e.target.value === 'custom' ? 'block' : 'none';
-      });
-    }
-
-    // 5. Post Form Submit
     if (this.postForm) {
       this.postForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -85,6 +144,8 @@ class SocialModule {
       }
 
       this.fetchRegisteredUsers();
+      this.seedDefaultRoomsIfEmpty();
+      this.startRoomsListener();
       this.startNotesListener();
       this.startSharedSongsListener();
     } else {
@@ -107,11 +168,540 @@ class SocialModule {
       }
     });
 
-    if (this.notesFeed) this.notesFeed.style.display = tab === 'notes' ? 'block' : 'none';
+    if (this.chatSection) this.chatSection.style.display = tab === 'chat' ? 'grid' : 'none';
+    if (this.notesFeed) this.notesFeed.style.display = tab === 'feed' ? 'block' : 'none';
     if (this.sharedSongsFeed) this.sharedSongsFeed.style.display = tab === 'music' ? 'block' : 'none';
     if (this.adminUsersView) {
       this.adminUsersView.style.display = tab === 'admin_users' ? 'block' : 'none';
       if (tab === 'admin_users') this.renderAdminUsersList();
+    }
+  }
+
+  // --- Realtime Chat Rooms & Direct Messages ---
+  async seedDefaultRoomsIfEmpty() {
+    if (!window.fbDb || !this.currentUser) return;
+
+    try {
+      const snap = await window.fbDb.collection('chat_rooms').limit(1).get();
+      if (snap.empty) {
+        const defaultRooms = [
+          {
+            name: '🌐 General Lounge',
+            description: 'Public community hangout for all Apex Space friends',
+            type: 'group',
+            icon: '🌐',
+            createdBy: 'system',
+            createdByName: 'Apex Space',
+            members: ['all'],
+            memberEmails: ['all'],
+            lastMessage: 'Welcome to Apex Space Social Hub!',
+            lastMessageSender: 'Apex System',
+            lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          },
+          {
+            name: '📚 Study & College Notes',
+            description: 'Collaborate on subjects, exam tips, and study materials',
+            type: 'group',
+            icon: '📚',
+            createdBy: 'system',
+            createdByName: 'Apex Space',
+            members: ['all'],
+            memberEmails: ['all'],
+            lastMessage: 'Share your college notes, formulas, and study sessions here.',
+            lastMessageSender: 'Apex System',
+            lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          },
+          {
+            name: '💻 Projects & Code Hub',
+            description: 'Discuss software projects, web apps, tools & ideas',
+            type: 'group',
+            icon: '💻',
+            createdBy: 'system',
+            createdByName: 'Apex Space',
+            members: ['all'],
+            memberEmails: ['all'],
+            lastMessage: 'Discuss your development progress and technical questions.',
+            lastMessageSender: 'Apex System',
+            lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }
+        ];
+
+        for (const r of defaultRooms) {
+          await window.fbDb.collection('chat_rooms').add(r);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not seed default rooms:', err);
+    }
+  }
+
+  startRoomsListener() {
+    if (!window.fbDb || !this.currentUser) return;
+    if (this.unsubscribeRooms) this.unsubscribeRooms();
+
+    this.unsubscribeRooms = window.fbDb.collection('chat_rooms').orderBy('lastMessageTime', 'desc').onSnapshot(
+      (snapshot) => {
+        this.roomsList = [];
+        snapshot.forEach((doc) => {
+          const data = { id: doc.id, ...doc.data() };
+          if (this.isAdmin || this.hasAccessToRoom(data)) {
+            this.roomsList.push(data);
+          }
+        });
+        this.renderRoomsList();
+      },
+      (err) => {
+        console.error('Chat rooms listener error:', err);
+      }
+    );
+  }
+
+  hasAccessToRoom(room) {
+    if (!this.currentUser) return false;
+    const uid = this.currentUser.uid;
+    const email = (this.currentUser.email || '').toLowerCase();
+
+    if (room.members && room.members.includes('all')) return true;
+    if (room.members && room.members.includes(uid)) return true;
+    if (room.memberEmails && room.memberEmails.includes(email)) return true;
+    if (room.createdBy === uid) return true;
+
+    return false;
+  }
+
+  renderRoomsList() {
+    if (!this.roomsListContainer || !this.directListContainer) return;
+
+    this.roomsListContainer.innerHTML = '';
+    this.directListContainer.innerHTML = '';
+
+    const groups = this.roomsList.filter(r => r.type !== 'direct');
+    const directChats = this.roomsList.filter(r => r.type === 'direct');
+
+    // 1. Render Group Rooms
+    if (groups.length === 0) {
+      this.roomsListContainer.innerHTML = `<p style="font-size: 11px; color: var(--text-dim); text-align: center; padding: 12px 0;">No groups created yet.</p>`;
+    } else {
+      groups.forEach((room) => {
+        const item = this.createRoomListItem(room);
+        this.roomsListContainer.appendChild(item);
+      });
+    }
+
+    // 2. Render Direct Chats
+    if (directChats.length === 0) {
+      this.directListContainer.innerHTML = `<p style="font-size: 11px; color: var(--text-dim); text-align: center; padding: 12px 0;">No direct conversations yet.</p>`;
+    } else {
+      directChats.forEach((room) => {
+        const item = this.createRoomListItem(room);
+        this.directListContainer.appendChild(item);
+      });
+    }
+
+    // Auto-select first room if none selected
+    if (!this.activeRoomId && groups.length > 0) {
+      this.selectRoom(groups[0]);
+    }
+  }
+
+  createRoomListItem(room) {
+    const isSelected = this.activeRoomId === room.id;
+    const div = document.createElement('div');
+    div.className = `chat-room-item ${isSelected ? 'active' : ''}`;
+    div.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      margin-bottom: 6px;
+      transition: all 0.2s ease;
+      background: ${isSelected ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.02)'};
+      border: 1px solid ${isSelected ? '#ffffff' : 'transparent'};
+    `;
+
+    // Title / display for DM vs Group
+    let roomTitle = room.name;
+    let roomAvatar = room.icon || '💬';
+
+    if (room.type === 'direct' && room.memberNames) {
+      const otherName = room.memberNames.find(n => n !== (this.currentUser.displayName || this.currentUser.email.split('@')[0])) || 'Friend';
+      roomTitle = otherName;
+      roomAvatar = otherName.charAt(0).toUpperCase();
+    }
+
+    const lastMsg = room.lastMessage || 'No messages yet';
+
+    div.innerHTML = `
+      <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: #ffffff; color: #000000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0;">
+        ${roomAvatar}
+      </div>
+      <div style="overflow: hidden; flex: 1;">
+        <div style="font-size: 13px; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+          ${this.escapeHtml(roomTitle)}
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-top: 2px;">
+          ${this.escapeHtml(lastMsg)}
+        </div>
+      </div>
+    `;
+
+    div.addEventListener('click', () => this.selectRoom(room));
+    return div;
+  }
+
+  selectRoom(room) {
+    this.activeRoomId = room.id;
+    this.activeRoomData = room;
+
+    // Highlight room in list
+    document.querySelectorAll('.chat-room-item').forEach((el) => {
+      el.style.background = 'rgba(255,255,255,0.02)';
+      el.style.borderColor = 'transparent';
+    });
+    const selectedEl = Array.from(document.querySelectorAll('.chat-room-item')).find(el => el.innerText.includes(room.name));
+    if (selectedEl) {
+      selectedEl.style.background = 'rgba(255,255,255,0.12)';
+      selectedEl.style.borderColor = '#ffffff';
+    }
+
+    // Update Header
+    let roomTitle = room.name;
+    let roomAvatar = room.icon || '💬';
+    let roomSubtitle = room.description || (room.type === 'direct' ? 'Direct 1-on-1 Conversation' : 'Group Channel');
+
+    if (room.type === 'direct' && room.memberNames) {
+      const otherName = room.memberNames.find(n => n !== (this.currentUser.displayName || this.currentUser.email.split('@')[0])) || 'Friend';
+      roomTitle = otherName;
+      roomAvatar = otherName.charAt(0).toUpperCase();
+    }
+
+    if (this.chatHeaderTitle) this.chatHeaderTitle.innerText = roomTitle;
+    if (this.chatHeaderSubtitle) this.chatHeaderSubtitle.innerText = roomSubtitle;
+    if (this.chatHeaderAvatar) this.chatHeaderAvatar.innerText = roomAvatar;
+
+    if (this.chatEmptyState) this.chatEmptyState.style.display = 'none';
+    if (this.chatActiveWindow) this.chatActiveWindow.style.display = 'flex';
+
+    this.startMessagesListener(room.id);
+  }
+
+  startMessagesListener(roomId) {
+    if (!window.fbDb) return;
+    if (this.unsubscribeMessages) this.unsubscribeMessages();
+
+    this.chatMessagesContainer.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--text-dim);">Loading messages...</div>`;
+
+    const messagesRef = window.fbDb
+      .collection('chat_rooms')
+      .doc(roomId)
+      .collection('messages')
+      .orderBy('createdAt', 'asc');
+
+    this.unsubscribeMessages = messagesRef.onSnapshot(
+      (snapshot) => {
+        this.chatMessagesContainer.innerHTML = '';
+
+        if (snapshot.empty) {
+          this.chatMessagesContainer.innerHTML = `
+            <div style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
+              <div style="font-size: 36px; margin-bottom: 10px;">💬</div>
+              <h4 style="font-size: 15px; font-weight: 600; color: #fff;">No messages yet</h4>
+              <p style="font-size: 12px; margin-top: 6px;">Send the first message to start interacting with your friends in realtime!</p>
+            </div>
+          `;
+          return;
+        }
+
+        snapshot.forEach((doc) => {
+          const msg = { id: doc.id, ...doc.data() };
+          const msgEl = this.createMessageBubbleElement(msg);
+          this.chatMessagesContainer.appendChild(msgEl);
+        });
+
+        this.scrollChatToBottom();
+      },
+      (err) => {
+        console.error('Messages listener error:', err);
+      }
+    );
+  }
+
+  createMessageBubbleElement(msg) {
+    const isMe = this.currentUser && msg.senderId === this.currentUser.uid;
+    const canDelete = isMe || this.isAdmin;
+
+    const timeFormatted = msg.createdAt && msg.createdAt.toDate
+      ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'Just now';
+
+    const div = document.createElement('div');
+    div.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: ${isMe ? 'flex-end' : 'flex-start'};
+      margin-bottom: 12px;
+      max-width: 80%;
+      ${isMe ? 'margin-left: auto;' : 'margin-right: auto;'}
+    `;
+
+    div.innerHTML = `
+      ${!isMe ? `
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
+          <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
+          ${msg.senderEmail === window.ADMIN_EMAIL ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
+        </div>
+      ` : ''}
+
+      <div style="
+        background: ${isMe ? '#ffffff' : 'rgba(24, 24, 24, 0.9)'};
+        color: ${isMe ? '#000000' : '#f4f4f5'};
+        padding: 10px 14px;
+        border-radius: 16px;
+        ${isMe ? 'border-top-right-radius: 4px;' : 'border-top-left-radius: 4px; border: 1px solid var(--border-subtle);'}
+        font-size: 13px;
+        line-height: 1.5;
+        position: relative;
+        word-break: break-word;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      ">
+        ${this.formatPostContent(msg.text)}
+
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
+          <span>${timeFormatted}</span>
+          ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? '#ff3b30' : 'var(--accent-red)'}; font-size: 10px;" title="Delete Message">✕</button>` : ''}
+        </div>
+      </div>
+    `;
+
+    const delBtn = div.querySelector('.btn-delete-chat-msg');
+    if (delBtn) {
+      delBtn.addEventListener('click', async () => {
+        if (!confirm('Delete this message?')) return;
+        try {
+          await window.fbDb
+            .collection('chat_rooms')
+            .doc(this.activeRoomId)
+            .collection('messages')
+            .doc(msg.id)
+            .delete();
+        } catch (err) {
+          console.error('Failed to delete message:', err);
+        }
+      });
+    }
+
+    return div;
+  }
+
+  async sendMessage() {
+    if (!this.currentUser || !this.activeRoomId) return;
+    const text = this.chatInput.value.trim();
+    if (!text) return;
+
+    this.chatInput.value = '';
+
+    const newMsg = {
+      text: text,
+      senderId: this.currentUser.uid,
+      senderName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
+      senderEmail: this.currentUser.email,
+      senderPhoto: this.currentUser.photoURL || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      // 1. Add to messages subcollection
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .collection('messages')
+        .add(newMsg);
+
+      // 2. Update room's lastMessage
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .update({
+          lastMessage: text.length > 50 ? text.substring(0, 50) + '...' : text,
+          lastMessageSender: newMsg.senderName,
+          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+      this.scrollChatToBottom();
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      alert('Could not send message: ' + err.message);
+    }
+  }
+
+  scrollChatToBottom() {
+    if (this.chatMessagesContainer) {
+      setTimeout(() => {
+        this.chatMessagesContainer.scrollTop = this.chatMessagesContainer.scrollHeight;
+      }, 50);
+    }
+  }
+
+  // --- Group Creation & Personal DMs ---
+  openCreateGroupModal() {
+    if (!this.currentUser) {
+      alert('Please connect your Apex Cloud account first!');
+      return;
+    }
+    if (this.createGroupModal) this.createGroupModal.classList.add('active');
+  }
+
+  closeCreateGroupModal() {
+    if (this.createGroupModal) {
+      this.createGroupModal.classList.remove('active');
+      if (this.createGroupForm) this.createGroupForm.reset();
+    }
+  }
+
+  async createGroup() {
+    const nameInput = document.getElementById('group-name-input');
+    const descInput = document.getElementById('group-desc-input');
+    const iconInput = document.getElementById('group-icon-input');
+    const typeSelect = document.getElementById('group-access-type');
+
+    const name = nameInput.value.trim();
+    if (!name || !this.currentUser) return;
+
+    const newRoom = {
+      name: name,
+      description: descInput ? descInput.value.trim() : '',
+      icon: iconInput ? iconInput.value.trim() || '👥' : '👥',
+      type: 'group',
+      createdBy: this.currentUser.uid,
+      createdByName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
+      members: ['all'],
+      memberEmails: ['all'],
+      lastMessage: 'Group created',
+      lastMessageSender: this.currentUser.displayName || 'Creator',
+      lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      const docRef = await window.fbDb.collection('chat_rooms').add(newRoom);
+      this.closeCreateGroupModal();
+      newRoom.id = docRef.id;
+      this.selectRoom(newRoom);
+    } catch (err) {
+      console.error('Failed to create group:', err);
+      alert('Failed to create group: ' + err.message);
+    }
+  }
+
+  openStartDmModal() {
+    if (!this.currentUser) {
+      alert('Please connect your Apex Cloud account first!');
+      return;
+    }
+    this.renderDmFriendsPicker();
+    if (this.startDmModal) this.startDmModal.classList.add('active');
+  }
+
+  closeStartDmModal() {
+    if (this.startDmModal) this.startDmModal.classList.remove('active');
+  }
+
+  async renderDmFriendsPicker() {
+    const container = document.getElementById('dm-friends-picker-list');
+    if (!container) return;
+
+    container.innerHTML = '<p style="font-size: 12px; color: var(--text-muted); text-align: center;">Loading friends...</p>';
+
+    try {
+      await this.fetchRegisteredUsers();
+      container.innerHTML = '';
+
+      if (this.friendsList.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 20px 0; color: var(--text-muted);">
+            <p style="font-size: 13px;">No other friends found yet.</p>
+            <p style="font-size: 11px; margin-top: 4px;">Invite your friends to register on Apex Space!</p>
+          </div>
+        `;
+        return;
+      }
+
+      this.friendsList.forEach((friend) => {
+        const item = document.createElement('div');
+        item.className = 'glass-card';
+        item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; margin-bottom: 8px;';
+        
+        item.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 30px; height: 30px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
+              ${(friend.displayName || friend.email || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 600; color: #fff;">${this.escapeHtml(friend.displayName || 'Friend')}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${this.escapeHtml(friend.email)}</div>
+            </div>
+          </div>
+          <button class="btn-primary" style="width: auto; padding: 6px 12px; font-size: 11px;">Chat 💬</button>
+        `;
+
+        item.addEventListener('click', () => this.startDirectChatWithFriend(friend));
+        container.appendChild(item);
+      });
+    } catch (err) {
+      console.error('Error loading DM friends:', err);
+    }
+  }
+
+  async startDirectChatWithFriend(friend) {
+    if (!this.currentUser) return;
+
+    try {
+      // Check if DM room already exists between these 2 users
+      const existing = this.roomsList.find(r => 
+        r.type === 'direct' && 
+        r.members && 
+        r.members.includes(this.currentUser.uid) && 
+        r.members.includes(friend.uid)
+      );
+
+      if (existing) {
+        this.closeStartDmModal();
+        this.selectRoom(existing);
+        return;
+      }
+
+      const myName = this.currentUser.displayName || this.currentUser.email.split('@')[0];
+      const friendName = friend.displayName || friend.email.split('@')[0];
+
+      // Create new DM room
+      const dmRoom = {
+        name: `Chat with ${friendName}`,
+        description: `Direct conversation between ${myName} and ${friendName}`,
+        type: 'direct',
+        icon: friendName.charAt(0).toUpperCase(),
+        createdBy: this.currentUser.uid,
+        createdByName: myName,
+        members: [this.currentUser.uid, friend.uid],
+        memberEmails: [this.currentUser.email.toLowerCase(), friend.email.toLowerCase()],
+        memberNames: [myName, friendName],
+        lastMessage: 'Direct conversation started',
+        lastMessageSender: myName,
+        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      const docRef = await window.fbDb.collection('chat_rooms').add(dmRoom);
+      this.closeStartDmModal();
+      dmRoom.id = docRef.id;
+      this.selectRoom(dmRoom);
+    } catch (err) {
+      console.error('Failed to start direct chat:', err);
+      alert('Could not start direct chat: ' + err.message);
     }
   }
 
@@ -126,59 +716,30 @@ class SocialModule {
           this.friendsList.push(data);
         }
       });
-      this.updateAudienceDropdown();
     } catch (err) {
       console.warn('Could not fetch friends list:', err);
     }
   }
 
-  updateAudienceDropdown() {
-    if (!this.postAudienceSelect) return;
-    const currentVal = this.postAudienceSelect.value;
-
-    this.postAudienceSelect.innerHTML = `
-      <option value="all">🌐 All Friends (Shared Space)</option>
-      <option value="custom">✉️ Specific Friend by Email...</option>
-    `;
-
-    if (this.friendsList.length > 0) {
-      const group = document.createElement('optgroup');
-      group.label = 'Registered Friends';
-      this.friendsList.forEach((f) => {
-        const opt = document.createElement('option');
-        opt.value = f.uid;
-        opt.innerText = `👤 ${f.displayName || f.email} (${f.email})`;
-        group.appendChild(opt);
-      });
-      this.postAudienceSelect.appendChild(group);
-    }
-
-    this.postAudienceSelect.value = currentVal || 'all';
-  }
-
-  // --- Realtime Firestore Notes Listener ---
+  // --- Shared Feed & Notes (Preserved) ---
   startNotesListener() {
     if (!window.fbDb || !this.currentUser) return;
     if (this.unsubscribeNotes) this.unsubscribeNotes();
 
     const collectionRef = window.fbDb.collection('shared_notes');
 
-    // Admin can see everything, regular friends see public + their direct shares
     this.unsubscribeNotes = collectionRef.orderBy('createdAt', 'desc').onSnapshot(
       (snapshot) => {
         const notes = [];
         snapshot.forEach((doc) => {
           const data = { id: doc.id, ...doc.data() };
-          // Client-side filter for fine-grained privacy if non-admin
           if (this.isAdmin || this.hasAccessToNote(data)) {
             notes.push(data);
           }
         });
         this.renderNotesFeed(notes);
       },
-      (err) => {
-        console.error('Realtime shared notes error:', err);
-      }
+      (err) => console.error('Shared notes listener error:', err)
     );
   }
 
@@ -202,338 +763,63 @@ class SocialModule {
     if (notes.length === 0) {
       this.notesFeed.innerHTML = `
         <div style="text-align: center; padding: 48px 16px; color: var(--text-muted);">
-          <div style="font-size: 40px; margin-bottom: 12px;">💬</div>
-          <h4 style="font-size: 16px; font-weight: 600; color: #fff;">No Shared Notes Yet</h4>
-          <p style="font-size: 13px; max-width: 400px; margin: 8px auto;">Be the first to share a note, photo, formula, or link with your friends!</p>
+          <div style="font-size: 40px; margin-bottom: 12px;">📝</div>
+          <h4 style="font-size: 16px; font-weight: 600; color: #fff;">No Shared Feed Posts Yet</h4>
+          <p style="font-size: 13px; max-width: 400px; margin: 8px auto;">Share notes, photos, formulas, or links with your friends on the feed!</p>
         </div>
       `;
       return;
     }
 
     notes.forEach((note) => {
-      const card = this.createNoteCardElement(note);
+      const card = document.createElement('div');
+      card.className = 'glass-card';
+      card.style.marginBottom = '16px';
+      card.style.padding = '18px';
+
+      const isAuthor = this.currentUser && note.authorId === this.currentUser.uid;
+      const canDelete = isAuthor || this.isAdmin;
+      const dateFormatted = note.createdAt && note.createdAt.toDate
+        ? note.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : 'Recently';
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;">
+              ${(note.authorName || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 600; color: #fff;">${this.escapeHtml(note.authorName || 'Friend')}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${dateFormatted}</div>
+            </div>
+          </div>
+          ${canDelete ? `<button class="btn-ghost btn-delete-post" style="padding: 2px 6px; font-size: 11px; color: var(--accent-red);">✕</button>` : ''}
+        </div>
+        ${note.title ? `<h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;">${this.escapeHtml(note.title)}</h4>` : ''}
+        <div style="font-size: 13px; color: var(--text-main); line-height: 1.5;">${this.formatPostContent(note.content)}</div>
+      `;
+
+      const delBtn = card.querySelector('.btn-delete-post');
+      if (delBtn) {
+        delBtn.addEventListener('click', async () => {
+          if (!confirm('Delete post?')) return;
+          try {
+            await window.fbDb.collection('shared_notes').doc(note.id).delete();
+          } catch (e) {}
+        });
+      }
+
       this.notesFeed.appendChild(card);
     });
   }
 
-  createNoteCardElement(note) {
-    const isAuthor = this.currentUser && note.authorId === this.currentUser.uid;
-    const canDelete = isAuthor || this.isAdmin;
-    const dateFormatted = note.createdAt && note.createdAt.toDate
-      ? note.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      : 'Just now';
-
-    const card = document.createElement('div');
-    card.className = 'glass-card social-post-card';
-    card.style.marginBottom = '20px';
-    card.style.padding = '20px';
-    card.setAttribute('data-note-id', note.id);
-
-    // Calculate active user reactions
-    const reactions = note.reactions || {};
-    const userReaction = this.currentUser ? reactions[this.currentUser.uid] : null;
-
-    // Reaction counts
-    const reactionCounts = { '❤️': 0, '🔥': 0, '👏': 0, '💡': 0, '🚀': 0 };
-    Object.values(reactions).forEach((emoji) => {
-      if (reactionCounts[emoji] !== undefined) reactionCounts[emoji]++;
-    });
-
-    const isDirectShare = note.sharedWith && !note.sharedWith.includes('all');
-
-    card.innerHTML = `
-      <!-- Card Header -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 36px; height: 36px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">
-            ${(note.authorName || 'U').charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 6px;">
-              <span>${this.escapeHtml(note.authorName || 'Friend')}</span>
-              ${note.authorEmail === window.ADMIN_EMAIL ? '<span class="badge badge-project" style="font-size: 9px; padding: 2px 6px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
-              ${isDirectShare ? '<span class="badge badge-misc" style="font-size: 9px; padding: 2px 6px;">🔒 Direct Share</span>' : '<span class="badge badge-college" style="font-size: 9px; padding: 2px 6px;">🌐 Shared</span>'}
-            </div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${dateFormatted}</div>
-          </div>
-        </div>
-        ${canDelete ? `<button class="btn-ghost btn-delete-note" style="padding: 4px 8px; font-size: 11px; color: var(--accent-red); border-color: rgba(255,77,77,0.25);" title="Delete Post">${this.isAdmin && !isAuthor ? '🛡️ Moderate Delete' : '✕ Delete'}</button>` : ''}
-      </div>
-
-      <!-- Card Title & Content -->
-      ${note.title ? `<h3 style="font-size: 17px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">${this.escapeHtml(note.title)}</h3>` : ''}
-      <div class="markdown-body" style="font-size: 14px; line-height: 1.6; margin-bottom: 14px; color: var(--text-main);">
-        ${this.formatPostContent(note.content)}
-      </div>
-
-      <!-- Media Attachment if Image / URL -->
-      ${note.mediaUrl ? `
-        <div style="margin-bottom: 14px; border-radius: var(--radius-md); overflow: hidden; max-height: 400px; background: #000; border: 1px solid var(--border-subtle);">
-          ${note.type === 'image' ? `<img src="${note.mediaUrl}" style="width: 100%; height: auto; max-height: 400px; object-fit: contain; display: block;" loading="lazy">` : `<a href="${note.mediaUrl}" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 8px; padding: 12px; color: #ffffff; text-decoration: underline;">🔗 ${this.escapeHtml(note.mediaUrl)}</a>`}
-        </div>
-      ` : ''}
-
-      <!-- Reactions & Comments Bar -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 10px;">
-        
-        <!-- Reaction Emojis -->
-        <div class="reactions-picker" style="display: flex; gap: 6px; align-items: center;">
-          ${['❤️', '🔥', '👏', '💡', '🚀'].map((emoji) => {
-            const count = reactionCounts[emoji];
-            const isSelected = userReaction === emoji;
-            return `
-              <button class="btn-ghost btn-reaction ${isSelected ? 'active' : ''}" data-emoji="${emoji}" style="padding: 4px 8px; font-size: 13px; border-radius: 16px; ${isSelected ? 'background: rgba(255,255,255,0.25); border-color: #fff; color: #fff;' : ''}">
-                <span>${emoji}</span>
-                ${count > 0 ? `<span style="font-size: 11px; margin-left: 4px; font-weight: 600;">${count}</span>` : ''}
-              </button>
-            `;
-          }).join('')}
-        </div>
-
-        <!-- Comments Toggle Button -->
-        <button class="btn-ghost btn-toggle-comments" style="padding: 4px 12px; font-size: 12px; border-radius: 16px;">
-          💬 Comments
-        </button>
-      </div>
-
-      <!-- Comments Thread Container (Expandable) -->
-      <div class="comments-thread-wrapper" style="display: none; margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border-subtle);">
-        <div class="comments-list" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; max-height: 260px; overflow-y: auto;">
-          <p style="font-size: 12px; color: var(--text-muted); text-align: center;">Loading comments...</p>
-        </div>
-        <form class="form-add-comment" style="display: flex; gap: 8px;">
-          <input type="text" class="form-control comment-input" placeholder="Write a comment..." required style="padding: 8px 12px; font-size: 13px;">
-          <button type="submit" class="btn-primary" style="width: auto; padding: 8px 16px; font-size: 13px;">Send</button>
-        </form>
-      </div>
-    `;
-
-    // Event: Delete Note
-    const delBtn = card.querySelector('.btn-delete-note');
-    if (delBtn) {
-      delBtn.addEventListener('click', () => this.deleteSharedNote(note.id));
-    }
-
-    // Event: Reactions
-    card.querySelectorAll('.btn-reaction').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        const emoji = e.currentTarget.getAttribute('data-emoji');
-        this.toggleReaction(note.id, emoji, userReaction);
-      });
-    });
-
-    // Event: Comments Toggle
-    const commentsToggleBtn = card.querySelector('.btn-toggle-comments');
-    const commentsWrapper = card.querySelector('.comments-thread-wrapper');
-    const commentsList = card.querySelector('.comments-list');
-    const commentForm = card.querySelector('.form-add-comment');
-
-    if (commentsToggleBtn && commentsWrapper) {
-      commentsToggleBtn.addEventListener('click', () => {
-        const isHidden = commentsWrapper.style.display === 'none';
-        commentsWrapper.style.display = isHidden ? 'block' : 'none';
-        if (isHidden) {
-          this.listenToComments(note.id, commentsList);
-        }
-      });
-    }
-
-    // Event: Submit Comment
-    if (commentForm) {
-      commentForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const input = commentForm.querySelector('.comment-input');
-        const text = input.value.trim();
-        if (!text || !this.currentUser) return;
-
-        try {
-          input.value = '';
-          await window.fbDb.collection('shared_notes').doc(note.id).collection('comments').add({
-            text: text,
-            authorId: this.currentUser.uid,
-            authorName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
-            authorEmail: this.currentUser.email,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-        } catch (err) {
-          console.error('Error posting comment:', err);
-          alert('Could not post comment.');
-        }
-      });
-    }
-
-    return card;
-  }
-
-  listenToComments(noteId, containerEl) {
-    if (this.commentListeners.has(noteId)) return;
-
-    const commentsRef = window.fbDb
-      .collection('shared_notes')
-      .doc(noteId)
-      .collection('comments')
-      .orderBy('createdAt', 'asc');
-
-    const unsubscribe = commentsRef.onSnapshot((snapshot) => {
-      containerEl.innerHTML = '';
-      if (snapshot.empty) {
-        containerEl.innerHTML = `<p style="font-size: 12px; color: var(--text-muted); text-align: center;">No comments yet. Start the conversation!</p>`;
-        return;
-      }
-
-      snapshot.forEach((doc) => {
-        const c = { id: doc.id, ...doc.data() };
-        const isCommentAuthor = this.currentUser && c.authorId === this.currentUser.uid;
-        const canDelete = isCommentAuthor || this.isAdmin;
-
-        const commentDiv = document.createElement('div');
-        commentDiv.style.cssText = 'background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px;';
-        commentDiv.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <span style="font-weight: 600; color: #fff; font-size: 12px;">${this.escapeHtml(c.authorName || 'Friend')} ${c.authorEmail === window.ADMIN_EMAIL ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px;">ADMIN</span>' : ''}</span>
-            ${canDelete ? `<button class="btn-delete-comment btn-ghost" style="padding: 1px 4px; font-size: 10px; color: var(--accent-red);">✕</button>` : ''}
-          </div>
-          <p style="color: var(--text-main); margin: 0; line-height: 1.4;">${this.escapeHtml(c.text)}</p>
-        `;
-
-        const delBtn = commentDiv.querySelector('.btn-delete-comment');
-        if (delBtn) {
-          delBtn.addEventListener('click', async () => {
-            if (!confirm('Delete comment?')) return;
-            try {
-              await window.fbDb.collection('shared_notes').doc(noteId).collection('comments').doc(c.id).delete();
-            } catch (err) {
-              console.error('Failed to delete comment:', err);
-            }
-          });
-        }
-
-        containerEl.appendChild(commentDiv);
-      });
-    });
-
-    this.commentListeners.set(noteId, unsubscribe);
-  }
-
-  async toggleReaction(noteId, emoji, currentReaction) {
-    if (!this.currentUser) {
-      alert('Please connect your Apex Cloud account to react!');
-      return;
-    }
-
-    try {
-      const noteRef = window.fbDb.collection('shared_notes').doc(noteId);
-      const updateObj = {};
-
-      if (currentReaction === emoji) {
-        // Remove reaction
-        updateObj[`reactions.${this.currentUser.uid}`] = firebase.firestore.FieldValue.delete();
-      } else {
-        // Set new reaction
-        updateObj[`reactions.${this.currentUser.uid}`] = emoji;
-      }
-
-      await noteRef.update(updateObj);
-    } catch (err) {
-      console.error('Failed to update reaction:', err);
-    }
-  }
-
-  async createSharedPost() {
-    if (!this.currentUser) {
-      alert('Please sign in first.');
-      return;
-    }
-
-    const title = document.getElementById('social-post-title').value.trim();
-    const content = document.getElementById('social-post-content').value.trim();
-    const audience = this.postAudienceSelect.value;
-    const customEmail = this.postCustomEmailInput.value.trim().toLowerCase();
-    const file = this.postFileInput.files[0];
-    const submitBtn = this.postForm.querySelector('button[type="submit"]');
-
-    if (!content && !file) {
-      alert('Please add some text or attach an image.');
-      return;
-    }
-
-    try {
-      submitBtn.disabled = true;
-      submitBtn.innerText = 'Sharing with Friends...';
-
-      let mediaUrl = '';
-      let type = 'text';
-
-      // 1. Upload attached media if present
-      if (file) {
-        type = 'image';
-        const fileExt = file.name.split('.').pop();
-        const storagePath = `shared_media/${this.currentUser.uid}/${Date.now()}_media.${fileExt}`;
-        const storageRef = window.fbStorage.ref(storagePath);
-        const snapshot = await storageRef.put(file);
-        mediaUrl = await snapshot.ref.getDownloadURL();
-      }
-
-      // 2. Audience array
-      let sharedWith = ['all'];
-      let sharedWithEmails = ['all'];
-
-      if (audience === 'custom' && customEmail) {
-        sharedWith = [];
-        sharedWithEmails = [customEmail];
-      } else if (audience !== 'all') {
-        sharedWith = [audience];
-        const targetFriend = this.friendsList.find((f) => f.uid === audience);
-        if (targetFriend && targetFriend.email) {
-          sharedWithEmails = [targetFriend.email.toLowerCase()];
-        }
-      }
-
-      // 3. Save to Firestore
-      const newPost = {
-        title: title || '',
-        content: content || '',
-        type: type,
-        mediaUrl: mediaUrl,
-        authorId: this.currentUser.uid,
-        authorName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
-        authorEmail: this.currentUser.email,
-        sharedWith: sharedWith,
-        sharedWithEmails: sharedWithEmails,
-        reactions: {},
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      await window.fbDb.collection('shared_notes').add(newPost);
-
-      this.closePostModal();
-    } catch (err) {
-      console.error('Failed to create shared post:', err);
-      alert('Failed to post: ' + err.message);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerText = 'Share with Friends';
-    }
-  }
-
-  async deleteSharedNote(noteId) {
-    if (!confirm('Are you sure you want to delete this shared note?')) return;
-    try {
-      await window.fbDb.collection('shared_notes').doc(noteId).delete();
-    } catch (err) {
-      console.error('Failed to delete note:', err);
-      alert('Could not delete note: ' + err.message);
-    }
-  }
-
-  // --- Realtime Shared Songs Listener ---
+  // --- Shared Music Feed ---
   startSharedSongsListener() {
     if (!window.fbDb || !this.currentUser) return;
     if (this.unsubscribeSongs) this.unsubscribeSongs();
 
-    const collectionRef = window.fbDb.collection('shared_songs');
-
-    this.unsubscribeSongs = collectionRef.orderBy('createdAt', 'desc').onSnapshot(
+    this.unsubscribeSongs = window.fbDb.collection('shared_songs').orderBy('createdAt', 'desc').onSnapshot(
       (snapshot) => {
         const songs = [];
         snapshot.forEach((doc) => {
@@ -544,9 +830,7 @@ class SocialModule {
         });
         this.renderSharedSongsFeed(songs);
       },
-      (err) => {
-        console.error('Realtime shared songs error:', err);
-      }
+      (err) => console.error('Shared songs listener error:', err)
     );
   }
 
@@ -559,7 +843,7 @@ class SocialModule {
         <div style="text-align: center; padding: 48px 16px; color: var(--text-muted);">
           <div style="font-size: 40px; margin-bottom: 12px;">🎵</div>
           <h4 style="font-size: 16px; font-weight: 600; color: #fff;">No Shared Songs Yet</h4>
-          <p style="font-size: 13px; max-width: 400px; margin: 8px auto;">Go to your local <strong>Songs & Audio</strong> tab and click <strong>📤 Share</strong> on any track to share music with friends!</p>
+          <p style="font-size: 13px; max-width: 400px; margin: 8px auto;">Go to your local <strong>Songs & Audio</strong> tab and click <strong>📤 Share</strong> to stream music with friends!</p>
         </div>
       `;
       return;
@@ -568,46 +852,35 @@ class SocialModule {
     songs.forEach((song) => {
       const isAuthor = this.currentUser && song.authorId === this.currentUser.uid;
       const canDelete = isAuthor || this.isAdmin;
-      const dateFormatted = song.createdAt && song.createdAt.toDate
-        ? song.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-        : 'Recently';
 
       const card = document.createElement('div');
       card.className = 'glass-card';
-      card.style.marginBottom = '16px';
-      card.style.padding = '18px';
+      card.style.marginBottom = '14px';
+      card.style.padding = '16px';
 
       card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-size: 16px;">
               🎵
             </div>
             <div>
-              <div style="font-size: 15px; font-weight: 700; color: #fff;">${this.escapeHtml(song.title)}</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Shared by ${this.escapeHtml(song.authorName || 'Friend')} • ${dateFormatted}</div>
+              <div style="font-size: 14px; font-weight: 700; color: #fff;">${this.escapeHtml(song.title)}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Shared by ${this.escapeHtml(song.authorName || 'Friend')}</div>
             </div>
           </div>
-          ${canDelete ? `<button class="btn-ghost btn-delete-shared-song" style="padding: 4px 8px; font-size: 11px; color: var(--accent-red);">${this.isAdmin && !isAuthor ? '🛡️ Moderate Delete' : '✕ Delete'}</button>` : ''}
+          ${canDelete ? `<button class="btn-ghost btn-delete-song" style="padding: 2px 6px; font-size: 11px; color: var(--accent-red);">✕</button>` : ''}
         </div>
-
-        <!-- In-app Audio Player -->
-        <audio controls src="${song.audioUrl}" style="width: 100%; margin-top: 8px; height: 36px; border-radius: var(--radius-sm);"></audio>
+        <audio controls src="${song.audioUrl}" style="width: 100%; height: 32px; border-radius: var(--radius-sm);"></audio>
       `;
 
-      const delBtn = card.querySelector('.btn-delete-shared-song');
+      const delBtn = card.querySelector('.btn-delete-song');
       if (delBtn) {
         delBtn.addEventListener('click', async () => {
           if (!confirm('Delete shared song?')) return;
           try {
             await window.fbDb.collection('shared_songs').doc(song.id).delete();
-            if (song.storagePath) {
-              const fileRef = window.fbStorage.ref(song.storagePath);
-              await fileRef.delete().catch(() => {});
-            }
-          } catch (err) {
-            console.error('Failed to delete shared song:', err);
-          }
+          } catch (e) {}
         });
       }
 
@@ -624,8 +897,8 @@ class SocialModule {
       const snap = await window.fbDb.collection('users').get();
       this.adminUsersView.innerHTML = `
         <div class="glass-panel" style="margin-bottom: 24px;">
-          <h3 style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">🛡️ Administrator Dashboard (${snap.size} Registered Users)</h3>
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">As Administrator (${window.ADMIN_EMAIL}), you have full moderation privileges to view and manage shared social content across all friends.</p>
+          <h3 style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">👑 Administrator Directory (${snap.size} Registered Users)</h3>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">As Administrator (${window.ADMIN_EMAIL}), you have full moderation privileges across all group channels, direct chats, and social feeds.</p>
           
           <div style="display: flex; flex-direction: column; gap: 10px;">
             ${snap.docs.map((doc) => {
@@ -653,17 +926,14 @@ class SocialModule {
       `;
     } catch (err) {
       console.error('Error rendering admin users list:', err);
-      this.adminUsersView.innerHTML = `<p style="color: var(--accent-red); padding: 20px;">Could not load users: ${err.message}</p>`;
     }
   }
 
   openPostModal() {
     if (!this.currentUser) {
       alert('Please connect your Apex Cloud account first!');
-      if (window.authManager) window.authManager.openAuthModal();
       return;
     }
-    this.updateAudienceDropdown();
     if (this.postModal) this.postModal.classList.add('active');
   }
 
@@ -671,11 +941,41 @@ class SocialModule {
     if (this.postModal) {
       this.postModal.classList.remove('active');
       if (this.postForm) this.postForm.reset();
-      if (this.postCustomEmailInput) this.postCustomEmailInput.style.display = 'none';
+    }
+  }
+
+  async createSharedPost() {
+    if (!this.currentUser) return;
+    const title = document.getElementById('social-post-title').value.trim();
+    const content = document.getElementById('social-post-content').value.trim();
+
+    if (!content) return;
+
+    try {
+      await window.fbDb.collection('shared_notes').add({
+        title,
+        content,
+        authorId: this.currentUser.uid,
+        authorName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
+        authorEmail: this.currentUser.email,
+        sharedWith: ['all'],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      this.closePostModal();
+    } catch (err) {
+      console.error('Failed to post:', err);
     }
   }
 
   stopListeners() {
+    if (this.unsubscribeRooms) {
+      this.unsubscribeRooms();
+      this.unsubscribeRooms = null;
+    }
+    if (this.unsubscribeMessages) {
+      this.unsubscribeMessages();
+      this.unsubscribeMessages = null;
+    }
     if (this.unsubscribeNotes) {
       this.unsubscribeNotes();
       this.unsubscribeNotes = null;
@@ -684,15 +984,13 @@ class SocialModule {
       this.unsubscribeSongs();
       this.unsubscribeSongs = null;
     }
-    this.commentListeners.forEach((unsub) => unsub());
-    this.commentListeners.clear();
   }
 
   formatPostContent(text) {
     if (!text) return '';
     let html = this.escapeHtml(text);
     html = html.replace(/\n/g, '<br>');
-    return `<p>${html}</p>`;
+    return html;
   }
 
   escapeHtml(str) {

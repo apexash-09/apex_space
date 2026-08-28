@@ -259,9 +259,13 @@
           <div class="section-header">
             <div>
               <h2 class="section-title">Social Hub & Collaboration</h2>
-              <p class="section-desc">Share notes, photos, links, and music with friends in real-time. Personal diary stays local & private.</p>
+              <p class="section-desc">WhatsApp-style realtime groups, direct messaging with friends, and shared spaces.</p>
             </div>
-            <button id="btn-open-social-post-modal" class="btn-primary" style="width: auto;">+ Share with Friends</button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button id="btn-open-create-group-modal" class="btn-primary" style="width: auto;">+ New Group</button>
+              <button id="btn-open-dm-modal" class="btn-ghost" style="width: auto;">💬 Direct Message</button>
+              <button id="btn-open-social-post-modal" class="btn-ghost" style="width: auto;">📝 Share Post</button>
+            </div>
           </div>
 
           <!-- Signed-out Prompt -->
@@ -269,7 +273,7 @@
             <div style="font-size: 48px; margin-bottom: 16px;">☁️</div>
             <h3 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px;">Connect to Apex Cloud</h3>
             <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 24px;">
-              Your diary, work log, timetable, and study streak remain strictly local in your browser's IndexedDB. Connect your account to share notes, photos, comments, and songs with friends in realtime!
+              Your personal diary, work log, timetable, and study streak remain strictly local in IndexedDB. Connect your account to chat in realtime groups, message friends directly, and share content!
             </p>
             <button id="btn-open-auth-modal-banner" class="btn-primary btn-open-auth-trigger" style="width: auto; margin: 0 auto; padding: 12px 28px;" onclick="if(window.authManager) window.authManager.openAuthModal();">
               <span>Sign In / Create Account</span>
@@ -277,22 +281,86 @@
           </div>
 
           <!-- Signed-in Main Social Content -->
-          <div id="social-main-content" style="display: none;">
+          <div id="social-main-content" style="display: none; height: calc(100% - 90px);">
             
-            <!-- Social Tabs -->
-            <div class="filter-tabs-row" style="margin-bottom: 24px;">
-              <button class="btn-ghost social-nav-tab active" data-social-tab="notes">📝 Shared Notes & Posts</button>
+            <!-- Social Navigation Tabs -->
+            <div class="filter-tabs-row" style="margin-bottom: 18px;">
+              <button class="btn-ghost social-nav-tab active" data-social-tab="chat">💬 Live Chat & Groups</button>
+              <button class="btn-ghost social-nav-tab" data-social-tab="feed">📝 Shared Feed</button>
               <button class="btn-ghost social-nav-tab" data-social-tab="music">🎵 Shared Music</button>
-              <button id="btn-social-tab-admin" class="btn-ghost social-nav-tab" data-social-tab="admin_users" style="display: none; border-color: rgba(255,255,255,0.4); color: #fff;">🛡️ Admin & Users Directory</button>
+              <button id="btn-social-tab-admin" class="btn-ghost social-nav-tab" data-social-tab="admin_users" style="display: none; border-color: rgba(255,255,255,0.4); color: #fff;">👑 Admin & Users</button>
             </div>
 
-            <!-- Notes Feed -->
-            <div id="social-notes-feed" style="max-width: 800px; margin: 0 auto;"></div>
+            <!-- 1. WhatsApp-Style Realtime Chat & Groups Section -->
+            <div id="social-chat-section" class="responsive-grid chat-grid" style="display: grid; grid-template-columns: 320px 1fr; gap: 20px; height: calc(100% - 60px);">
+              
+              <!-- Left Sidebar: Channels & Friends List -->
+              <div class="glass-panel" style="display: flex; flex-direction: column; overflow: hidden; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <h3 style="font-size: 15px; font-weight: 700; color: #fff;">👥 Group Channels</h3>
+                  <button id="btn-quick-create-group" class="btn-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="if(window.socialModule) window.socialModule.openCreateGroupModal();">+ New</button>
+                </div>
 
-            <!-- Shared Songs Feed -->
+                <!-- Group Channels List -->
+                <div id="chat-rooms-list" style="overflow-y: auto; max-height: 200px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;"></div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <h3 style="font-size: 15px; font-weight: 700; color: #fff;">💬 Direct Messages</h3>
+                  <button id="btn-quick-start-dm" class="btn-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="if(window.socialModule) window.socialModule.openStartDmModal();">+ DM</button>
+                </div>
+
+                <!-- Direct Chats List -->
+                <div id="chat-direct-list" style="flex: 1; overflow-y: auto;"></div>
+              </div>
+
+              <!-- Right Area: WhatsApp-style Active Conversation Window -->
+              <div class="glass-panel" style="display: flex; flex-direction: column; height: 100%; position: relative; padding: 0; overflow: hidden;">
+                
+                <!-- Chat Active View Container -->
+                <div id="chat-active-window" style="display: flex; flex-direction: column; height: 100%;">
+                  
+                  <!-- Conversation Header -->
+                  <div style="padding: 14px 20px; border-bottom: 1px solid var(--border-subtle); background: rgba(18, 18, 18, 0.7); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <div id="active-chat-avatar" style="width: 38px; height: 38px; min-width: 38px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">
+                        🌐
+                      </div>
+                      <div>
+                        <div id="active-chat-title" style="font-size: 15px; font-weight: 700; color: #fff;">General Lounge</div>
+                        <div id="active-chat-subtitle" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Public community group for all friends</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Messages Stream Body -->
+                  <div id="active-chat-messages" style="flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column;"></div>
+
+                  <!-- Chat Input Bar -->
+                  <form id="form-chat-send" style="padding: 14px 20px; border-top: 1px solid var(--border-subtle); background: rgba(14, 14, 14, 0.85); display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="chat-message-input" class="form-control" placeholder="Type a message to the group... (Press Enter to send)" autocomplete="off" style="padding: 12px 16px;">
+                    <button type="submit" class="btn-primary" style="width: auto; padding: 12px 20px; border-radius: var(--radius-md);">
+                      <span>Send</span>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                  </form>
+                </div>
+
+                <!-- Empty State (if no chat selected) -->
+                <div id="chat-empty-state" style="display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--text-muted); padding: 32px;">
+                  <div style="font-size: 48px; margin-bottom: 16px;">💬</div>
+                  <h4 style="font-size: 18px; font-weight: 700; color: #fff;">Select a Group or Friend</h4>
+                  <p style="font-size: 13px; max-width: 360px; margin-top: 8px; line-height: 1.5;">Choose a group channel from the left or click Direct Message to chat with any friend in realtime.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Shared Feed Posts -->
+            <div id="social-notes-feed" style="display: none; max-width: 800px; margin: 0 auto;"></div>
+
+            <!-- 3. Shared Songs Feed -->
             <div id="social-songs-feed" style="display: none; max-width: 800px; margin: 0 auto;"></div>
 
-            <!-- Admin Users Directory -->
+            <!-- 4. Admin Users Directory -->
             <div id="social-admin-users-view" style="display: none; max-width: 800px; margin: 0 auto;"></div>
           </div>
         </section>
@@ -778,6 +846,49 @@
 
         <button type="submit" class="btn-primary">Share with Friends</button>
       </form>
+    </div>
+  </div>
+
+  <!-- CREATE GROUP CHAT MODAL -->
+  <div id="modal-create-group" class="modal-overlay">
+    <div class="modal-container" style="max-width: 480px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">👥</span>
+          <h3 class="modal-title">Create Group Channel</h3>
+        </div>
+        <button class="close-btn" data-close="modal-create-group">&times;</button>
+      </div>
+      <form id="form-create-group">
+        <div class="form-group">
+          <label for="group-name-input">Group Name</label>
+          <input type="text" id="group-name-input" class="form-control" required placeholder="e.g. 🚀 Web Dev Project Team">
+        </div>
+        <div class="form-group">
+          <label for="group-icon-input">Group Emoji / Icon</label>
+          <input type="text" id="group-icon-input" class="form-control" placeholder="e.g. 🚀 or 📚 or 🎵" maxlength="4" value="👥">
+        </div>
+        <div class="form-group">
+          <label for="group-desc-input">Description / Purpose (Optional)</label>
+          <textarea id="group-desc-input" class="form-control" placeholder="What is this group about?" style="min-height: 80px;"></textarea>
+        </div>
+        <button type="submit" class="btn-primary">Create Group</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- START DIRECT MESSAGE MODAL -->
+  <div id="modal-start-dm" class="modal-overlay">
+    <div class="modal-container" style="max-width: 480px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">💬</span>
+          <h3 class="modal-title">Direct 1-on-1 Message</h3>
+        </div>
+        <button class="close-btn" data-close="modal-start-dm">&times;</button>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Select a registered friend to start chatting personally in real-time:</p>
+      <div id="dm-friends-picker-list" style="max-height: 320px; overflow-y: auto;"></div>
     </div>
   </div>
 

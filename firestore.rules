@@ -23,25 +23,53 @@ service cloud.firestore {
     }
 
     // USERS COLLECTION
-    // Storing basic profile info for sharing between friends
     match /users/{userId} {
-      // Authenticated users can read other users' profiles to find friends for sharing
       allow read: if isAuthenticated();
-      
-      // Users can create/update their own profile
       allow create, update: if isOwner(userId);
-      
-      // Admin can manage any user document
       allow delete: if isAdmin();
+    }
+
+    // CHAT ROOMS (WhatsApp-style Groups & Direct Chats)
+    match /chat_rooms/{roomId} {
+      // Read access: Admin, public room ('all' in members), or room member
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        'all' in resource.data.members ||
+        request.auth.uid in resource.data.members ||
+        (resource.data.memberEmails != null && request.auth.token.email.lower() in resource.data.memberEmails)
+      );
+
+      // Create: Authenticated user creating room
+      allow create: if isAuthenticated();
+
+      // Update: Admin, creator, or member updating lastMessage
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.createdBy == request.auth.uid ||
+        request.auth.uid in resource.data.members ||
+        'all' in resource.data.members
+      );
+
+      // Delete: Room creator or Admin
+      allow delete: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.createdBy == request.auth.uid
+      );
+
+      // MESSAGES SUBCOLLECTION
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && 
+                      request.resource.data.senderId == request.auth.uid;
+        allow delete: if isAuthenticated() && (
+          isAdmin() ||
+          resource.data.senderId == request.auth.uid
+        );
+      }
     }
 
     // SHARED NOTES COLLECTION
     match /shared_notes/{noteId} {
-      // Read access:
-      // 1. User is Admin
-      // 2. User is the author
-      // 3. Note is shared with 'all'
-      // 4. Note is explicitly shared with user's UID or Email
       allow read: if isAuthenticated() && (
         isAdmin() ||
         resource.data.authorId == request.auth.uid ||
@@ -50,24 +78,18 @@ service cloud.firestore {
         (resource.data.sharedWithEmails != null && request.auth.token.email.lower() in resource.data.sharedWithEmails)
       );
 
-      // Create: Authenticated user creating their own note
       allow create: if isAuthenticated() && 
                     request.resource.data.authorId == request.auth.uid;
 
-      // Update: 
-      // 1. Author or Admin updating content
-      // 2. Any authorized viewer adding a reaction or updating reaction map
       allow update: if isAuthenticated() && (
         isAdmin() ||
         resource.data.authorId == request.auth.uid ||
         (
-          // Allow reacting if user has read access
           ('all' in resource.data.sharedWith || request.auth.uid in resource.data.sharedWith) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactionsCount', 'commentsCount'])
         )
       );
 
-      // Delete: Only note author or Admin
       allow delete: if isAuthenticated() && (
         isAdmin() ||
         resource.data.authorId == request.auth.uid
