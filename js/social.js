@@ -316,41 +316,85 @@ class SocialModule {
     }
   }
 
-  // --- Attachments Handling (Music & Audio & Images) ---
+  // --- Attachments Handling (Auto-Compressed Images & Audio Tracks) ---
   async handleChatFileSelected(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Check size limit: 15MB for client base64 storage
-    if (file.size > 15 * 1024 * 1024) {
-      alert('File size exceeds 15MB. Please choose a smaller track or image.');
-      return;
-    }
-
     const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
     const isImage = file.type.startsWith('image/');
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      this.pendingAttachment = {
-        name: file.name,
-        type: isAudio ? 'audio' : (isImage ? 'image' : 'file'),
-        dataUrl: reader.result,
-        sizeMB: (file.size / (1024 * 1024)).toFixed(1)
-      };
+    if (isImage) {
+      // Auto-compress image to fit comfortably under Firestore 1MB document limit
+      try {
+        const compressedDataUrl = await this.compressImage(file, 800, 0.75);
+        this.pendingAttachment = {
+          name: file.name,
+          type: 'image',
+          dataUrl: compressedDataUrl
+        };
 
-      if (this.chatAttachmentPreview && this.attachmentPreviewName) {
-        this.attachmentPreviewName.innerText = `${isAudio ? '🎵' : '🖼️'} ${file.name} (${this.pendingAttachment.sizeMB} MB)`;
-        this.chatAttachmentPreview.style.display = 'flex';
+        if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+          this.attachmentPreviewName.innerText = `🖼️ ${file.name}`;
+          this.chatAttachmentPreview.style.display = 'flex';
+        }
+      } catch (err) {
+        console.error('Image compression error:', err);
+        alert('Could not process image: ' + err.message);
       }
-    };
-    reader.readAsDataURL(file);
+    } else if (isAudio) {
+      if (file.size > 800 * 1024) {
+        alert('Notice: For full songs, please use the Songs & Audio tab to play or share. Chat audio clips are limited to 800KB.');
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        this.pendingAttachment = {
+          name: file.name,
+          type: 'audio',
+          dataUrl: reader.result
+        };
+
+        if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+          this.attachmentPreviewName.innerText = `🎵 ${file.name}`;
+          this.chatAttachmentPreview.style.display = 'flex';
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   }
 
-  clearAttachment() {
-    this.pendingAttachment = null;
-    if (this.chatFileInput) this.chatFileInput.value = '';
-    if (this.chatAttachmentPreview) this.chatAttachmentPreview.style.display = 'none';
+  compressImage(file, maxDimension = 800, quality = 0.75) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = event.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   // --- Realtime Chat Rooms & Groups ---
@@ -661,22 +705,25 @@ class SocialModule {
 
         <!-- Audio Attachment Player -->
         ${msg.attachment && msg.attachment.type === 'audio' ? `
-          <div style="margin-top: 8px; padding: 6px; background: ${isMe ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.5)'}; border-radius: 10px;">
-            <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px; color: ${isMe ? '#000' : '#fff'};">🎵 ${this.escapeHtml(msg.attachment.name)}</div>
+          <div style="margin-top: 8px; padding: 8px 10px; background: ${isMe ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.5)'}; border-radius: 10px; min-width: 220px; max-width: 280px;">
+            <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px; color: ${isMe ? '#000' : '#fff'}; display: flex; align-items: center; gap: 4px;">
+              <span>🎵</span>
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(msg.attachment.name)}</span>
+            </div>
             <audio controls src="${msg.attachment.dataUrl}" style="width: 100%; height: 32px;"></audio>
           </div>
         ` : ''}
 
-        <!-- Image Attachment -->
+        <!-- Image Attachment (Clean, properly bounded like WhatsApp) -->
         ${msg.attachment && msg.attachment.type === 'image' ? `
-          <div style="margin-top: 8px; border-radius: 8px; overflow: hidden; max-height: 260px;">
-            <img src="${msg.attachment.dataUrl}" style="width: 100%; height: auto; object-fit: contain; display: block;">
+          <div style="margin-top: 8px; border-radius: 10px; overflow: hidden; max-width: 260px; max-height: 200px; border: 1px solid rgba(255,255,255,0.15);">
+            <img src="${msg.attachment.dataUrl}" style="width: 100%; height: 100%; max-height: 200px; object-fit: cover; display: block; cursor: pointer;" onclick="window.open('${msg.attachment.dataUrl}', '_blank');" title="Click to view full image">
           </div>
         ` : ''}
 
         <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
           <span>${timeFormatted}</span>
-          ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? '#ff3b30' : 'var(--accent-red)'}; font-size: 10px;" title="Delete Message">✕</button>` : ''}
+          ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? '#ff3b30' : 'var(--text-dim)'}; font-size: 11px; opacity: 0.7; transition: opacity 0.2s;" title="${isMe ? 'Delete my message' : 'Delete as Admin'}">🗑️</button>` : ''}
         </div>
       </div>
     `;
