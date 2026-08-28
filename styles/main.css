@@ -749,10 +749,10 @@ select.form-control {
    ========================================================================== */
 .ai-fab-floating {
   position: fixed;
-  bottom: 28px;
+  bottom: 90px;
   right: 28px;
-  width: 62px;
-  height: 62px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: #000000;
   border: 2px solid #ffffff;

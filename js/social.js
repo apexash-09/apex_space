@@ -1,7 +1,11 @@
 /**
  * Apex Personal Dashboard - WhatsApp-style Realtime Social Hub & Group Chat Module
- * Includes Realtime Group Channels, Personal 1-on-1 Direct Messaging (DMs),
- * Shared Feed, Music Sharing, and Admin Moderation.
+ * Supports:
+ * - Realtime Group Channels & Direct Messaging (DMs)
+ * - Custom & Anonymous Handles (Generate or set your own alias in global chat)
+ * - Auto-send on Enter key
+ * - Mobile responsive navigation with back-to-channels switcher
+ * - Shared Feed, Shared Music & Admin Directory
  */
 
 class SocialModule {
@@ -11,6 +15,7 @@ class SocialModule {
     this.activeTab = 'chat'; // 'chat' | 'feed' | 'music' | 'admin_users'
     this.activeRoomId = null;
     this.activeRoomData = null;
+    this.isAnonymousMode = false;
 
     // Listeners
     this.unsubscribeRooms = null;
@@ -22,11 +27,12 @@ class SocialModule {
 
     // DOM Elements
     this.socialView = document.getElementById('view-social');
-    this.authNotice = document.getElementById('social-auth-notice');
     this.socialMainContent = document.getElementById('social-main-content');
 
     // Chat Layout Elements
     this.chatSection = document.getElementById('social-chat-section');
+    this.chatSidebarPanel = document.getElementById('chat-sidebar-panel');
+    this.chatMainWindow = document.getElementById('chat-main-window');
     this.roomsListContainer = document.getElementById('chat-rooms-list');
     this.directListContainer = document.getElementById('chat-direct-list');
     this.chatMessagesContainer = document.getElementById('active-chat-messages');
@@ -37,6 +43,8 @@ class SocialModule {
     this.chatForm = document.getElementById('form-chat-send');
     this.chatEmptyState = document.getElementById('chat-empty-state');
     this.chatActiveWindow = document.getElementById('chat-active-window');
+    this.mobileBackBtn = document.getElementById('btn-mobile-chat-back');
+    this.anonBadge = document.getElementById('chat-anon-badge');
 
     // Other Tabs
     this.notesFeed = document.getElementById('social-notes-feed');
@@ -55,14 +63,17 @@ class SocialModule {
   }
 
   init() {
-    // 1. Auth Listener
+    // 1. Initialize anonymous identity
+    this.initAnonymousIdentity();
+
+    // 2. Auth Listener
     window.addEventListener('apex-auth-changed', (e) => {
       this.currentUser = e.detail.user;
       this.isAdmin = e.detail.isAdmin;
       this.handleAuthUpdate();
     });
 
-    // 2. Main Social Navigation Tabs
+    // 3. Main Social Navigation Tabs
     document.querySelectorAll('.social-nav-tab').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const tab = e.currentTarget.getAttribute('data-social-tab');
@@ -70,7 +81,7 @@ class SocialModule {
       });
     });
 
-    // 3. Chat Send Form
+    // 4. Chat Send Form & Enter Listener
     if (this.chatForm) {
       this.chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -87,7 +98,17 @@ class SocialModule {
       });
     }
 
-    // 4. Create Group Triggers
+    // 5. Mobile Back to Channels
+    if (this.mobileBackBtn) {
+      this.mobileBackBtn.addEventListener('click', () => this.showMobileChannels());
+    }
+
+    // 6. Anonymous Alias Click to change / randomize
+    if (this.anonBadge) {
+      this.anonBadge.addEventListener('click', () => this.promptChangeHandle());
+    }
+
+    // 7. Create Group Triggers
     const btnOpenGroupModal = document.getElementById('btn-open-create-group-modal');
     if (btnOpenGroupModal) {
       btnOpenGroupModal.addEventListener('click', () => this.openCreateGroupModal());
@@ -104,7 +125,7 @@ class SocialModule {
       });
     }
 
-    // 5. Start DM Triggers
+    // 8. Start DM Triggers
     const btnOpenDmModal = document.getElementById('btn-open-dm-modal');
     if (btnOpenDmModal) {
       btnOpenDmModal.addEventListener('click', () => this.openStartDmModal());
@@ -114,7 +135,7 @@ class SocialModule {
       btn.addEventListener('click', () => this.closeStartDmModal());
     });
 
-    // 6. Post Modal Triggers
+    // 9. Shared Post Form
     const btnOpenPost = document.getElementById('btn-open-social-post-modal');
     if (btnOpenPost) {
       btnOpenPost.addEventListener('click', () => this.openPostModal());
@@ -130,30 +151,91 @@ class SocialModule {
         this.createSharedPost();
       });
     }
+
+    // Initial setup: start rooms listener right away so guests & users can chat immediately
+    this.seedDefaultRoomsIfEmpty();
+    this.startRoomsListener();
+    this.startNotesListener();
+    this.startSharedSongsListener();
+  }
+
+  // --- Anonymous & Custom Alias Identity System ---
+  initAnonymousIdentity() {
+    let anonUid = localStorage.getItem('apex_anon_uid');
+    if (!anonUid) {
+      anonUid = 'anon_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('apex_anon_uid', anonUid);
+    }
+
+    let anonHandle = localStorage.getItem('apex_anon_handle');
+    if (!anonHandle) {
+      anonHandle = this.generateRandomAlias();
+      localStorage.setItem('apex_anon_handle', anonHandle);
+    }
+
+    this.updateAnonBadge();
+  }
+
+  generateRandomAlias() {
+    const adjectives = ['Cyber', 'Neon', 'Shadow', 'Apex', 'Phantom', 'Cosmic', 'Solar', 'Quantum', 'Vortex', 'Astral'];
+    const nouns = ['Pilot', 'Hacker', 'Nomad', 'Scholar', 'Ninja', 'Rider', 'Voyager', 'Ghost', 'Architect', 'Spark'];
+    const num = Math.floor(100 + Math.random() * 900);
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return `${adj}${noun}_${num}`;
+  }
+
+  promptChangeHandle() {
+    const current = this.getSenderIdentity().name;
+    const newHandle = prompt(
+      "🎭 Set your Custom Chat Alias:\n(Visible to friends and in group chats. You can remain completely anonymous)",
+      current
+    );
+
+    if (newHandle && newHandle.trim()) {
+      localStorage.setItem('apex_anon_handle', newHandle.trim());
+      this.updateAnonBadge();
+      alert(`✅ Your chat alias has been set to: "${newHandle.trim()}"!`);
+    }
+  }
+
+  updateAnonBadge() {
+    if (!this.anonBadge) return;
+    const idObj = this.getSenderIdentity();
+    this.anonBadge.innerHTML = `
+      <span title="Click to customize your alias">🎭 Chatting as: <strong style="color: #fff; text-decoration: underline;">${this.escapeHtml(idObj.name)}</strong> ⚙️</span>
+    `;
+  }
+
+  getSenderIdentity() {
+    if (this.currentUser && !this.isAnonymousMode) {
+      return {
+        uid: this.currentUser.uid,
+        name: this.currentUser.displayName || this.currentUser.email.split('@')[0],
+        email: this.currentUser.email,
+        isAnon: false
+      };
+    } else {
+      const anonUid = localStorage.getItem('apex_anon_uid') || 'anon_guest';
+      const anonName = localStorage.getItem('apex_anon_handle') || 'AnonymousUser';
+      return {
+        uid: anonUid,
+        name: anonName,
+        email: 'anonymous@apex',
+        isAnon: true
+      };
+    }
   }
 
   handleAuthUpdate() {
-    if (!this.socialView) return;
+    this.updateAnonBadge();
+
+    if (this.adminTabBtn) {
+      this.adminTabBtn.style.display = this.isAdmin ? 'inline-flex' : 'none';
+    }
 
     if (this.currentUser) {
-      if (this.authNotice) this.authNotice.style.display = 'none';
-      if (this.socialMainContent) this.socialMainContent.style.display = 'block';
-
-      if (this.adminTabBtn) {
-        this.adminTabBtn.style.display = this.isAdmin ? 'inline-flex' : 'none';
-      }
-
       this.fetchRegisteredUsers();
-      this.seedDefaultRoomsIfEmpty();
-      this.startRoomsListener();
-      this.startNotesListener();
-      this.startSharedSongsListener();
-    } else {
-      if (this.authNotice) this.authNotice.style.display = 'block';
-      if (this.socialMainContent) this.socialMainContent.style.display = 'none';
-      if (this.adminTabBtn) this.adminTabBtn.style.display = 'none';
-
-      this.stopListeners();
     }
   }
 
@@ -177,9 +259,9 @@ class SocialModule {
     }
   }
 
-  // --- Realtime Chat Rooms & Direct Messages ---
+  // --- Realtime Chat Rooms & Groups ---
   async seedDefaultRoomsIfEmpty() {
-    if (!window.fbDb || !this.currentUser) return;
+    if (!window.fbDb) return;
 
     try {
       const snap = await window.fbDb.collection('chat_rooms').limit(1).get();
@@ -239,17 +321,14 @@ class SocialModule {
   }
 
   startRoomsListener() {
-    if (!window.fbDb || !this.currentUser) return;
+    if (!window.fbDb) return;
     if (this.unsubscribeRooms) this.unsubscribeRooms();
 
     this.unsubscribeRooms = window.fbDb.collection('chat_rooms').orderBy('lastMessageTime', 'desc').onSnapshot(
       (snapshot) => {
         this.roomsList = [];
         snapshot.forEach((doc) => {
-          const data = { id: doc.id, ...doc.data() };
-          if (this.isAdmin || this.hasAccessToRoom(data)) {
-            this.roomsList.push(data);
-          }
+          this.roomsList.push({ id: doc.id, ...doc.data() });
         });
         this.renderRoomsList();
       },
@@ -257,19 +336,6 @@ class SocialModule {
         console.error('Chat rooms listener error:', err);
       }
     );
-  }
-
-  hasAccessToRoom(room) {
-    if (!this.currentUser) return false;
-    const uid = this.currentUser.uid;
-    const email = (this.currentUser.email || '').toLowerCase();
-
-    if (room.members && room.members.includes('all')) return true;
-    if (room.members && room.members.includes(uid)) return true;
-    if (room.memberEmails && room.memberEmails.includes(email)) return true;
-    if (room.createdBy === uid) return true;
-
-    return false;
   }
 
   renderRoomsList() {
@@ -283,7 +349,7 @@ class SocialModule {
 
     // 1. Render Group Rooms
     if (groups.length === 0) {
-      this.roomsListContainer.innerHTML = `<p style="font-size: 11px; color: var(--text-dim); text-align: center; padding: 12px 0;">No groups created yet.</p>`;
+      this.roomsListContainer.innerHTML = `<p style="font-size: 11px; color: var(--text-dim); text-align: center; padding: 12px 0;">No groups available.</p>`;
     } else {
       groups.forEach((room) => {
         const item = this.createRoomListItem(room);
@@ -301,7 +367,7 @@ class SocialModule {
       });
     }
 
-    // Auto-select first room if none selected
+    // Auto-select first group room if none selected
     if (!this.activeRoomId && groups.length > 0) {
       this.selectRoom(groups[0]);
     }
@@ -324,12 +390,12 @@ class SocialModule {
       border: 1px solid ${isSelected ? '#ffffff' : 'transparent'};
     `;
 
-    // Title / display for DM vs Group
     let roomTitle = room.name;
     let roomAvatar = room.icon || '💬';
 
     if (room.type === 'direct' && room.memberNames) {
-      const otherName = room.memberNames.find(n => n !== (this.currentUser.displayName || this.currentUser.email.split('@')[0])) || 'Friend';
+      const myId = this.getSenderIdentity();
+      const otherName = room.memberNames.find(n => n !== myId.name) || 'Friend';
       roomTitle = otherName;
       roomAvatar = otherName.charAt(0).toUpperCase();
     }
@@ -350,7 +416,10 @@ class SocialModule {
       </div>
     `;
 
-    div.addEventListener('click', () => this.selectRoom(room));
+    div.addEventListener('click', () => {
+      this.selectRoom(room);
+      this.showMobileChat();
+    });
     return div;
   }
 
@@ -363,11 +432,6 @@ class SocialModule {
       el.style.background = 'rgba(255,255,255,0.02)';
       el.style.borderColor = 'transparent';
     });
-    const selectedEl = Array.from(document.querySelectorAll('.chat-room-item')).find(el => el.innerText.includes(room.name));
-    if (selectedEl) {
-      selectedEl.style.background = 'rgba(255,255,255,0.12)';
-      selectedEl.style.borderColor = '#ffffff';
-    }
 
     // Update Header
     let roomTitle = room.name;
@@ -375,7 +439,8 @@ class SocialModule {
     let roomSubtitle = room.description || (room.type === 'direct' ? 'Direct 1-on-1 Conversation' : 'Group Channel');
 
     if (room.type === 'direct' && room.memberNames) {
-      const otherName = room.memberNames.find(n => n !== (this.currentUser.displayName || this.currentUser.email.split('@')[0])) || 'Friend';
+      const myId = this.getSenderIdentity();
+      const otherName = room.memberNames.find(n => n !== myId.name) || 'Friend';
       roomTitle = otherName;
       roomAvatar = otherName.charAt(0).toUpperCase();
     }
@@ -388,6 +453,23 @@ class SocialModule {
     if (this.chatActiveWindow) this.chatActiveWindow.style.display = 'flex';
 
     this.startMessagesListener(room.id);
+  }
+
+  // --- Mobile Chat Switching ---
+  showMobileChat() {
+    if (window.innerWidth <= 768) {
+      if (this.chatSidebarPanel) this.chatSidebarPanel.style.display = 'none';
+      if (this.chatMainWindow) this.chatMainWindow.style.display = 'flex';
+      if (this.mobileBackBtn) this.mobileBackBtn.style.display = 'inline-flex';
+    }
+  }
+
+  showMobileChannels() {
+    if (window.innerWidth <= 768) {
+      if (this.chatSidebarPanel) this.chatSidebarPanel.style.display = 'flex';
+      if (this.chatMainWindow) this.chatMainWindow.style.display = 'none';
+      if (this.mobileBackBtn) this.mobileBackBtn.style.display = 'none';
+    }
   }
 
   startMessagesListener(roomId) {
@@ -410,8 +492,8 @@ class SocialModule {
           this.chatMessagesContainer.innerHTML = `
             <div style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
               <div style="font-size: 36px; margin-bottom: 10px;">💬</div>
-              <h4 style="font-size: 15px; font-weight: 600; color: #fff;">No messages yet</h4>
-              <p style="font-size: 12px; margin-top: 6px;">Send the first message to start interacting with your friends in realtime!</p>
+              <h4 style="font-size: 15px; font-weight: 600; color: #fff;">No messages yet in this channel</h4>
+              <p style="font-size: 12px; margin-top: 6px;">Type below and press <strong>Enter</strong> to send your thoughts in realtime!</p>
             </div>
           `;
           return;
@@ -432,7 +514,8 @@ class SocialModule {
   }
 
   createMessageBubbleElement(msg) {
-    const isMe = this.currentUser && msg.senderId === this.currentUser.uid;
+    const myIdentity = this.getSenderIdentity();
+    const isMe = msg.senderId === myIdentity.uid;
     const canDelete = isMe || this.isAdmin;
 
     const timeFormatted = msg.createdAt && msg.createdAt.toDate
@@ -499,18 +582,28 @@ class SocialModule {
   }
 
   async sendMessage() {
-    if (!this.currentUser || !this.activeRoomId) return;
-    const text = this.chatInput.value.trim();
+    const text = this.chatInput ? this.chatInput.value.trim() : '';
     if (!text) return;
 
+    // Ensure we have an active room
+    if (!this.activeRoomId) {
+      if (this.roomsList.length > 0) {
+        this.selectRoom(this.roomsList[0]);
+      } else {
+        alert('Please select or create a group channel first.');
+        return;
+      }
+    }
+
+    const sender = this.getSenderIdentity();
     this.chatInput.value = '';
 
     const newMsg = {
       text: text,
-      senderId: this.currentUser.uid,
-      senderName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
-      senderEmail: this.currentUser.email,
-      senderPhoto: this.currentUser.photoURL || '',
+      senderId: sender.uid,
+      senderName: sender.name,
+      senderEmail: sender.email,
+      isAnonymous: sender.isAnon,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -528,11 +621,12 @@ class SocialModule {
         .doc(this.activeRoomId)
         .update({
           lastMessage: text.length > 50 ? text.substring(0, 50) + '...' : text,
-          lastMessageSender: newMsg.senderName,
+          lastMessageSender: sender.name,
           lastMessageTime: firebase.firestore.FieldValue.serverTimestamp()
         });
 
       this.scrollChatToBottom();
+      if (this.chatInput) this.chatInput.focus();
     } catch (err) {
       console.error('Failed to send message:', err);
       alert('Could not send message: ' + err.message);
@@ -549,10 +643,6 @@ class SocialModule {
 
   // --- Group Creation & Personal DMs ---
   openCreateGroupModal() {
-    if (!this.currentUser) {
-      alert('Please connect your Apex Cloud account first!');
-      return;
-    }
     if (this.createGroupModal) this.createGroupModal.classList.add('active');
   }
 
@@ -567,22 +657,23 @@ class SocialModule {
     const nameInput = document.getElementById('group-name-input');
     const descInput = document.getElementById('group-desc-input');
     const iconInput = document.getElementById('group-icon-input');
-    const typeSelect = document.getElementById('group-access-type');
 
     const name = nameInput.value.trim();
-    if (!name || !this.currentUser) return;
+    if (!name) return;
+
+    const sender = this.getSenderIdentity();
 
     const newRoom = {
       name: name,
       description: descInput ? descInput.value.trim() : '',
       icon: iconInput ? iconInput.value.trim() || '👥' : '👥',
       type: 'group',
-      createdBy: this.currentUser.uid,
-      createdByName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
+      createdBy: sender.uid,
+      createdByName: sender.name,
       members: ['all'],
       memberEmails: ['all'],
       lastMessage: 'Group created',
-      lastMessageSender: this.currentUser.displayName || 'Creator',
+      lastMessageSender: sender.name,
       lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -592,6 +683,7 @@ class SocialModule {
       this.closeCreateGroupModal();
       newRoom.id = docRef.id;
       this.selectRoom(newRoom);
+      this.showMobileChat();
     } catch (err) {
       console.error('Failed to create group:', err);
       alert('Failed to create group: ' + err.message);
@@ -599,10 +691,6 @@ class SocialModule {
   }
 
   openStartDmModal() {
-    if (!this.currentUser) {
-      alert('Please connect your Apex Cloud account first!');
-      return;
-    }
     this.renderDmFriendsPicker();
     if (this.startDmModal) this.startDmModal.classList.add('active');
   }
@@ -615,7 +703,7 @@ class SocialModule {
     const container = document.getElementById('dm-friends-picker-list');
     if (!container) return;
 
-    container.innerHTML = '<p style="font-size: 12px; color: var(--text-muted); text-align: center;">Loading friends...</p>';
+    container.innerHTML = '<p style="font-size: 12px; color: var(--text-muted); text-align: center;">Loading registered friends...</p>';
 
     try {
       await this.fetchRegisteredUsers();
@@ -624,8 +712,8 @@ class SocialModule {
       if (this.friendsList.length === 0) {
         container.innerHTML = `
           <div style="text-align: center; padding: 20px 0; color: var(--text-muted);">
-            <p style="font-size: 13px;">No other friends found yet.</p>
-            <p style="font-size: 11px; margin-top: 4px;">Invite your friends to register on Apex Space!</p>
+            <p style="font-size: 13px;">No other friends found online yet.</p>
+            <p style="font-size: 11px; margin-top: 4px;">Share your app link with friends so they can join!</p>
           </div>
         `;
         return;
@@ -658,39 +746,37 @@ class SocialModule {
   }
 
   async startDirectChatWithFriend(friend) {
-    if (!this.currentUser) return;
+    const sender = this.getSenderIdentity();
 
     try {
-      // Check if DM room already exists between these 2 users
       const existing = this.roomsList.find(r => 
         r.type === 'direct' && 
         r.members && 
-        r.members.includes(this.currentUser.uid) && 
+        r.members.includes(sender.uid) && 
         r.members.includes(friend.uid)
       );
 
       if (existing) {
         this.closeStartDmModal();
         this.selectRoom(existing);
+        this.showMobileChat();
         return;
       }
 
-      const myName = this.currentUser.displayName || this.currentUser.email.split('@')[0];
       const friendName = friend.displayName || friend.email.split('@')[0];
 
-      // Create new DM room
       const dmRoom = {
         name: `Chat with ${friendName}`,
-        description: `Direct conversation between ${myName} and ${friendName}`,
+        description: `Direct conversation between ${sender.name} and ${friendName}`,
         type: 'direct',
         icon: friendName.charAt(0).toUpperCase(),
-        createdBy: this.currentUser.uid,
-        createdByName: myName,
-        members: [this.currentUser.uid, friend.uid],
-        memberEmails: [this.currentUser.email.toLowerCase(), friend.email.toLowerCase()],
-        memberNames: [myName, friendName],
+        createdBy: sender.uid,
+        createdByName: sender.name,
+        members: [sender.uid, friend.uid],
+        memberEmails: [sender.email.toLowerCase(), friend.email.toLowerCase()],
+        memberNames: [sender.name, friendName],
         lastMessage: 'Direct conversation started',
-        lastMessageSender: myName,
+        lastMessageSender: sender.name,
         lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
@@ -699,6 +785,7 @@ class SocialModule {
       this.closeStartDmModal();
       dmRoom.id = docRef.id;
       this.selectRoom(dmRoom);
+      this.showMobileChat();
     } catch (err) {
       console.error('Failed to start direct chat:', err);
       alert('Could not start direct chat: ' + err.message);
@@ -706,13 +793,14 @@ class SocialModule {
   }
 
   async fetchRegisteredUsers() {
-    if (!window.fbDb || !this.currentUser) return;
+    if (!window.fbDb) return;
     try {
       const snap = await window.fbDb.collection('users').get();
       this.friendsList = [];
+      const myId = this.getSenderIdentity();
       snap.forEach((doc) => {
         const data = doc.data();
-        if (data.uid !== this.currentUser.uid) {
+        if (data.uid !== myId.uid) {
           this.friendsList.push(data);
         }
       });
@@ -721,39 +809,21 @@ class SocialModule {
     }
   }
 
-  // --- Shared Feed & Notes (Preserved) ---
+  // --- Shared Feed & Notes ---
   startNotesListener() {
-    if (!window.fbDb || !this.currentUser) return;
+    if (!window.fbDb) return;
     if (this.unsubscribeNotes) this.unsubscribeNotes();
 
-    const collectionRef = window.fbDb.collection('shared_notes');
-
-    this.unsubscribeNotes = collectionRef.orderBy('createdAt', 'desc').onSnapshot(
+    this.unsubscribeNotes = window.fbDb.collection('shared_notes').orderBy('createdAt', 'desc').onSnapshot(
       (snapshot) => {
         const notes = [];
         snapshot.forEach((doc) => {
-          const data = { id: doc.id, ...doc.data() };
-          if (this.isAdmin || this.hasAccessToNote(data)) {
-            notes.push(data);
-          }
+          notes.push({ id: doc.id, ...doc.data() });
         });
         this.renderNotesFeed(notes);
       },
       (err) => console.error('Shared notes listener error:', err)
     );
-  }
-
-  hasAccessToNote(note) {
-    if (!this.currentUser) return false;
-    const uid = this.currentUser.uid;
-    const email = (this.currentUser.email || '').toLowerCase();
-
-    if (note.authorId === uid) return true;
-    if (note.sharedWith && note.sharedWith.includes('all')) return true;
-    if (note.sharedWith && note.sharedWith.includes(uid)) return true;
-    if (note.sharedWithEmails && note.sharedWithEmails.includes(email)) return true;
-
-    return false;
   }
 
   renderNotesFeed(notes) {
@@ -765,11 +835,13 @@ class SocialModule {
         <div style="text-align: center; padding: 48px 16px; color: var(--text-muted);">
           <div style="font-size: 40px; margin-bottom: 12px;">📝</div>
           <h4 style="font-size: 16px; font-weight: 600; color: #fff;">No Shared Feed Posts Yet</h4>
-          <p style="font-size: 13px; max-width: 400px; margin: 8px auto;">Share notes, photos, formulas, or links with your friends on the feed!</p>
+          <p style="font-size: 13px; max-width: 400px; margin: 8px auto;">Share notes, formulas, or study links with your friends on the shared feed!</p>
         </div>
       `;
       return;
     }
+
+    const myId = this.getSenderIdentity();
 
     notes.forEach((note) => {
       const card = document.createElement('div');
@@ -777,7 +849,7 @@ class SocialModule {
       card.style.marginBottom = '16px';
       card.style.padding = '18px';
 
-      const isAuthor = this.currentUser && note.authorId === this.currentUser.uid;
+      const isAuthor = note.authorId === myId.uid;
       const canDelete = isAuthor || this.isAdmin;
       const dateFormatted = note.createdAt && note.createdAt.toDate
         ? note.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -816,17 +888,14 @@ class SocialModule {
 
   // --- Shared Music Feed ---
   startSharedSongsListener() {
-    if (!window.fbDb || !this.currentUser) return;
+    if (!window.fbDb) return;
     if (this.unsubscribeSongs) this.unsubscribeSongs();
 
     this.unsubscribeSongs = window.fbDb.collection('shared_songs').orderBy('createdAt', 'desc').onSnapshot(
       (snapshot) => {
         const songs = [];
         snapshot.forEach((doc) => {
-          const data = { id: doc.id, ...doc.data() };
-          if (this.isAdmin || this.hasAccessToNote(data)) {
-            songs.push(data);
-          }
+          songs.push({ id: doc.id, ...doc.data() });
         });
         this.renderSharedSongsFeed(songs);
       },
@@ -849,8 +918,10 @@ class SocialModule {
       return;
     }
 
+    const myId = this.getSenderIdentity();
+
     songs.forEach((song) => {
-      const isAuthor = this.currentUser && song.authorId === this.currentUser.uid;
+      const isAuthor = song.authorId === myId.uid;
       const canDelete = isAuthor || this.isAdmin;
 
       const card = document.createElement('div');
@@ -930,10 +1001,6 @@ class SocialModule {
   }
 
   openPostModal() {
-    if (!this.currentUser) {
-      alert('Please connect your Apex Cloud account first!');
-      return;
-    }
     if (this.postModal) this.postModal.classList.add('active');
   }
 
@@ -945,19 +1012,20 @@ class SocialModule {
   }
 
   async createSharedPost() {
-    if (!this.currentUser) return;
     const title = document.getElementById('social-post-title').value.trim();
     const content = document.getElementById('social-post-content').value.trim();
 
     if (!content) return;
 
+    const sender = this.getSenderIdentity();
+
     try {
       await window.fbDb.collection('shared_notes').add({
         title,
         content,
-        authorId: this.currentUser.uid,
-        authorName: this.currentUser.displayName || this.currentUser.email.split('@')[0],
-        authorEmail: this.currentUser.email,
+        authorId: sender.uid,
+        authorName: sender.name,
+        authorEmail: sender.email,
         sharedWith: ['all'],
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });

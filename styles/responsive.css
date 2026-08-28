@@ -625,14 +625,14 @@
 }
 
 /* ==========================================================================
-   AI CHATBOT MOBILE RESPONSIVE ADAPTATIONS
+   AI CHATBOT & SOCIAL CHAT MOBILE RESPONSIVE ADAPTATIONS
    ========================================================================== */
 @media (max-width: 768px) {
   .ai-fab-floating {
-    bottom: 20px;
-    right: 20px;
-    width: 56px;
-    height: 56px;
+    bottom: 84px;
+    right: 18px;
+    width: 52px;
+    height: 52px;
   }
 
   .ai-widget-container {
@@ -643,14 +643,23 @@
     max-height: 92vh;
     border-radius: var(--radius-lg);
   }
+
+  /* Chat mobile views */
+  #chat-main-window {
+    display: none;
+  }
+
+  #btn-mobile-chat-back {
+    display: inline-flex !important;
+  }
 }
 
 @media (max-width: 480px) {
   .ai-fab-floating {
-    bottom: 16px;
-    right: 16px;
-    width: 50px;
-    height: 50px;
+    bottom: 78px;
+    right: 14px;
+    width: 48px;
+    height: 48px;
   }
 
   .ai-widget-container {
