@@ -321,8 +321,8 @@ class SocialModule {
     const file = e.target.files[0];
     if (!file) return;
 
-    const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
-    const isImage = file.type.startsWith('image/');
+    const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac|mpeg|mpg|opus|weba|amr)$/i.test(file.name);
+    const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name);
 
     if (isImage) {
       // Auto-compress image to fit comfortably under Firestore 1MB document limit
@@ -343,9 +343,36 @@ class SocialModule {
         alert('Could not process image: ' + err.message);
       }
     } else if (isAudio) {
-      if (file.size > 800 * 1024) {
-        alert('Notice: For full songs, please use the Songs & Audio tab to play or share. Chat audio clips are limited to 800KB.');
+      if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+        this.attachmentPreviewName.innerText = `⏳ Preparing 🎵 ${file.name}...`;
+        this.chatAttachmentPreview.style.display = 'flex';
       }
+
+      // If Firebase Storage is initialized and file is > 600KB, upload to Cloud Storage
+      if (window.fbStorage && file.size > 600 * 1024) {
+        try {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_${safeName}`);
+          const snapshot = await storageRef.put(file);
+          const downloadUrl = await snapshot.ref.getDownloadURL();
+
+          this.pendingAttachment = {
+            name: file.name,
+            type: 'audio',
+            dataUrl: downloadUrl
+          };
+
+          if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+            this.attachmentPreviewName.innerText = `🎵 Ready: ${file.name}`;
+            this.chatAttachmentPreview.style.display = 'flex';
+          }
+          return;
+        } catch (storageErr) {
+          console.warn('Storage upload fallback to DataURL:', storageErr);
+        }
+      }
+
+      // Small clip or direct reader fallback
       const reader = new FileReader();
       reader.onload = () => {
         this.pendingAttachment = {

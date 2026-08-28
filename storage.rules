@@ -1,47 +1,9 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-
-    // Helper: Check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Helper: Check if user is Admin
-    function isAdmin() {
-      return isAuthenticated() && request.auth.token.email.lower() == 'apexms0905@gmail.com';
-    }
-
-    // SHARED SONGS AUDIO STORAGE
-    // Stored under shared_songs/{userId}/{fileName}
-    match /shared_songs/{userId}/{fileName} {
-      // Read allowed for all authenticated users (audio streaming)
-      allow read: if isAuthenticated();
-
-      // Write only allowed for the owner of the folder, max 50MB audio file
-      allow write: if isAuthenticated() &&
-                   request.auth.uid == userId &&
-                   request.resource.size < 50 * 1024 * 1024;
-
-      // Delete allowed for the uploader or the Admin
-      allow delete: if isAuthenticated() && (
-        request.auth.uid == userId || isAdmin()
-      );
-    }
-
-    // SHARED IMAGES / ATTACHMENTS STORAGE
-    // Stored under shared_media/{userId}/{fileName}
-    match /shared_media/{userId}/{fileName} {
-      allow read: if isAuthenticated();
-      
-      // Max 10MB image/attachment file
-      allow write: if isAuthenticated() &&
-                   request.auth.uid == userId &&
-                   request.resource.size < 10 * 1024 * 1024;
-
-      allow delete: if isAuthenticated() && (
-        request.auth.uid == userId || isAdmin()
-      );
+    // Open storage rules for chat audio, songs, voice notes & images
+    match /{allPaths=**} {
+      allow read, write: if true;
     }
   }
 }
