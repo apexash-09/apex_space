@@ -254,11 +254,14 @@ class SocialModule {
   }
 
   updateAnonBadge() {
-    if (!this.anonBadge) return;
     const idObj = this.getSenderIdentity();
-    this.anonBadge.innerHTML = `
-      <span>🎭 Chatting as: <strong style="color: #fff; text-decoration: underline;">${this.escapeHtml(idObj.name)}</strong> ⚙️</span>
-    `;
+    const handleDisplay = document.getElementById('chat-handle-display');
+    if (handleDisplay) {
+      handleDisplay.innerText = idObj.name;
+    }
+    if (this.anonBadge && !handleDisplay) {
+      this.anonBadge.innerHTML = `Chatting as: <strong style="color: #fff;">${this.escapeHtml(idObj.name)}</strong>`;
+    }
   }
 
   getSenderIdentity() {
