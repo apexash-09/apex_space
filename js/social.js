@@ -1,11 +1,12 @@
 /**
  * Apex Personal Dashboard - WhatsApp-style Realtime Social Hub & Group Chat Module
  * Supports:
- * - Realtime Group Channels & Direct Messaging (DMs)
- * - Custom & Anonymous Handles (Generate or set your own alias in global chat)
- * - Auto-send on Enter key
+ * - Realtime Group Channels & Direct 1-on-1 Messages (DMs)
+ * - Music / Audio & Image file attachments directly in chat bubbles
+ * - Custom & Anonymous Handles with in-app edit modal & randomizer
+ * - Instant Auto-send on Enter key
+ * - Deterministic General Lounge default room initialization
  * - Mobile responsive navigation with back-to-channels switcher
- * - Shared Feed, Shared Music & Admin Directory
  */
 
 class SocialModule {
@@ -13,9 +14,15 @@ class SocialModule {
     this.currentUser = null;
     this.isAdmin = false;
     this.activeTab = 'chat'; // 'chat' | 'feed' | 'music' | 'admin_users'
-    this.activeRoomId = null;
-    this.activeRoomData = null;
-    this.isAnonymousMode = false;
+    this.activeRoomId = 'general_lounge'; // default room
+    this.activeRoomData = {
+      id: 'general_lounge',
+      name: '🌐 General Lounge',
+      description: 'Public community group for all friends',
+      icon: '🌐',
+      type: 'group'
+    };
+    this.pendingFileAttachment = null;
 
     // Listeners
     this.unsubscribeRooms = null;
@@ -46,6 +53,13 @@ class SocialModule {
     this.mobileBackBtn = document.getElementById('btn-mobile-chat-back');
     this.anonBadge = document.getElementById('chat-anon-badge');
 
+    // Attachment elements
+    this.chatFileInput = document.getElementById('chat-file-input');
+    this.chatAttachBtn = document.getElementById('btn-chat-attach');
+    this.chatAttachmentPreview = document.getElementById('chat-attachment-preview');
+    this.attachmentPreviewName = document.getElementById('attachment-preview-name');
+    this.btnRemoveAttachment = document.getElementById('btn-remove-attachment');
+
     // Other Tabs
     this.notesFeed = document.getElementById('social-notes-feed');
     this.sharedSongsFeed = document.getElementById('social-songs-feed');
@@ -56,6 +70,7 @@ class SocialModule {
     this.createGroupModal = document.getElementById('modal-create-group');
     this.createGroupForm = document.getElementById('form-create-group');
     this.startDmModal = document.getElementById('modal-start-dm');
+    this.aliasModal = document.getElementById('modal-change-alias');
     this.postModal = document.getElementById('modal-social-post');
     this.postForm = document.getElementById('form-social-post');
 
@@ -98,17 +113,50 @@ class SocialModule {
       });
     }
 
-    // 5. Mobile Back to Channels
+    // 5. File & Music Attachment Handlers
+    if (this.chatAttachBtn && this.chatFileInput) {
+      this.chatAttachBtn.addEventListener('click', () => this.chatFileInput.click());
+      this.chatFileInput.addEventListener('change', (e) => this.handleChatFileSelected(e));
+    }
+
+    if (this.btnRemoveAttachment) {
+      this.btnRemoveAttachment.addEventListener('click', () => this.clearAttachment());
+    }
+
+    // 6. Mobile Back to Channels
     if (this.mobileBackBtn) {
       this.mobileBackBtn.addEventListener('click', () => this.showMobileChannels());
     }
 
-    // 6. Anonymous Alias Click to change / randomize
+    // 7. Change Alias Modal
     if (this.anonBadge) {
-      this.anonBadge.addEventListener('click', () => this.promptChangeHandle());
+      this.anonBadge.addEventListener('click', () => this.openAliasModal());
     }
 
-    // 7. Create Group Triggers
+    document.querySelectorAll('[data-close="modal-change-alias"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeAliasModal());
+    });
+
+    const btnSaveAlias = document.getElementById('btn-save-alias');
+    if (btnSaveAlias) {
+      btnSaveAlias.addEventListener('click', () => {
+        const input = document.getElementById('custom-alias-input');
+        if (input && input.value.trim()) {
+          this.setCustomHandle(input.value.trim());
+          this.closeAliasModal();
+        }
+      });
+    }
+
+    const btnRandomizeAlias = document.getElementById('btn-randomize-alias');
+    if (btnRandomizeAlias) {
+      btnRandomizeAlias.addEventListener('click', () => {
+        const input = document.getElementById('custom-alias-input');
+        if (input) input.value = this.generateRandomAlias();
+      });
+    }
+
+    // 8. Create Group Triggers
     const btnOpenGroupModal = document.getElementById('btn-open-create-group-modal');
     if (btnOpenGroupModal) {
       btnOpenGroupModal.addEventListener('click', () => this.openCreateGroupModal());
@@ -125,7 +173,7 @@ class SocialModule {
       });
     }
 
-    // 8. Start DM Triggers
+    // 9. Start DM Triggers
     const btnOpenDmModal = document.getElementById('btn-open-dm-modal');
     if (btnOpenDmModal) {
       btnOpenDmModal.addEventListener('click', () => this.openStartDmModal());
@@ -135,7 +183,7 @@ class SocialModule {
       btn.addEventListener('click', () => this.closeStartDmModal());
     });
 
-    // 9. Shared Post Form
+    // 10. Shared Post Form
     const btnOpenPost = document.getElementById('btn-open-social-post-modal');
     if (btnOpenPost) {
       btnOpenPost.addEventListener('click', () => this.openPostModal());
@@ -152,9 +200,10 @@ class SocialModule {
       });
     }
 
-    // Initial setup: start rooms listener right away so guests & users can chat immediately
+    // Initial setup: start rooms listener & messages listener on general lounge
     this.seedDefaultRoomsIfEmpty();
     this.startRoomsListener();
+    this.startMessagesListener('general_lounge');
     this.startNotesListener();
     this.startSharedSongsListener();
   }
@@ -177,38 +226,43 @@ class SocialModule {
   }
 
   generateRandomAlias() {
-    const adjectives = ['Cyber', 'Neon', 'Shadow', 'Apex', 'Phantom', 'Cosmic', 'Solar', 'Quantum', 'Vortex', 'Astral'];
-    const nouns = ['Pilot', 'Hacker', 'Nomad', 'Scholar', 'Ninja', 'Rider', 'Voyager', 'Ghost', 'Architect', 'Spark'];
+    const adjectives = ['Cyber', 'Neon', 'Shadow', 'Apex', 'Phantom', 'Cosmic', 'Solar', 'Quantum', 'Vortex', 'Astral', 'Hyper', 'Velox'];
+    const nouns = ['Pilot', 'Hacker', 'Nomad', 'Scholar', 'Ninja', 'Rider', 'Voyager', 'Ghost', 'Architect', 'Spark', 'Titan', 'Drifter'];
     const num = Math.floor(100 + Math.random() * 900);
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
     return `${adj}${noun}_${num}`;
   }
 
-  promptChangeHandle() {
-    const current = this.getSenderIdentity().name;
-    const newHandle = prompt(
-      "🎭 Set your Custom Chat Alias:\n(Visible to friends and in group chats. You can remain completely anonymous)",
-      current
-    );
+  openAliasModal() {
+    const input = document.getElementById('custom-alias-input');
+    if (input) input.value = this.getSenderIdentity().name;
+    if (this.aliasModal) this.aliasModal.classList.add('active');
+  }
 
-    if (newHandle && newHandle.trim()) {
-      localStorage.setItem('apex_anon_handle', newHandle.trim());
-      this.updateAnonBadge();
-      alert(`✅ Your chat alias has been set to: "${newHandle.trim()}"!`);
-    }
+  closeAliasModal() {
+    if (this.aliasModal) this.aliasModal.classList.remove('active');
+  }
+
+  setCustomHandle(name) {
+    localStorage.setItem('apex_anon_handle', name);
+    this.updateAnonBadge();
+  }
+
+  promptChangeHandle() {
+    this.openAliasModal();
   }
 
   updateAnonBadge() {
     if (!this.anonBadge) return;
     const idObj = this.getSenderIdentity();
     this.anonBadge.innerHTML = `
-      <span title="Click to customize your alias">🎭 Chatting as: <strong style="color: #fff; text-decoration: underline;">${this.escapeHtml(idObj.name)}</strong> ⚙️</span>
+      <span>🎭 Chatting as: <strong style="color: #fff; text-decoration: underline;">${this.escapeHtml(idObj.name)}</strong> ⚙️</span>
     `;
   }
 
   getSenderIdentity() {
-    if (this.currentUser && !this.isAnonymousMode) {
+    if (this.currentUser) {
       return {
         uid: this.currentUser.uid,
         name: this.currentUser.displayName || this.currentUser.email.split('@')[0],
@@ -259,61 +313,98 @@ class SocialModule {
     }
   }
 
+  // --- Attachments Handling (Music & Audio & Images) ---
+  async handleChatFileSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check size limit: 15MB for client base64 storage
+    if (file.size > 15 * 1024 * 1024) {
+      alert('File size exceeds 15MB. Please choose a smaller track or image.');
+      return;
+    }
+
+    const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
+    const isImage = file.type.startsWith('image/');
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.pendingAttachment = {
+        name: file.name,
+        type: isAudio ? 'audio' : (isImage ? 'image' : 'file'),
+        dataUrl: reader.result,
+        sizeMB: (file.size / (1024 * 1024)).toFixed(1)
+      };
+
+      if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+        this.attachmentPreviewName.innerText = `${isAudio ? '🎵' : '🖼️'} ${file.name} (${this.pendingAttachment.sizeMB} MB)`;
+        this.chatAttachmentPreview.style.display = 'flex';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  clearAttachment() {
+    this.pendingAttachment = null;
+    if (this.chatFileInput) this.chatFileInput.value = '';
+    if (this.chatAttachmentPreview) this.chatAttachmentPreview.style.display = 'none';
+  }
+
   // --- Realtime Chat Rooms & Groups ---
   async seedDefaultRoomsIfEmpty() {
     if (!window.fbDb) return;
 
     try {
-      const snap = await window.fbDb.collection('chat_rooms').limit(1).get();
-      if (snap.empty) {
-        const defaultRooms = [
-          {
-            name: '🌐 General Lounge',
-            description: 'Public community hangout for all Apex Space friends',
-            type: 'group',
-            icon: '🌐',
-            createdBy: 'system',
-            createdByName: 'Apex Space',
-            members: ['all'],
-            memberEmails: ['all'],
-            lastMessage: 'Welcome to Apex Space Social Hub!',
-            lastMessageSender: 'Apex System',
-            lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          },
-          {
-            name: '📚 Study & College Notes',
-            description: 'Collaborate on subjects, exam tips, and study materials',
-            type: 'group',
-            icon: '📚',
-            createdBy: 'system',
-            createdByName: 'Apex Space',
-            members: ['all'],
-            memberEmails: ['all'],
-            lastMessage: 'Share your college notes, formulas, and study sessions here.',
-            lastMessageSender: 'Apex System',
-            lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          },
-          {
-            name: '💻 Projects & Code Hub',
-            description: 'Discuss software projects, web apps, tools & ideas',
-            type: 'group',
-            icon: '💻',
-            createdBy: 'system',
-            createdByName: 'Apex Space',
-            members: ['all'],
-            memberEmails: ['all'],
-            lastMessage: 'Discuss your development progress and technical questions.',
-            lastMessageSender: 'Apex System',
-            lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          }
-        ];
-
-        for (const r of defaultRooms) {
-          await window.fbDb.collection('chat_rooms').add(r);
+      const defaultRooms = [
+        {
+          id: 'general_lounge',
+          name: '🌐 General Lounge',
+          description: 'Public community hangout for all Apex Space friends',
+          type: 'group',
+          icon: '🌐',
+          createdBy: 'system',
+          createdByName: 'Apex Space',
+          members: ['all'],
+          memberEmails: ['all'],
+          lastMessage: 'Welcome to Apex Space Social Hub!',
+          lastMessageSender: 'Apex System',
+          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'study_notes',
+          name: '📚 Study & College Notes',
+          description: 'Collaborate on subjects, exam tips, and study materials',
+          type: 'group',
+          icon: '📚',
+          createdBy: 'system',
+          createdByName: 'Apex Space',
+          members: ['all'],
+          memberEmails: ['all'],
+          lastMessage: 'Share your college notes, formulas, and study sessions here.',
+          lastMessageSender: 'Apex System',
+          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'projects_code',
+          name: '💻 Projects & Code Hub',
+          description: 'Discuss software projects, web apps, tools & ideas',
+          type: 'group',
+          icon: '💻',
+          createdBy: 'system',
+          createdByName: 'Apex Space',
+          members: ['all'],
+          memberEmails: ['all'],
+          lastMessage: 'Discuss your development progress and technical questions.',
+          lastMessageSender: 'Apex System',
+          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }
+      ];
+
+      for (const r of defaultRooms) {
+        await window.fbDb.collection('chat_rooms').doc(r.id).set(r, { merge: true });
       }
     } catch (err) {
       console.warn('Could not seed default rooms:', err);
@@ -324,12 +415,20 @@ class SocialModule {
     if (!window.fbDb) return;
     if (this.unsubscribeRooms) this.unsubscribeRooms();
 
-    this.unsubscribeRooms = window.fbDb.collection('chat_rooms').orderBy('lastMessageTime', 'desc').onSnapshot(
+    this.unsubscribeRooms = window.fbDb.collection('chat_rooms').onSnapshot(
       (snapshot) => {
         this.roomsList = [];
         snapshot.forEach((doc) => {
           this.roomsList.push({ id: doc.id, ...doc.data() });
         });
+
+        // Client-side sort by lastMessageTime descending
+        this.roomsList.sort((a, b) => {
+          const tA = a.lastMessageTime && a.lastMessageTime.toMillis ? a.lastMessageTime.toMillis() : 0;
+          const tB = b.lastMessageTime && b.lastMessageTime.toMillis ? b.lastMessageTime.toMillis() : 0;
+          return tB - tA;
+        });
+
         this.renderRoomsList();
       },
       (err) => {
@@ -365,11 +464,6 @@ class SocialModule {
         const item = this.createRoomListItem(room);
         this.directListContainer.appendChild(item);
       });
-    }
-
-    // Auto-select first group room if none selected
-    if (!this.activeRoomId && groups.length > 0) {
-      this.selectRoom(groups[0]);
     }
   }
 
@@ -455,7 +549,6 @@ class SocialModule {
     this.startMessagesListener(room.id);
   }
 
-  // --- Mobile Chat Switching ---
   showMobileChat() {
     if (window.innerWidth <= 768) {
       if (this.chatSidebarPanel) this.chatSidebarPanel.style.display = 'none';
@@ -527,8 +620,8 @@ class SocialModule {
       display: flex;
       flex-direction: column;
       align-items: ${isMe ? 'flex-end' : 'flex-start'};
-      margin-bottom: 12px;
-      max-width: 80%;
+      margin-bottom: 14px;
+      max-width: 82%;
       ${isMe ? 'margin-left: auto;' : 'margin-right: auto;'}
     `;
 
@@ -552,7 +645,22 @@ class SocialModule {
         word-break: break-word;
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
       ">
-        ${this.formatPostContent(msg.text)}
+        ${msg.text ? `<div>${this.formatPostContent(msg.text)}</div>` : ''}
+
+        <!-- Audio Attachment Player -->
+        ${msg.attachment && msg.attachment.type === 'audio' ? `
+          <div style="margin-top: 8px; padding: 6px; background: ${isMe ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.5)'}; border-radius: 10px;">
+            <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px; color: ${isMe ? '#000' : '#fff'};">🎵 ${this.escapeHtml(msg.attachment.name)}</div>
+            <audio controls src="${msg.attachment.dataUrl}" style="width: 100%; height: 32px;"></audio>
+          </div>
+        ` : ''}
+
+        <!-- Image Attachment -->
+        ${msg.attachment && msg.attachment.type === 'image' ? `
+          <div style="margin-top: 8px; border-radius: 8px; overflow: hidden; max-height: 260px;">
+            <img src="${msg.attachment.dataUrl}" style="width: 100%; height: auto; object-fit: contain; display: block;">
+          </div>
+        ` : ''}
 
         <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
           <span>${timeFormatted}</span>
@@ -583,23 +691,22 @@ class SocialModule {
 
   async sendMessage() {
     const text = this.chatInput ? this.chatInput.value.trim() : '';
-    if (!text) return;
+    const attachment = this.pendingAttachment;
 
-    // Ensure we have an active room
+    if (!text && !attachment) return;
+
     if (!this.activeRoomId) {
-      if (this.roomsList.length > 0) {
-        this.selectRoom(this.roomsList[0]);
-      } else {
-        alert('Please select or create a group channel first.');
-        return;
-      }
+      this.activeRoomId = 'general_lounge';
     }
 
     const sender = this.getSenderIdentity();
-    this.chatInput.value = '';
+
+    if (this.chatInput) this.chatInput.value = '';
+    this.clearAttachment();
 
     const newMsg = {
-      text: text,
+      text: text || '',
+      attachment: attachment || null,
       senderId: sender.uid,
       senderName: sender.name,
       senderEmail: sender.email,
@@ -616,14 +723,15 @@ class SocialModule {
         .add(newMsg);
 
       // 2. Update room's lastMessage
+      const previewText = attachment ? (attachment.type === 'audio' ? '🎵 Audio Track' : '🖼️ Image') : text;
       await window.fbDb
         .collection('chat_rooms')
         .doc(this.activeRoomId)
-        .update({
-          lastMessage: text.length > 50 ? text.substring(0, 50) + '...' : text,
+        .set({
+          lastMessage: previewText.length > 50 ? previewText.substring(0, 50) + '...' : previewText,
           lastMessageSender: sender.name,
           lastMessageTime: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, { merge: true });
 
       this.scrollChatToBottom();
       if (this.chatInput) this.chatInput.focus();
@@ -637,7 +745,7 @@ class SocialModule {
     if (this.chatMessagesContainer) {
       setTimeout(() => {
         this.chatMessagesContainer.scrollTop = this.chatMessagesContainer.scrollHeight;
-      }, 50);
+      }, 60);
     }
   }
 

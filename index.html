@@ -343,9 +343,25 @@
                   <!-- Messages Stream Body -->
                   <div id="active-chat-messages" style="flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column;"></div>
 
+                  <!-- Attachment Preview Chip -->
+                  <div id="chat-attachment-preview" style="display: none; padding: 6px 14px; background: rgba(255,255,255,0.08); border-top: 1px solid var(--border-subtle); align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #fff; overflow: hidden;">
+                      <span id="attachment-preview-name" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">📎 Attachment</span>
+                    </div>
+                    <button type="button" id="btn-remove-attachment" class="btn-ghost" style="padding: 2px 6px; font-size: 11px; color: var(--accent-red);" title="Remove Attachment">✕</button>
+                  </div>
+
                   <!-- Chat Input Bar -->
-                  <form id="form-chat-send" style="padding: 12px 18px; border-top: 1px solid var(--border-subtle); background: rgba(14, 14, 14, 0.85); display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="chat-message-input" class="form-control" placeholder="Type message... (Press Enter to send)" autocomplete="off" style="padding: 11px 16px;">
+                  <form id="form-chat-send" style="padding: 12px 18px; border-top: 1px solid var(--border-subtle); background: rgba(14, 14, 14, 0.85); display: flex; gap: 8px; align-items: center;">
+                    <!-- Hidden File Input for Audio & Images -->
+                    <input type="file" id="chat-file-input" accept="audio/*,image/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.png,.jpg,.jpeg,.gif" style="display: none;">
+                    
+                    <button type="button" id="btn-chat-attach" class="btn-ghost" style="padding: 8px 12px; font-size: 15px; flex-shrink: 0; border-radius: var(--radius-md);" title="Attach Audio Track, Music, or Photo">
+                      📎
+                    </button>
+
+                    <input type="text" id="chat-message-input" class="form-control" placeholder="Type message... (Press Enter to send)" autocomplete="off" style="padding: 11px 16px; flex: 1;">
+                    
                     <button type="submit" class="btn-primary" style="width: auto; padding: 11px 18px; border-radius: var(--radius-md); flex-shrink: 0;">
                       <span>Send</span>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -839,8 +855,8 @@
         </div>
 
         <div class="form-group">
-          <label for="social-post-file">Attach Photo / Image (Optional, stored in Firebase Storage)</label>
-          <input type="file" id="social-post-file" class="form-control" accept="image/*">
+          <label for="social-post-file">Attach Photo, Music / Audio Track (Optional)</label>
+          <input type="file" id="social-post-file" class="form-control" accept="image/*,audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac">
         </div>
 
         <div class="form-group">
@@ -854,6 +870,33 @@
 
         <button type="submit" class="btn-primary">Share with Friends</button>
       </form>
+    </div>
+  </div>
+
+  <!-- CHANGE CHAT ALIAS MODAL -->
+  <div id="modal-change-alias" class="modal-overlay">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🎭</span>
+          <h3 class="modal-title">Customize Chat Alias</h3>
+        </div>
+        <button class="close-btn" data-close="modal-change-alias">&times;</button>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+        Choose a custom username or stay anonymous. This name will appear on all your messages in General Lounge & groups:
+      </p>
+      <div class="form-group">
+        <label for="custom-alias-input">Your Chat Handle / Nickname</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="custom-alias-input" class="form-control" placeholder="e.g. ShadowApex or Ayush" maxlength="24">
+          <button type="button" id="btn-randomize-alias" class="btn-ghost" style="padding: 0 12px; flex-shrink: 0;" title="Generate cool random cyberpunk alias">🎲 Random</button>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+        <button type="button" class="btn-ghost" data-close="modal-change-alias">Cancel</button>
+        <button type="button" id="btn-save-alias" class="btn-primary" style="width: auto; padding: 10px 22px;">Save Handle</button>
+      </div>
     </div>
   </div>
 
