@@ -614,6 +614,51 @@
   }
 }
 
+/* ==========================================================================
+   AI CHATBOT MOBILE RESPONSIVE ADAPTATIONS
+   ========================================================================== */
+@media (max-width: 768px) {
+  .ai-fab-floating {
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+  }
+
+  .ai-widget-container {
+    bottom: 12px;
+    right: 12px;
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+    max-height: 92vh;
+    border-radius: var(--radius-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-fab-floating {
+    bottom: 16px;
+    right: 16px;
+    width: 50px;
+    height: 50px;
+  }
+
+  .ai-widget-container {
+    bottom: 8px;
+    right: 8px;
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+    border-radius: var(--radius-md);
+  }
+
+  .ai-widget-header {
+    padding: 12px 14px;
+  }
+
+  .ai-chat-messages-body {
+    padding: 12px 10px;
+  }
+}
 
 /* ==========================================================================
    PREVENT HORIZONTAL SCROLLING (all sizes)

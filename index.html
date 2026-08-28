@@ -781,6 +781,54 @@
     </div>
   </div>
 
+  <!-- FLOATING AI CHATBOT BUTTON & WIDGET -->
+  <button id="ai-fab-btn" class="ai-fab-floating" aria-label="Open Apex AI Companion" title="Chat with Apex AI Companion">
+    <img src="assets/apex-logo.png" alt="Apex Space AI" class="ai-fab-logo-img">
+    <span class="ai-fab-pulse"></span>
+  </button>
+
+  <div id="ai-chat-widget" class="ai-widget-container">
+    <!-- Chat Header -->
+    <div class="ai-widget-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="ai-header-avatar">
+          <img src="assets/apex-logo.png" alt="Apex Space Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+        </div>
+        <div>
+          <div style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+            <span>Apex AI Companion</span>
+            <span class="ai-online-dot" title="AI Online"></span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">Intelligent Study, Diary & Goal Partner</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button id="ai-key-btn" class="btn-ghost" style="padding: 4px 8px; font-size: 11px;" title="Set / Update API Key">🔑 Key</button>
+        <button id="ai-clear-btn" class="btn-ghost" style="padding: 4px 8px; font-size: 11px;" title="Clear Conversation">🧹 Clear</button>
+        <button id="ai-close-btn" class="btn-ghost" style="padding: 4px 8px; font-size: 14px;" title="Minimize Chat">✕</button>
+      </div>
+    </div>
+
+    <!-- Quick Action Chips -->
+    <div class="ai-quick-chips">
+      <button class="ai-chip" data-prompt="diary">📖 Reflect on Diary</button>
+      <button class="ai-chip" data-prompt="notes">📚 College Notes</button>
+      <button class="ai-chip" data-prompt="goals">🎯 Goal Milestones</button>
+      <button class="ai-chip" data-prompt="timetable">⚡ Daily Schedule</button>
+    </div>
+
+    <!-- Chat Messages Scroll Container -->
+    <div id="ai-chat-messages" class="ai-chat-messages-body"></div>
+
+    <!-- Chat Input Form -->
+    <form id="ai-chat-form" class="ai-chat-input-bar">
+      <input type="text" id="ai-chat-input" class="form-control" placeholder="Ask Apex AI anything or request study help..." autocomplete="off">
+      <button type="submit" class="btn-primary" style="width: auto; padding: 10px 18px; border-radius: var(--radius-md);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </form>
+  </div>
+
   <!-- JS Modules -->
   <script src="js/db.js"></script>
   <script src="js/firebase-config.js"></script>
@@ -789,6 +837,7 @@
   <script src="js/diary.js"></script>
   <script src="js/notes.js"></script>
   <script src="js/social.js"></script>
+  <script src="js/ai.js"></script>
   <script src="js/worklog.js"></script>
   <script src="js/timetable.js"></script>
   <script src="js/goals.js"></script>
