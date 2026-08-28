@@ -605,6 +605,15 @@ class SocialModule {
       },
       (err) => {
         console.error('Messages listener error:', err);
+        if (this.chatMessagesContainer) {
+          this.chatMessagesContainer.innerHTML = `
+            <div style="text-align: center; padding: 32px 16px; color: #fff;">
+              <div style="font-size: 36px; margin-bottom: 10px;">💬</div>
+              <h4 style="font-size: 15px; font-weight: 700;">Ready to Chat</h4>
+              <p style="font-size: 12px; color: var(--text-muted); max-width: 360px; margin: 6px auto;">Type a message below and press Enter to chat in real-time!</p>
+            </div>
+          `;
+        }
       }
     );
   }
