@@ -70,6 +70,32 @@ class AppRouter {
     if (this.btnLock) {
       this.btnLock.addEventListener('click', () => this.lockApp());
     }
+
+    // 7. Mobile Sidebar & Menu Toggle
+    this.mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    this.sidebar = document.getElementById('sidebar');
+    this.sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    if (this.mobileMenuBtn) {
+      this.mobileMenuBtn.addEventListener('click', () => this.toggleMobileSidebar());
+    }
+    if (this.sidebarOverlay) {
+      this.sidebarOverlay.addEventListener('click', () => this.closeMobileSidebar());
+    }
+  }
+
+  toggleMobileSidebar() {
+    if (!this.sidebar) return;
+    const isOpen = this.sidebar.classList.toggle('open');
+    if (this.mobileMenuBtn) this.mobileMenuBtn.classList.toggle('active', isOpen);
+    if (this.sidebarOverlay) this.sidebarOverlay.classList.toggle('active', isOpen);
+  }
+
+  closeMobileSidebar() {
+    if (!this.sidebar) return;
+    this.sidebar.classList.remove('open');
+    if (this.mobileMenuBtn) this.mobileMenuBtn.classList.remove('active');
+    if (this.sidebarOverlay) this.sidebarOverlay.classList.remove('active');
   }
 
   async attemptUnlock() {
@@ -133,6 +159,7 @@ class AppRouter {
     }
 
     this.activeTab = targetTab;
+    this.closeMobileSidebar();
 
     // Refresh modules on tab switch
     if (targetTab === 'diary' && window.diaryModule) window.diaryModule.loadHistoryList();

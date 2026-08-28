@@ -9,6 +9,7 @@
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/transitions.css">
+  <link rel="stylesheet" href="styles/responsive.css">
 </head>
 <body>
 
@@ -40,6 +41,13 @@
         <p class="unlock-footer-note">🔒 Local & Privacy-First: All entries stored strictly inside your browser's IndexedDB.</p>
       </div>
     </section>
+
+    <!-- MOBILE HAMBURGER TOGGLE -->
+    <button id="mobile-menu-btn" aria-label="Toggle navigation menu">
+      <span></span><span></span><span></span>
+    </button>
+    <!-- SIDEBAR OVERLAY (Mobile backdrop) -->
+    <div id="sidebar-overlay"></div>
 
     <!-- SIDEBAR NAVIGATION -->
     <aside id="sidebar">
@@ -139,13 +147,13 @@
               <h2 class="section-title">Personal Diary</h2>
               <p class="section-desc">Date-keyed journal entries with markdown formatting support.</p>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
+            <div class="section-header-actions">
               <input type="date" id="diary-date-picker" class="form-control" style="width: auto;">
               <button id="btn-save-diary" class="btn-primary" style="width: auto; padding: 10px 20px;">Save Entry</button>
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 340px; gap: 24px; height: calc(100% - 80px);">
+          <div class="responsive-grid diary-grid">
             <!-- Editor & Markdown Preview -->
             <div class="glass-panel" style="display: flex; flex-direction: column; height: 100%;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -189,7 +197,7 @@
           </div>
 
           <!-- Subject Filter Tabs -->
-          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <div class="filter-tabs-row">
             <button class="btn-ghost note-filter-btn active" data-subject="all">All Subjects</button>
             <button class="btn-ghost note-filter-btn" data-subject="Computer Science">Computer Science</button>
             <button class="btn-ghost note-filter-btn" data-subject="Math">Math</button>
@@ -197,7 +205,7 @@
             <button class="btn-ghost note-filter-btn" data-subject="Misc">Misc</button>
           </div>
 
-          <div style="display: grid; grid-template-columns: 340px 1fr; gap: 24px; height: calc(100% - 120px);">
+          <div class="responsive-grid notes-grid">
             <!-- Notes List Sidebar -->
             <div class="glass-panel" style="display: flex; flex-direction: column; overflow: hidden;">
               <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Subject Library</h3>
@@ -242,7 +250,7 @@
           </div>
 
           <!-- Tag Filter Tabs -->
-          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <div class="filter-tabs-row">
             <button class="btn-ghost work-filter-btn active" data-tag="all">All</button>
             <button class="btn-ghost work-filter-btn" data-tag="project">Project</button>
             <button class="btn-ghost work-filter-btn" data-tag="college">College</button>
@@ -328,7 +336,7 @@
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 380px 1fr; gap: 28px;">
+          <div class="responsive-grid songs-grid">
             
             <!-- Sleek Circular Vinyl Audio Player Card -->
             <div class="player-card-container">
