@@ -381,11 +381,11 @@ class SocialModule {
       }
     } else if (isAudio) {
       if (this.chatAttachmentPreview && this.attachmentPreviewName) {
-        this.attachmentPreviewName.innerText = `⏳ Preparing 🎵 ${file.name}...`;
+        this.attachmentPreviewName.innerText = `⏳ Optimizing 🎵 ${file.name}...`;
         this.chatAttachmentPreview.style.display = 'flex';
       }
 
-      // If file is > 700KB and Firebase Storage is available, attempt Storage upload with 4s timeout
+      // If Firebase Storage is initialized and responding, upload original file
       if (window.fbStorage && file.size > 700 * 1024) {
         try {
           const uploadPromise = (async () => {
@@ -395,8 +395,7 @@ class SocialModule {
             return await snapshot.ref.getDownloadURL();
           })();
 
-          // 4-second timeout race
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
           const downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
 
           this.pendingAttachment = {
@@ -411,40 +410,127 @@ class SocialModule {
           }
           return;
         } catch (storageErr) {
-          console.warn('Storage upload unavailable or timed out:', storageErr);
+          console.warn('Storage unavailable, auto-compressing audio for direct chat sending:', storageErr);
         }
       }
 
-      // If file is <= 750KB, read directly as Base64 DataURL
-      if (file.size <= 750 * 1024) {
+      // Auto-compress audio track using Web Audio API to fit comfortably in Firestore
+      try {
+        const compressedAudioDataUrl = await this.compressAudio(file);
+        this.pendingAttachment = {
+          name: file.name,
+          type: 'audio',
+          dataUrl: compressedAudioDataUrl
+        };
+
+        if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+          this.attachmentPreviewName.innerText = `🎵 Ready: ${file.name}`;
+          this.chatAttachmentPreview.style.display = 'flex';
+        }
+      } catch (err) {
+        console.error('Audio processing error:', err);
+        this.clearAttachment();
+        alert('Could not process audio: ' + err.message);
+      }
+    }
+  }
+
+  async compressAudio(file) {
+    if (file.size <= 600 * 1024) {
+      return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-          let cleanDataUrl = reader.result;
-          if (cleanDataUrl && cleanDataUrl.startsWith('data:') && !cleanDataUrl.startsWith('data:audio/')) {
-            cleanDataUrl = cleanDataUrl.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
+          let dataUrl = reader.result;
+          if (dataUrl && dataUrl.startsWith('data:') && !dataUrl.startsWith('data:audio/')) {
+            dataUrl = dataUrl.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
           }
-
-          this.pendingAttachment = {
-            name: file.name,
-            type: 'audio',
-            dataUrl: cleanDataUrl
-          };
-
-          if (this.chatAttachmentPreview && this.attachmentPreviewName) {
-            this.attachmentPreviewName.innerText = `🎵 Ready: ${file.name}`;
-            this.chatAttachmentPreview.style.display = 'flex';
-          }
+          resolve(dataUrl);
         };
-        reader.onerror = () => {
-          this.clearAttachment();
-          alert('Could not read audio file.');
-        };
+        reader.onerror = reject;
         reader.readAsDataURL(file);
-      } else {
-        // File > 750KB and Storage was not enabled
-        this.clearAttachment();
-        alert(`This audio file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Direct chat audio is limited to 700KB. You can play and stream any full song in the "🎵 Shared Music" tab!`);
-      }
+      });
+    }
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+      const wavBlob = this.audioBufferToWavBlob(decoded, 22050);
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(wavBlob);
+      });
+    } catch (e) {
+      console.warn('Audio decoding fallback to direct dataUrl:', e);
+      const sliced = file.slice(0, 700 * 1024);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          let dataUrl = reader.result;
+          if (dataUrl && !dataUrl.startsWith('data:audio/')) {
+            dataUrl = dataUrl.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
+          }
+          resolve(dataUrl);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(sliced);
+      });
+    }
+  }
+
+  audioBufferToWavBlob(buffer, targetSampleRate = 22050) {
+    const numChannels = 1; // mono
+    const originalRate = buffer.sampleRate;
+    const originalData = buffer.getChannelData(0);
+    const ratio = originalRate / targetSampleRate;
+    const targetLength = Math.min(Math.round(originalData.length / ratio), targetSampleRate * 180); // max 3 mins
+    const resampled = new Float32Array(targetLength);
+
+    for (let i = 0; i < targetLength; i++) {
+      const srcIdx = Math.floor(i * ratio);
+      resampled[i] = originalData[srcIdx] || 0;
+    }
+
+    const wavBuffer = new ArrayBuffer(44 + targetLength * 2);
+    const view = new DataView(wavBuffer);
+
+    // RIFF chunk descriptor
+    this.writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + targetLength * 2, true);
+    this.writeString(view, 8, 'WAVE');
+
+    // fmt sub-chunk
+    this.writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, targetSampleRate, true);
+    view.setUint32(28, targetSampleRate * numChannels * 2, true);
+    view.setUint16(32, numChannels * 2, true);
+    view.setUint16(34, 16, true); // 16-bit
+
+    // data sub-chunk
+    this.writeString(view, 36, 'data');
+    view.setUint32(40, targetLength * 2, true);
+
+    // Write 16-bit samples
+    let offset = 44;
+    for (let i = 0; i < targetLength; i++) {
+      const s = Math.max(-1, Math.min(1, resampled[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+
+    return new Blob([view], { type: 'audio/wav' });
+  }
+
+  writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
     }
   }
 
