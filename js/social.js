@@ -987,18 +987,70 @@ class SocialModule {
         }
       }
     );
+
+    // Live pinned-message banner for this room
+    this.listenToPinnedMessage(roomId);
+  }
+
+
+
+  async pinMessage(msgId, msgText, senderName) {
+    if (!this.isAdminUser()) return;
+    if (!window.fbDb) return;
+    try {
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .set({
+          pinnedMessage: {
+            msgId,
+            text: msgText,
+            senderName,
+            pinnedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }
+        }, { merge: true });
+    } catch (e) {
+      console.error('Pin message error:', e);
+      alert('Could not pin message: ' + e.message);
+    }
+  }
+
+  async unpinMessage() {
+    if (!this.isAdminUser()) return;
+    if (!window.fbDb) return;
+    try {
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .update({ pinnedMessage: firebase.firestore.FieldValue.delete() });
+    } catch (e) {
+      console.error('Unpin error:', e);
+    }
+  }
+
+  scrollToPinnedMessage() {
+    if (!this._pinnedMessageId) return;
+    const el = document.getElementById(`msg-${this._pinnedMessageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.transition = 'background 0.3s';
+      el.style.background = 'rgba(255,200,0,0.18)';
+      setTimeout(() => { el.style.background = ''; }, 1800);
+    }
   }
 
   createMessageBubbleElement(msg) {
     const myIdentity = this.getSenderIdentity();
     const isMe = msg.senderId === myIdentity.uid;
     const canDelete = isMe || this.isAdmin;
+    const canPin = this.isAdminUser();
 
     const timeFormatted = msg.createdAt && msg.createdAt.toDate
       ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : 'Just now';
 
     const div = document.createElement('div');
+    if (msg.id) div.id = `msg-${msg.id}`;
     div.style.cssText = `
       display: flex;
       flex-direction: column;
@@ -1089,6 +1141,7 @@ class SocialModule {
 
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
             <span>${timeFormatted}</span>
+            ${canPin ? `<button class="btn-pin-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? 'rgba(0,0,0,0.5)' : 'rgba(255,200,0,0.6)'}; font-size: 11px; opacity: 0.7; transition: opacity 0.2s;" title="📌 Pin this message (Admin only)">📌</button>` : ''}
             ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? '#ff3b30' : 'var(--text-dim)'}; font-size: 11px; opacity: 0.7; transition: opacity 0.2s;" title="${isMe ? 'Delete my message' : 'Delete as Admin'}">🗑️</button>` : ''}
           </div>
         </div>
@@ -1183,8 +1236,23 @@ class SocialModule {
       });
     }
 
+    // 📌 Pin Button (admin only)
+    const pinBtn = div.querySelector('.btn-pin-chat-msg');
+    if (pinBtn && canPin && msg.id) {
+      pinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const previewText = msg.text
+          ? msg.text.slice(0, 120)
+          : msg.attachment
+            ? `[${msg.attachment.type}: ${msg.attachment.name || ''}]`
+            : '(message)';
+        this.pinMessage(msg.id, previewText, msg.senderName || 'Unknown');
+      });
+    }
+
     return div;
   }
+
 
   async sendMessage() {
     const text = this.chatInput ? this.chatInput.value.trim() : '';
