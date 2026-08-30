@@ -436,147 +436,38 @@ class SocialModule {
   }
 
   async compressAudio(file) {
-    if (file.size <= 600 * 1024) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          let dataUrl = reader.result;
-          if (dataUrl && dataUrl.startsWith('data:') && !dataUrl.startsWith('data:audio/')) {
-            dataUrl = dataUrl.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
-          }
-          resolve(dataUrl);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
+    // Read the file exactly as-is, preserving original MIME type and bytes.
+    // Browsers (Chrome/Firefox/Safari) can all play data: URLs directly in new Audio().
+    // If the file is > 900KB, we truncate rather than corrupt the format.
+    const MAX_BYTES = 900 * 1024;
+    const source = file.size <= MAX_BYTES ? file : file.slice(0, MAX_BYTES);
 
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const audioCtx = new AudioCtx();
-      const decoded = await audioCtx.decodeAudioData(arrayBuffer);
-      const wavBlob = this.audioBufferToWavBlob(decoded, 22050);
-
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(wavBlob);
-      });
-    } catch (e) {
-      console.warn('Audio decoding fallback to direct dataUrl:', e);
-      const sliced = file.slice(0, 700 * 1024);
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          let dataUrl = reader.result;
-          if (dataUrl && !dataUrl.startsWith('data:audio/')) {
-            dataUrl = dataUrl.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
-          }
-          resolve(dataUrl);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(sliced);
-      });
-    }
-  }
-
-  audioBufferToWavBlob(buffer, targetSampleRate = 22050) {
-    const numChannels = 1; // mono
-    const originalRate = buffer.sampleRate;
-    const originalData = buffer.getChannelData(0);
-    const ratio = originalRate / targetSampleRate;
-    const targetLength = Math.min(Math.round(originalData.length / ratio), targetSampleRate * 180); // max 3 mins
-    const resampled = new Float32Array(targetLength);
-
-    for (let i = 0; i < targetLength; i++) {
-      const srcIdx = Math.floor(i * ratio);
-      resampled[i] = originalData[srcIdx] || 0;
-    }
-
-    const wavBuffer = new ArrayBuffer(44 + targetLength * 2);
-    const view = new DataView(wavBuffer);
-
-    // RIFF chunk descriptor
-    this.writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + targetLength * 2, true);
-    this.writeString(view, 8, 'WAVE');
-
-    // fmt sub-chunk
-    this.writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM format
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, targetSampleRate, true);
-    view.setUint32(28, targetSampleRate * numChannels * 2, true);
-    view.setUint16(32, numChannels * 2, true);
-    view.setUint16(34, 16, true); // 16-bit
-
-    // data sub-chunk
-    this.writeString(view, 36, 'data');
-    view.setUint32(40, targetLength * 2, true);
-
-    // Write 16-bit samples
-    let offset = 44;
-    for (let i = 0; i < targetLength; i++) {
-      const s = Math.max(-1, Math.min(1, resampled[i]));
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-      offset += 2;
-    }
-
-    return new Blob([view], { type: 'audio/wav' });
-  }
-
-  writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  }
-
-  fixAudioDataUrl(url) {
-    if (!url) return '';
-    // If it's already an http/https URL (Firebase Storage), return as-is
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    // Fix wrong MIME prefix for data URLs
-    if (url.startsWith('data:') && !url.startsWith('data:audio/')) {
-      // Detect WAV by checking for 'RIFF' magic bytes in base64 (UklGR = RIFF)
-      const b64Preview = url.split(',')[1] || '';
-      if (b64Preview.startsWith('UklGR') || b64Preview.startsWith('Ukl')) {
-        return url.replace(/^data:[^;]*;base64,/, 'data:audio/wav;base64,');
-      }
-      return url.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
-    }
-    return url;
-  }
-
-  dataUrlToBlobUrl(dataUrl) {
-    // If it's a http/https URL, return as-is (Firebase Storage direct URL)
-    if (!dataUrl) return '';
-    if (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) return dataUrl;
-    if (!dataUrl.startsWith('data:')) return dataUrl;
-    try {
-      // Extract MIME type from header
-      const headerMatch = dataUrl.match(/^data:([^;]+);base64,/);
-      const mimeType = headerMatch ? headerMatch[1] : 'audio/mpeg';
-      const b64Data = dataUrl.split(',')[1];
-      const byteChars = atob(b64Data);
-      const byteArrays = [];
-      for (let offset = 0; offset < byteChars.length; offset += 512) {
-        const slice = byteChars.slice(offset, offset + 512);
-        const byteNumbers = new Array(slice.length);
-        for (let i = 0; i < slice.length; i++) {
-          byteNumbers[i] = slice.charCodeAt(i);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        let dataUrl = reader.result;
+        // If the browser couldn't detect the MIME type, tag it as audio/mpeg as fallback
+        if (dataUrl && dataUrl.startsWith('data:application/') || (dataUrl && dataUrl.startsWith('data:video/'))) {
+          dataUrl = dataUrl.replace(/^data:[^;]+;base64,/, 'data:audio/mpeg;base64,');
         }
-        byteArrays.push(new Uint8Array(byteNumbers));
-      }
-      const blob = new Blob(byteArrays, { type: mimeType });
-      return URL.createObjectURL(blob);
-    } catch (e) {
-      console.warn('dataUrlToBlobUrl fallback:', e);
-      return dataUrl;
-    }
+        resolve(dataUrl);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(source);
+    });
   }
+
+  // Returns a usable audio src: http URLs pass through; data: URLs pass through directly.
+  // new Audio(src) handles both natively — no blob conversion needed.
+  resolveAudioSrc(raw) {
+    if (!raw) return '';
+    // Firebase Storage HTTPS URL — use directly
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    // data: URL — use directly, browser Audio can handle it
+    return raw;
+  }
+
+
 
   initEmojiPicker() {
     const btnEmoji = document.getElementById('btn-chat-emoji');
@@ -1138,7 +1029,7 @@ class SocialModule {
       `;
     } else {
       const audioSrc = msg.attachment && msg.attachment.type === 'audio' 
-        ? this.dataUrlToBlobUrl(this.fixAudioDataUrl(msg.attachment.dataUrl))
+        ? this.resolveAudioSrc(msg.attachment.dataUrl)
         : '';
 
       div.innerHTML = `
@@ -1207,7 +1098,7 @@ class SocialModule {
     // Interactive custom audio player controls
     const playBtn = div.querySelector('.btn-play-pause-audio');
     if (playBtn && msg.attachment && msg.attachment.type === 'audio') {
-      const audioSrc = this.dataUrlToBlobUrl(this.fixAudioDataUrl(msg.attachment.dataUrl));
+      const audioSrc = this.resolveAudioSrc(msg.attachment.dataUrl);
       const progressBar = div.querySelector('.chat-audio-progress-bar');
       const progressFill = div.querySelector('.chat-audio-progress-fill');
       const currentTimeEl = div.querySelector('.chat-audio-current-time');
