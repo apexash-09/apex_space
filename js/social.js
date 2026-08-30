@@ -136,6 +136,20 @@ class SocialModule {
       this.anonBadge.addEventListener('click', () => this.openAliasModal());
     }
 
+    const btnEditChatName = document.getElementById('btn-edit-chat-name');
+    if (btnEditChatName) {
+      btnEditChatName.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.openAliasModal();
+      });
+    }
+
+    if (this.aliasModal) {
+      this.aliasModal.addEventListener('click', (e) => {
+        if (e.target === this.aliasModal) this.closeAliasModal();
+      });
+    }
+
     document.querySelectorAll('[data-close="modal-change-alias"]').forEach((btn) => {
       btn.addEventListener('click', () => this.closeAliasModal());
     });
@@ -220,7 +234,11 @@ class SocialModule {
   }
 
   isAdminUser() {
-    return this.isAdmin || (this.currentUser && this.currentUser.email && this.currentUser.email.toLowerCase() === window.ADMIN_EMAIL.toLowerCase());
+    if (this.isAdmin) return true;
+    if (this.currentUser && this.currentUser.email && this.currentUser.email.toLowerCase() === window.ADMIN_EMAIL.toLowerCase()) return true;
+    const storedEmail = localStorage.getItem('apex_user_email');
+    if (storedEmail && storedEmail.toLowerCase() === window.ADMIN_EMAIL.toLowerCase()) return true;
+    return false;
   }
 
   initAnonymousIdentity() {
@@ -260,11 +278,17 @@ class SocialModule {
   openAliasModal() {
     const input = document.getElementById('custom-alias-input');
     if (input) input.value = this.getSenderIdentity().name;
-    if (this.aliasModal) this.aliasModal.classList.add('active');
+    const modal = this.aliasModal || document.getElementById('modal-change-alias');
+    if (modal) {
+      this.aliasModal = modal;
+      modal.classList.add('active');
+      if (input) setTimeout(() => input.focus(), 60);
+    }
   }
 
   closeAliasModal() {
-    if (this.aliasModal) this.aliasModal.classList.remove('active');
+    const modal = this.aliasModal || document.getElementById('modal-change-alias');
+    if (modal) modal.classList.remove('active');
   }
 
   setCustomHandle(name) {
@@ -329,6 +353,11 @@ class SocialModule {
 
     if (this.currentUser) {
       this.fetchRegisteredUsers();
+    }
+
+    // Refresh active messages stream to update Pin/Delete admin controls
+    if (this.activeRoomId && window.fbDb) {
+      this.startMessagesListener(this.activeRoomId);
     }
   }
 
