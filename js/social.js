@@ -536,17 +536,30 @@ class SocialModule {
 
   fixAudioDataUrl(url) {
     if (!url) return '';
+    // If it's already an http/https URL (Firebase Storage), return as-is
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    // Fix wrong MIME prefix for data URLs
     if (url.startsWith('data:') && !url.startsWith('data:audio/')) {
+      // Detect WAV by checking for 'RIFF' magic bytes in base64 (UklGR = RIFF)
+      const b64Preview = url.split(',')[1] || '';
+      if (b64Preview.startsWith('UklGR') || b64Preview.startsWith('Ukl')) {
+        return url.replace(/^data:[^;]*;base64,/, 'data:audio/wav;base64,');
+      }
       return url.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
     }
     return url;
   }
 
   dataUrlToBlobUrl(dataUrl) {
-    if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl;
+    // If it's a http/https URL, return as-is (Firebase Storage direct URL)
+    if (!dataUrl) return '';
+    if (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) return dataUrl;
+    if (!dataUrl.startsWith('data:')) return dataUrl;
     try {
-      const parts = dataUrl.split(',');
-      const b64Data = parts[1];
+      // Extract MIME type from header
+      const headerMatch = dataUrl.match(/^data:([^;]+);base64,/);
+      const mimeType = headerMatch ? headerMatch[1] : 'audio/mpeg';
+      const b64Data = dataUrl.split(',')[1];
       const byteChars = atob(b64Data);
       const byteArrays = [];
       for (let offset = 0; offset < byteChars.length; offset += 512) {
@@ -557,9 +570,10 @@ class SocialModule {
         }
         byteArrays.push(new Uint8Array(byteNumbers));
       }
-      const blob = new Blob(byteArrays, { type: 'audio/mpeg' });
+      const blob = new Blob(byteArrays, { type: mimeType });
       return URL.createObjectURL(blob);
     } catch (e) {
+      console.warn('dataUrlToBlobUrl fallback:', e);
       return dataUrl;
     }
   }
@@ -1239,6 +1253,8 @@ class SocialModule {
             this.currentActiveAudioBtn = playBtn;
           }).catch(err => {
             console.error('Audio play error:', err);
+            playBtn.innerText = '▶';
+            alert(`⚠️ Audio Playback Error:\n${err.name}: ${err.message}\n\nThe audio src starts with: "${audioSrc ? audioSrc.substring(0, 80) : 'EMPTY'}"`);
           });
         } else {
           audio.pause();
