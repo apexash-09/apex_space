@@ -423,12 +423,43 @@ class SocialModule {
     return url;
   }
 
+  dataUrlToBlobUrl(dataUrl) {
+    if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl;
+    try {
+      const parts = dataUrl.split(',');
+      const b64Data = parts[1];
+      const byteChars = atob(b64Data);
+      const byteArrays = [];
+      for (let offset = 0; offset < byteChars.length; offset += 512) {
+        const slice = byteChars.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        byteArrays.push(new Uint8Array(byteNumbers));
+      }
+      const blob = new Blob(byteArrays, { type: 'audio/mpeg' });
+      return URL.createObjectURL(blob);
+    } catch (e) {
+      return dataUrl;
+    }
+  }
+
   initEmojiPicker() {
     const btnEmoji = document.getElementById('btn-chat-emoji');
     const picker = document.getElementById('chat-emoji-picker');
-    const grid = document.getElementById('chat-emoji-grid');
-    if (!btnEmoji || !picker || !grid) return;
+    const tabEmojis = document.getElementById('tab-picker-emojis');
+    const tabStickers = document.getElementById('tab-picker-stickers');
+    const viewEmojis = document.getElementById('picker-view-emojis');
+    const viewStickers = document.getElementById('picker-view-stickers');
+    const gridEmojis = document.getElementById('chat-emoji-grid');
+    const gridStickers = document.getElementById('chat-stickers-grid');
+    const btnAddSticker = document.getElementById('btn-add-custom-sticker');
+    const stickerFileInput = document.getElementById('sticker-file-input');
 
+    if (!btnEmoji || !picker) return;
+
+    // 1. Emoji Tab Setup
     const emojis = [
       '😀','😂','🤣','😍','😎','🥳','🔥','💯','❤️','✨',
       '🎵','🎧','🚀','👏','👍','🙌','💡','🍕','☕','🎮',
@@ -436,24 +467,67 @@ class SocialModule {
       '🙏','🤩','😴','🤯','😭','💀','💩','😺','🍿','🍻'
     ];
 
-    grid.innerHTML = '';
-    emojis.forEach((emoji) => {
-      const span = document.createElement('span');
-      span.innerText = emoji;
-      span.style.cssText = 'cursor: pointer; padding: 4px; border-radius: 6px; transition: transform 0.15s; user-select: none;';
-      span.onmouseover = () => span.style.transform = 'scale(1.25)';
-      span.onmouseout = () => span.style.transform = 'scale(1)';
-      span.onclick = (e) => {
-        e.stopPropagation();
-        if (this.chatInput) {
-          this.chatInput.value += emoji;
-          this.chatInput.focus();
-        }
-        picker.style.display = 'none';
-      };
-      grid.appendChild(span);
-    });
+    if (gridEmojis) {
+      gridEmojis.innerHTML = '';
+      emojis.forEach((emoji) => {
+        const span = document.createElement('span');
+        span.innerText = emoji;
+        span.style.cssText = 'cursor: pointer; padding: 4px; border-radius: 6px; transition: transform 0.15s; user-select: none; font-size: 20px;';
+        span.onmouseover = () => span.style.transform = 'scale(1.25)';
+        span.onmouseout = () => span.style.transform = 'scale(1)';
+        span.onclick = (e) => {
+          e.stopPropagation();
+          if (this.chatInput) {
+            this.chatInput.value += emoji;
+            this.chatInput.focus();
+          }
+          picker.style.display = 'none';
+        };
+        gridEmojis.appendChild(span);
+      });
+    }
 
+    // 2. Tab Switcher
+    if (tabEmojis && tabStickers && viewEmojis && viewStickers) {
+      tabEmojis.addEventListener('click', () => {
+        tabEmojis.style.background = 'rgba(255,255,255,0.12)';
+        tabEmojis.style.color = '#fff';
+        tabStickers.style.background = 'transparent';
+        tabStickers.style.color = 'var(--text-muted)';
+        viewEmojis.style.display = 'block';
+        viewStickers.style.display = 'none';
+      });
+
+      tabStickers.addEventListener('click', () => {
+        tabStickers.style.background = 'rgba(255,255,255,0.12)';
+        tabStickers.style.color = '#fff';
+        tabEmojis.style.background = 'transparent';
+        tabEmojis.style.color = 'var(--text-muted)';
+        viewStickers.style.display = 'block';
+        viewEmojis.style.display = 'none';
+        this.renderStickersGrid();
+      });
+    }
+
+    // 3. Custom Sticker File Upload
+    if (btnAddSticker && stickerFileInput) {
+      btnAddSticker.addEventListener('click', () => stickerFileInput.click());
+      stickerFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const stickerDataUrl = await this.compressImage(file, 160, 0.85);
+          const customStickers = JSON.parse(localStorage.getItem('apex_custom_stickers') || '[]');
+          customStickers.unshift(stickerDataUrl);
+          localStorage.setItem('apex_custom_stickers', JSON.stringify(customStickers.slice(0, 30)));
+          this.renderStickersGrid();
+        } catch (err) {
+          alert('Could not save sticker: ' + err.message);
+        }
+      });
+    }
+
+    // 4. Toggle Popover
     btnEmoji.addEventListener('click', (e) => {
       e.stopPropagation();
       picker.style.display = picker.style.display === 'block' ? 'none' : 'block';
@@ -464,6 +538,89 @@ class SocialModule {
         picker.style.display = 'none';
       }
     });
+
+    this.renderStickersGrid();
+  }
+
+  renderStickersGrid() {
+    const grid = document.getElementById('chat-stickers-grid');
+    const picker = document.getElementById('chat-emoji-picker');
+    if (!grid) return;
+
+    // Built-in starter sticker library
+    const defaultStickers = [
+      'https://api.iconify.design/fluent-emoji:cat-face.svg',
+      'https://api.iconify.design/fluent-emoji:fire.svg',
+      'https://api.iconify.design/fluent-emoji:rocket.svg',
+      'https://api.iconify.design/fluent-emoji:party-popper.svg',
+      'https://api.iconify.design/fluent-emoji:smiling-face-with-sunglasses.svg',
+      'https://api.iconify.design/fluent-emoji:sparkles.svg',
+      'https://api.iconify.design/fluent-emoji:alien-monster.svg',
+      'https://api.iconify.design/fluent-emoji:glowing-star.svg'
+    ];
+
+    const customStickers = JSON.parse(localStorage.getItem('apex_custom_stickers') || '[]');
+    const allStickers = [...customStickers, ...defaultStickers];
+
+    grid.innerHTML = '';
+    allStickers.forEach((stickerUrl) => {
+      const img = document.createElement('img');
+      img.src = stickerUrl;
+      img.style.cssText = 'width: 60px; height: 60px; object-fit: contain; cursor: pointer; padding: 4px; border-radius: 8px; background: rgba(255,255,255,0.04); transition: transform 0.15s, background 0.15s;';
+      img.onmouseover = () => {
+        img.style.transform = 'scale(1.15)';
+        img.style.background = 'rgba(255,255,255,0.12)';
+      };
+      img.onmouseout = () => {
+        img.style.transform = 'scale(1)';
+        img.style.background = 'rgba(255,255,255,0.04)';
+      };
+      img.onclick = () => {
+        this.sendSticker(stickerUrl);
+        if (picker) picker.style.display = 'none';
+      };
+      grid.appendChild(img);
+    });
+  }
+
+  async sendSticker(stickerUrl) {
+    if (!this.activeRoomId) this.activeRoomId = 'general_lounge';
+    const sender = this.getSenderIdentity();
+    const newMsg = {
+      text: '',
+      attachment: {
+        name: 'Sticker',
+        type: 'sticker',
+        dataUrl: stickerUrl
+      },
+      senderId: sender.uid,
+      senderName: sender.name,
+      senderEmail: sender.email,
+      isAnonymous: sender.isAnon,
+      localTimestamp: Date.now(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .collection('messages')
+        .add(newMsg);
+
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .set({
+          lastMessage: '✨ Sticker',
+          lastMessageSender: sender.name,
+          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+      this.scrollChatToBottom();
+    } catch (err) {
+      console.error('Failed to send sticker:', err);
+    }
   }
 
   compressImage(file, maxDimension = 800, quality = 0.75) {
@@ -815,57 +972,77 @@ class SocialModule {
       ${isMe ? 'margin-left: auto;' : 'margin-right: auto;'}
     `;
 
-    div.innerHTML = `
-      ${!isMe ? `
-        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
-          <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
-          ${msg.senderEmail === window.ADMIN_EMAIL ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
+    const isSticker = msg.attachment && msg.attachment.type === 'sticker';
+
+    if (isSticker) {
+      div.innerHTML = `
+        ${!isMe ? `
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
+            <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
+            ${msg.senderEmail === window.ADMIN_EMAIL ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
+          </div>
+        ` : ''}
+
+        <div style="position: relative; padding: 4px;">
+          <img src="${msg.attachment.dataUrl}" style="width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.55)); display: block;" alt="Sticker">
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: var(--text-dim);">
+            <span>${timeFormatted}</span>
+            ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: var(--text-dim); font-size: 11px; opacity: 0.7;" title="${isMe ? 'Delete my sticker' : 'Delete as Admin'}">🗑️</button>` : ''}
+          </div>
         </div>
-      ` : ''}
+      `;
+    } else {
+      const audioSrc = msg.attachment && msg.attachment.type === 'audio' 
+        ? this.dataUrlToBlobUrl(this.fixAudioDataUrl(msg.attachment.dataUrl))
+        : '';
 
-      <div style="
-        background: ${isMe ? '#ffffff' : 'rgba(24, 24, 24, 0.9)'};
-        color: ${isMe ? '#000000' : '#f4f4f5'};
-        padding: 10px 14px;
-        border-radius: 16px;
-        ${isMe ? 'border-top-right-radius: 4px;' : 'border-top-left-radius: 4px; border: 1px solid var(--border-subtle);'}
-        font-size: 13px;
-        line-height: 1.5;
-        position: relative;
-        word-break: break-word;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-      ">
-        ${msg.text ? `<div>${this.formatPostContent(msg.text)}</div>` : ''}
+      div.innerHTML = `
+        ${!isMe ? `
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
+            <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
+            ${msg.senderEmail === window.ADMIN_EMAIL ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
+          </div>
+        ` : ''}
 
-        <!-- Audio Attachment Player with Multi-format Audio Sources -->
-        ${msg.attachment && msg.attachment.type === 'audio' ? `
-          <div style="margin-top: 8px; padding: 10px 12px; background: ${isMe ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.5)'}; border-radius: 12px; min-width: 240px; max-width: 320px; border: 1px solid rgba(255,255,255,0.08);">
-            <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: ${isMe ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🎵 ${this.escapeHtml(msg.attachment.name)}</span>
-              <a href="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" download="${this.escapeHtml(msg.attachment.name)}" style="font-size: 11px; color: ${isMe ? '#000' : '#fff'}; text-decoration: none;" title="Download audio track">⬇️</a>
+        <div style="
+          background: ${isMe ? '#ffffff' : 'rgba(24, 24, 24, 0.9)'};
+          color: ${isMe ? '#000000' : '#f4f4f5'};
+          padding: 10px 14px;
+          border-radius: 16px;
+          ${isMe ? 'border-top-right-radius: 4px;' : 'border-top-left-radius: 4px; border: 1px solid var(--border-subtle);'}
+          font-size: 13px;
+          line-height: 1.5;
+          position: relative;
+          word-break: break-word;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        ">
+          ${msg.text ? `<div>${this.formatPostContent(msg.text)}</div>` : ''}
+
+          <!-- Audio Attachment Player with Direct Audio Src -->
+          ${msg.attachment && msg.attachment.type === 'audio' ? `
+            <div style="margin-top: 8px; padding: 10px 12px; background: ${isMe ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.5)'}; border-radius: 12px; min-width: 240px; max-width: 320px; border: 1px solid rgba(255,255,255,0.08);">
+              <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: ${isMe ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🎵 ${this.escapeHtml(msg.attachment.name)}</span>
+                <a href="${audioSrc}" download="${this.escapeHtml(msg.attachment.name)}" style="font-size: 11px; color: ${isMe ? '#000' : '#fff'}; text-decoration: none;" title="Download audio track">⬇️</a>
+              </div>
+              <audio controls preload="auto" src="${audioSrc}" style="width: 100%; height: 36px; border-radius: 6px; outline: none;"></audio>
             </div>
-            <audio controls preload="auto" style="width: 100%; height: 36px; border-radius: 6px;">
-              <source src="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" type="audio/mpeg">
-              <source src="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" type="audio/mp3">
-              <source src="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" type="audio/wav">
-              <source src="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" type="audio/ogg">
-            </audio>
-          </div>
-        ` : ''}
+          ` : ''}
 
-        <!-- Image Attachment (Clean, properly bounded like WhatsApp) -->
-        ${msg.attachment && msg.attachment.type === 'image' ? `
-          <div style="margin-top: 8px; border-radius: 10px; overflow: hidden; max-width: 260px; max-height: 200px; border: 1px solid rgba(255,255,255,0.15);">
-            <img src="${msg.attachment.dataUrl}" style="width: 100%; height: 100%; max-height: 200px; object-fit: cover; display: block; cursor: pointer;" onclick="window.open('${msg.attachment.dataUrl}', '_blank');" title="Click to view full image">
-          </div>
-        ` : ''}
+          <!-- Image Attachment (Clean, properly bounded like WhatsApp) -->
+          ${msg.attachment && msg.attachment.type === 'image' ? `
+            <div style="margin-top: 8px; border-radius: 10px; overflow: hidden; max-width: 260px; max-height: 200px; border: 1px solid rgba(255,255,255,0.15);">
+              <img src="${msg.attachment.dataUrl}" style="width: 100%; height: 100%; max-height: 200px; object-fit: cover; display: block; cursor: pointer;" onclick="window.open('${msg.attachment.dataUrl}', '_blank');" title="Click to view full image">
+            </div>
+          ` : ''}
 
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
-          <span>${timeFormatted}</span>
-          ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? '#ff3b30' : 'var(--text-dim)'}; font-size: 11px; opacity: 0.7; transition: opacity 0.2s;" title="${isMe ? 'Delete my message' : 'Delete as Admin'}">🗑️</button>` : ''}
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
+            <span>${timeFormatted}</span>
+            ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? '#ff3b30' : 'var(--text-dim)'}; font-size: 11px; opacity: 0.7; transition: opacity 0.2s;" title="${isMe ? 'Delete my message' : 'Delete as Admin'}">🗑️</button>` : ''}
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
 
     const delBtn = div.querySelector('.btn-delete-chat-msg');
     if (delBtn) {

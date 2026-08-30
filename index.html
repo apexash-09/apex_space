@@ -358,11 +358,31 @@
                       😀
                     </button>
 
-                    <!-- Floating Emoji Picker Popover -->
-                    <div id="chat-emoji-picker" class="glass-panel" style="display: none; position: absolute; bottom: 65px; left: 16px; width: 310px; max-height: 230px; overflow-y: auto; z-index: 50; padding: 12px; background: rgba(18, 18, 18, 0.97); border: 1px solid var(--border-glow); border-radius: var(--radius-md); box-shadow: 0 8px 30px rgba(0,0,0,0.8);">
-                      <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Quick Emojis</div>
-                      <div id="chat-emoji-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; font-size: 20px; text-align: center;">
-                        <!-- Emojis populated by JS -->
+                    <!-- Floating Emoji & Sticker Picker Popover -->
+                    <div id="chat-emoji-picker" class="glass-panel" style="display: none; position: absolute; bottom: 65px; left: 16px; width: 330px; max-height: 280px; overflow-y: auto; z-index: 50; padding: 12px; background: rgba(18, 18, 18, 0.98); border: 1px solid var(--border-glow); border-radius: var(--radius-md); box-shadow: 0 8px 30px rgba(0,0,0,0.85);">
+                      <!-- Tabs: Emojis vs Stickers -->
+                      <div style="display: flex; gap: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+                        <button type="button" id="tab-picker-emojis" class="btn-ghost" style="padding: 4px 10px; font-size: 11px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.12); border-radius: 12px;">😀 Emojis</button>
+                        <button type="button" id="tab-picker-stickers" class="btn-ghost" style="padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--text-muted); border-radius: 12px;">✨ Stickers</button>
+                      </div>
+
+                      <!-- Emojis View -->
+                      <div id="picker-view-emojis">
+                        <div id="chat-emoji-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; font-size: 20px; text-align: center;">
+                          <!-- Emojis populated by JS -->
+                        </div>
+                      </div>
+
+                      <!-- Stickers View -->
+                      <div id="picker-view-stickers" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                          <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Stickers Pack</span>
+                          <button type="button" id="btn-add-custom-sticker" class="btn-ghost" style="padding: 2px 8px; font-size: 10px; color: #fff; border: 1px dashed rgba(255,255,255,0.4); border-radius: 8px;" title="Upload your own custom sticker">+ Add Sticker</button>
+                          <input type="file" id="sticker-file-input" accept="image/*,.png,.jpg,.jpeg,.gif,.webp" style="display: none;">
+                        </div>
+                        <div id="chat-stickers-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 180px; overflow-y: auto; padding: 4px;">
+                          <!-- Stickers populated by JS -->
+                        </div>
                       </div>
                     </div>
 
