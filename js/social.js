@@ -211,7 +211,18 @@ class SocialModule {
     this.startSharedSongsListener();
   }
 
-  // --- Anonymous & Custom Alias Identity System ---
+  // --- Anonymous & Custom Alias Identity System with Admin Protection ---
+  isReservedAdminName(name) {
+    if (!name) return false;
+    const clean = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const reserved = ['admin', 'ayush', 'ash', 'apex'];
+    return reserved.some(r => clean.includes(r));
+  }
+
+  isAdminUser() {
+    return this.isAdmin || (this.currentUser && this.currentUser.email && this.currentUser.email.toLowerCase() === window.ADMIN_EMAIL.toLowerCase());
+  }
+
   initAnonymousIdentity() {
     let anonUid = localStorage.getItem('apex_anon_uid');
     if (!anonUid) {
@@ -220,6 +231,14 @@ class SocialModule {
     }
 
     let savedHandle = localStorage.getItem('apex_chat_handle') || localStorage.getItem('apex_anon_handle');
+    
+    // Security check: if not admin, ensure saved handle is not spoofing admin names
+    if (savedHandle && this.isReservedAdminName(savedHandle) && !this.isAdminUser()) {
+      savedHandle = this.generateRandomAlias();
+      localStorage.setItem('apex_chat_handle', savedHandle);
+      localStorage.setItem('apex_anon_handle', savedHandle);
+    }
+
     if (!savedHandle) {
       savedHandle = this.generateRandomAlias();
       localStorage.setItem('apex_chat_handle', savedHandle);
@@ -230,7 +249,7 @@ class SocialModule {
   }
 
   generateRandomAlias() {
-    const adjectives = ['Cyber', 'Neon', 'Shadow', 'Apex', 'Phantom', 'Cosmic', 'Solar', 'Quantum', 'Vortex', 'Astral', 'Hyper', 'Velox'];
+    const adjectives = ['Cyber', 'Neon', 'Shadow', 'Phantom', 'Cosmic', 'Solar', 'Quantum', 'Vortex', 'Astral', 'Hyper', 'Velox', 'Echo'];
     const nouns = ['Pilot', 'Hacker', 'Nomad', 'Scholar', 'Ninja', 'Rider', 'Voyager', 'Ghost', 'Architect', 'Spark', 'Titan', 'Drifter'];
     const num = Math.floor(100 + Math.random() * 900);
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
@@ -251,6 +270,13 @@ class SocialModule {
   setCustomHandle(name) {
     if (!name || !name.trim()) return;
     const cleanName = name.trim();
+
+    // Security check: restrict admin reserved names (Admin, Ayush, Ash, Apex) to verified admin email only
+    if (this.isReservedAdminName(cleanName) && !this.isAdminUser()) {
+      alert('🔒 Security Notice: The handles "Admin", "Ayush", "Ash", and "Apex" are protected and reserved exclusively for the system owner.');
+      return;
+    }
+
     localStorage.setItem('apex_chat_handle', cleanName);
     localStorage.setItem('apex_anon_handle', cleanName);
     this.updateAnonBadge();
@@ -1037,14 +1063,29 @@ class SocialModule {
         ">
           ${msg.text ? `<div>${this.formatPostContent(msg.text)}</div>` : ''}
 
-          <!-- Audio Attachment Player with Direct Audio Src -->
+          <!-- Custom Interactive Audio Player -->
           ${msg.attachment && msg.attachment.type === 'audio' ? `
-            <div style="margin-top: 8px; padding: 10px 12px; background: ${isMe ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.5)'}; border-radius: 12px; min-width: 240px; max-width: 320px; border: 1px solid rgba(255,255,255,0.08);">
-              <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: ${isMe ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <div class="chat-custom-audio-player" style="margin-top: 8px; padding: 10px 14px; background: ${isMe ? 'rgba(0,0,0,0.07)' : 'rgba(0,0,0,0.6)'}; border-radius: 12px; min-width: 250px; max-width: 320px; border: 1px solid rgba(255,255,255,0.1);">
+              <div style="font-size: 11px; font-weight: 700; margin-bottom: 8px; color: ${isMe ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🎵 ${this.escapeHtml(msg.attachment.name)}</span>
-                <a href="${audioSrc}" download="${this.escapeHtml(msg.attachment.name)}" style="font-size: 11px; color: ${isMe ? '#000' : '#fff'}; text-decoration: none;" title="Download audio track">⬇️</a>
+                <a href="${audioSrc}" download="${this.escapeHtml(msg.attachment.name)}" style="font-size: 12px; color: ${isMe ? '#000' : '#fff'}; text-decoration: none;" title="Download audio track">⬇️</a>
               </div>
-              <audio controls preload="auto" src="${audioSrc}" style="width: 100%; height: 36px; border-radius: 6px; outline: none;"></audio>
+              
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button type="button" class="btn-play-pause-audio" style="width: 38px; height: 38px; min-width: 38px; border-radius: 50%; background: ${isMe ? '#000000' : '#ffffff'}; color: ${isMe ? '#ffffff' : '#000000'}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: transform 0.15s;" title="Play / Pause Audio">
+                  ▶
+                </button>
+                
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                  <div class="chat-audio-progress-bar" style="width: 100%; height: 6px; background: ${isMe ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.2)'}; border-radius: 3px; cursor: pointer; position: relative; overflow: hidden;">
+                    <div class="chat-audio-progress-fill" style="width: 0%; height: 100%; background: ${isMe ? '#000000' : '#ffffff'}; border-radius: 3px;"></div>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'}; font-variant-numeric: tabular-nums;">
+                    <span class="chat-audio-current-time">0:00</span>
+                    <span class="chat-audio-duration">--:--</span>
+                  </div>
+                </div>
+              </div>
             </div>
           ` : ''}
 
@@ -1061,6 +1102,75 @@ class SocialModule {
           </div>
         </div>
       `;
+    }
+
+    // Interactive custom audio player controls
+    const playBtn = div.querySelector('.btn-play-pause-audio');
+    if (playBtn && msg.attachment && msg.attachment.type === 'audio') {
+      const audioSrc = this.dataUrlToBlobUrl(this.fixAudioDataUrl(msg.attachment.dataUrl));
+      const progressBar = div.querySelector('.chat-audio-progress-bar');
+      const progressFill = div.querySelector('.chat-audio-progress-fill');
+      const currentTimeEl = div.querySelector('.chat-audio-current-time');
+      const durationEl = div.querySelector('.chat-audio-duration');
+
+      const audio = new Audio(audioSrc);
+
+      audio.addEventListener('loadedmetadata', () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          const mins = Math.floor(audio.duration / 60);
+          const secs = Math.floor(audio.duration % 60).toString().padStart(2, '0');
+          if (durationEl) durationEl.innerText = `${mins}:${secs}`;
+        }
+      });
+
+      audio.addEventListener('timeupdate', () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          const pct = (audio.currentTime / audio.duration) * 100;
+          if (progressFill) progressFill.style.width = `${pct}%`;
+          const mins = Math.floor(audio.currentTime / 60);
+          const secs = Math.floor(audio.currentTime % 60).toString().padStart(2, '0');
+          if (currentTimeEl) currentTimeEl.innerText = `${mins}:${secs}`;
+        }
+      });
+
+      audio.addEventListener('ended', () => {
+        playBtn.innerText = '▶';
+        if (progressFill) progressFill.style.width = '0%';
+        if (currentTimeEl) currentTimeEl.innerText = '0:00';
+      });
+
+      playBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.currentActiveAudio && this.currentActiveAudio !== audio) {
+          this.currentActiveAudio.pause();
+          if (this.currentActiveAudioBtn) this.currentActiveAudioBtn.innerText = '▶';
+        }
+
+        if (audio.paused) {
+          audio.play().then(() => {
+            playBtn.innerText = '⏸';
+            this.currentActiveAudio = audio;
+            this.currentActiveAudioBtn = playBtn;
+          }).catch(err => {
+            console.error('Audio play error:', err);
+          });
+        } else {
+          audio.pause();
+          playBtn.innerText = '▶';
+        }
+      });
+
+      if (progressBar) {
+        progressBar.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = progressBar.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          const width = rect.width;
+          if (audio.duration && !isNaN(audio.duration)) {
+            audio.currentTime = (clickX / width) * audio.duration;
+          }
+        });
+      }
     }
 
     const delBtn = div.querySelector('.btn-delete-chat-msg');
