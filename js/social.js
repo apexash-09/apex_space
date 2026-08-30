@@ -123,6 +123,9 @@ class SocialModule {
       this.btnRemoveAttachment.addEventListener('click', () => this.clearAttachment());
     }
 
+    // 5b. Emoji Picker Initialization
+    this.initEmojiPicker();
+
     // 6. Mobile Back to Channels
     if (this.mobileBackBtn) {
       this.mobileBackBtn.addEventListener('click', () => this.showMobileChannels());
@@ -383,10 +386,15 @@ class SocialModule {
       if (file.size <= 750 * 1024) {
         const reader = new FileReader();
         reader.onload = () => {
+          let cleanDataUrl = reader.result;
+          if (cleanDataUrl && cleanDataUrl.startsWith('data:') && !cleanDataUrl.startsWith('data:audio/')) {
+            cleanDataUrl = cleanDataUrl.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
+          }
+
           this.pendingAttachment = {
             name: file.name,
             type: 'audio',
-            dataUrl: reader.result
+            dataUrl: cleanDataUrl
           };
 
           if (this.chatAttachmentPreview && this.attachmentPreviewName) {
@@ -405,6 +413,57 @@ class SocialModule {
         alert(`This audio file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Direct chat audio is limited to 700KB. You can play and stream any full song in the "🎵 Shared Music" tab!`);
       }
     }
+  }
+
+  fixAudioDataUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('data:') && !url.startsWith('data:audio/')) {
+      return url.replace(/^data:[^;]*;base64,/, 'data:audio/mpeg;base64,');
+    }
+    return url;
+  }
+
+  initEmojiPicker() {
+    const btnEmoji = document.getElementById('btn-chat-emoji');
+    const picker = document.getElementById('chat-emoji-picker');
+    const grid = document.getElementById('chat-emoji-grid');
+    if (!btnEmoji || !picker || !grid) return;
+
+    const emojis = [
+      '😀','😂','🤣','😍','😎','🥳','🔥','💯','❤️','✨',
+      '🎵','🎧','🚀','👏','👍','🙌','💡','🍕','☕','🎮',
+      '🌟','👑','💎','🎉','⚡','💬','🤖','🦾','🧠','👀',
+      '🙏','🤩','😴','🤯','😭','💀','💩','😺','🍿','🍻'
+    ];
+
+    grid.innerHTML = '';
+    emojis.forEach((emoji) => {
+      const span = document.createElement('span');
+      span.innerText = emoji;
+      span.style.cssText = 'cursor: pointer; padding: 4px; border-radius: 6px; transition: transform 0.15s; user-select: none;';
+      span.onmouseover = () => span.style.transform = 'scale(1.25)';
+      span.onmouseout = () => span.style.transform = 'scale(1)';
+      span.onclick = (e) => {
+        e.stopPropagation();
+        if (this.chatInput) {
+          this.chatInput.value += emoji;
+          this.chatInput.focus();
+        }
+        picker.style.display = 'none';
+      };
+      grid.appendChild(span);
+    });
+
+    btnEmoji.addEventListener('click', (e) => {
+      e.stopPropagation();
+      picker.style.display = picker.style.display === 'block' ? 'none' : 'block';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!picker.contains(e.target) && e.target !== btnEmoji) {
+        picker.style.display = 'none';
+      }
+    });
   }
 
   compressImage(file, maxDimension = 800, quality = 0.75) {
@@ -778,14 +837,19 @@ class SocialModule {
       ">
         ${msg.text ? `<div>${this.formatPostContent(msg.text)}</div>` : ''}
 
-        <!-- Audio Attachment Player -->
+        <!-- Audio Attachment Player with Multi-format Audio Sources -->
         ${msg.attachment && msg.attachment.type === 'audio' ? `
-          <div style="margin-top: 8px; padding: 8px 10px; background: ${isMe ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.5)'}; border-radius: 10px; min-width: 220px; max-width: 280px;">
-            <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px; color: ${isMe ? '#000' : '#fff'}; display: flex; align-items: center; gap: 4px;">
-              <span>🎵</span>
-              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(msg.attachment.name)}</span>
+          <div style="margin-top: 8px; padding: 10px 12px; background: ${isMe ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.5)'}; border-radius: 12px; min-width: 240px; max-width: 320px; border: 1px solid rgba(255,255,255,0.08);">
+            <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: ${isMe ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🎵 ${this.escapeHtml(msg.attachment.name)}</span>
+              <a href="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" download="${this.escapeHtml(msg.attachment.name)}" style="font-size: 11px; color: ${isMe ? '#000' : '#fff'}; text-decoration: none;" title="Download audio track">⬇️</a>
             </div>
-            <audio controls src="${msg.attachment.dataUrl}" style="width: 100%; height: 32px;"></audio>
+            <audio controls preload="auto" style="width: 100%; height: 36px; border-radius: 6px;">
+              <source src="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" type="audio/mpeg">
+              <source src="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" type="audio/mp3">
+              <source src="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" type="audio/wav">
+              <source src="${this.fixAudioDataUrl(msg.attachment.dataUrl)}" type="audio/ogg">
+            </audio>
           </div>
         ` : ''}
 

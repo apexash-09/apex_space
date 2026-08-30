@@ -344,14 +344,27 @@
                     <button type="button" id="btn-remove-attachment" class="btn-ghost" style="padding: 2px 6px; font-size: 11px; color: var(--accent-red);" title="Remove Attachment">✕</button>
                   </div>
 
-                  <!-- Chat Input Bar (Fully pinned at bottom of window) -->
-                  <form id="form-chat-send" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: rgba(10, 10, 10, 0.98); display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                  <!-- Chat Input Bar (Fully pinned at bottom of window with Emojis & Attachments) -->
+                  <form id="form-chat-send" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: rgba(10, 10, 10, 0.98); display: flex; gap: 8px; align-items: center; flex-shrink: 0; position: relative;">
                     <!-- Hidden File Input for All Audio, Music, MPEG & Images -->
                     <input type="file" id="chat-file-input" accept="audio/*,image/*,video/*,.mpeg,.mpg,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus,.weba,.amr,.mp4,.*" style="display: none;">
                     
                     <button type="button" id="btn-chat-attach" class="btn-ghost" style="padding: 8px 12px; font-size: 16px; flex-shrink: 0; border-radius: var(--radius-md);" title="Attach Audio Track, Music, or Photo">
                       📎
                     </button>
+
+                    <!-- Emoji Picker Button -->
+                    <button type="button" id="btn-chat-emoji" class="btn-ghost" style="padding: 8px 10px; font-size: 16px; flex-shrink: 0; border-radius: var(--radius-md);" title="Insert Emoji">
+                      😀
+                    </button>
+
+                    <!-- Floating Emoji Picker Popover -->
+                    <div id="chat-emoji-picker" class="glass-panel" style="display: none; position: absolute; bottom: 65px; left: 16px; width: 310px; max-height: 230px; overflow-y: auto; z-index: 50; padding: 12px; background: rgba(18, 18, 18, 0.97); border: 1px solid var(--border-glow); border-radius: var(--radius-md); box-shadow: 0 8px 30px rgba(0,0,0,0.8);">
+                      <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Quick Emojis</div>
+                      <div id="chat-emoji-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; font-size: 20px; text-align: center;">
+                        <!-- Emojis populated by JS -->
+                      </div>
+                    </div>
 
                     <input type="text" id="chat-message-input" class="form-control" placeholder="Type a message... (Press Enter to send)" autocomplete="off" style="padding: 12px 16px; font-size: 13px; flex: 1; min-width: 140px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: #fff; border-radius: var(--radius-md);">
                     
