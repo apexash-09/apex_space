@@ -154,6 +154,22 @@
 
 
 /* ==========================================================================
+   BREAKPOINT: 769px – 1100px (Tablets & Small Laptops)
+   Keep sidebar visible but narrower, chat window adapts
+   ========================================================================== */
+@media (min-width: 769px) and (max-width: 1100px) {
+  #social-chat-section {
+    height: calc(100vh - 200px);
+    min-height: 460px;
+  }
+
+  #chat-sidebar-panel {
+    width: 220px !important;
+    min-width: 180px !important;
+  }
+}
+
+/* ==========================================================================
    BREAKPOINT: ≤ 768px (Tablets & Small Screens)
    Sidebar collapses to off-canvas drawer with hamburger toggle.
    Two-column grids stack to single column.
@@ -250,15 +266,52 @@
     grid-template-columns: 1fr;
   }
 
+  /* === SOCIAL HUB: Mobile WhatsApp Layout === */
   #social-chat-section {
-    height: 540px !important;
-    max-height: calc(100vh - 180px) !important;
-    min-height: 420px !important;
+    height: calc(100vh - 180px) !important;
+    max-height: none !important;
+    min-height: 480px !important;
+    flex-direction: column !important;  /* sidebar on top, chat below on mobile */
   }
 
   #chat-sidebar-panel {
     width: 100% !important;
+    min-width: unset !important;
+    height: auto !important;
+    max-height: 260px !important;
     border-right: none !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+    flex-shrink: 0 !important;
+  }
+
+  #chat-main-window {
+    flex: 1 !important;
+    min-height: 0 !important;
+  }
+
+  #active-chat-messages {
+    flex: 1 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  #form-chat-send {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+
+  #form-chat-send #chat-message-input {
+    font-size: 14px !important;
+    padding: 10px 12px !important;
+  }
+
+  #form-chat-send #btn-chat-submit {
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+  }
+
+  #chat-rooms-list {
+    max-height: 120px !important;
   }
 
   /* View panel remove fixed height for stacked layouts */

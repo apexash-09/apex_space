@@ -22,7 +22,7 @@ class SocialModule {
       icon: '🌐',
       type: 'group'
     };
-    this.pendingFileAttachment = null;
+    this.pendingAttachment = null;
 
     // Listeners
     this.unsubscribeRooms = null;
@@ -307,7 +307,8 @@ class SocialModule {
       }
     });
 
-    if (this.chatSection) this.chatSection.style.display = tab === 'chat' ? 'grid' : 'none';
+    // chat section uses display:flex (unified window), not grid
+    if (this.chatSection) this.chatSection.style.display = tab === 'chat' ? 'flex' : 'none';
     if (this.notesFeed) this.notesFeed.style.display = tab === 'feed' ? 'block' : 'none';
     if (this.sharedSongsFeed) this.sharedSongsFeed.style.display = tab === 'music' ? 'block' : 'none';
     if (this.adminUsersView) {
@@ -422,6 +423,13 @@ class SocialModule {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  clearAttachment() {
+    this.pendingAttachment = null;
+    if (this.chatFileInput) this.chatFileInput.value = '';
+    if (this.chatAttachmentPreview) this.chatAttachmentPreview.style.display = 'none';
+    if (this.attachmentPreviewName) this.attachmentPreviewName.innerText = '📎 Attachment';
   }
 
   // --- Realtime Chat Rooms & Groups ---
@@ -640,34 +648,57 @@ class SocialModule {
   }
 
   startMessagesListener(roomId) {
-    if (!window.fbDb) return;
-    if (this.unsubscribeMessages) this.unsubscribeMessages();
+    if (!window.fbDb) {
+      if (this.chatMessagesContainer) {
+        this.chatMessagesContainer.innerHTML = `<div style="text-align:center;padding:32px;color:#fff;"><div style="font-size:36px;margin-bottom:10px;">🔌</div><h4>Not connected to Firebase</h4><p style="font-size:12px;color:var(--text-muted);">Make sure Firebase is loaded and you are online.</p></div>`;
+      }
+      return;
+    }
 
-    this.chatMessagesContainer.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--text-dim);">Loading messages...</div>`;
+    if (this.unsubscribeMessages) {
+      this.unsubscribeMessages();
+      this.unsubscribeMessages = null;
+    }
 
+    this.activeRoomId = roomId;
+
+    if (this.chatMessagesContainer) {
+      this.chatMessagesContainer.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-dim);">Loading messages...</div>`;
+    }
+
+    // Fetch without orderBy to avoid Firestore index errors, sort client-side
     const messagesRef = window.fbDb
       .collection('chat_rooms')
       .doc(roomId)
       .collection('messages')
-      .orderBy('createdAt', 'asc');
+      .limit(100);
 
     this.unsubscribeMessages = messagesRef.onSnapshot(
       (snapshot) => {
+        if (!this.chatMessagesContainer) return;
         this.chatMessagesContainer.innerHTML = '';
 
         if (snapshot.empty) {
           this.chatMessagesContainer.innerHTML = `
             <div style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
               <div style="font-size: 36px; margin-bottom: 10px;">💬</div>
-              <h4 style="font-size: 15px; font-weight: 600; color: #fff;">No messages yet in this channel</h4>
-              <p style="font-size: 12px; margin-top: 6px;">Type below and press <strong>Enter</strong> to send your thoughts in realtime!</p>
+              <h4 style="font-size: 15px; font-weight: 600; color: #fff;">No messages yet</h4>
+              <p style="font-size: 12px; margin-top: 6px;">Type below and press <strong>Enter</strong> to send!</p>
             </div>
           `;
           return;
         }
 
-        snapshot.forEach((doc) => {
-          const msg = { id: doc.id, ...doc.data() };
+        // Sort messages by createdAt client-side
+        const docs = [];
+        snapshot.forEach((doc) => docs.push({ id: doc.id, ...doc.data() }));
+        docs.sort((a, b) => {
+          const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+          const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+          return ta - tb;
+        });
+
+        docs.forEach((msg) => {
           const msgEl = this.createMessageBubbleElement(msg);
           this.chatMessagesContainer.appendChild(msgEl);
         });
@@ -678,10 +709,11 @@ class SocialModule {
         console.error('Messages listener error:', err);
         if (this.chatMessagesContainer) {
           this.chatMessagesContainer.innerHTML = `
-            <div style="text-align: center; padding: 32px 16px; color: #fff;">
-              <div style="font-size: 36px; margin-bottom: 10px;">💬</div>
-              <h4 style="font-size: 15px; font-weight: 700;">Ready to Chat</h4>
-              <p style="font-size: 12px; color: var(--text-muted); max-width: 360px; margin: 6px auto;">Type a message below and press Enter to chat in real-time!</p>
+            <div style="text-align:center;padding:32px;color:#fff;">
+              <div style="font-size:36px;margin-bottom:10px;">⚠️</div>
+              <h4>Could not load messages</h4>
+              <p style="font-size:12px;color:var(--text-muted);max-width:320px;margin:6px auto;">${this.escapeHtml(err.message)}</p>
+              <button onclick="window.socialModule && window.socialModule.startMessagesListener('${roomId}')" style="margin-top:12px;padding:8px 18px;background:#fff;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Retry</button>
             </div>
           `;
         }
