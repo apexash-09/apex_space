@@ -436,37 +436,85 @@ class SocialModule {
   }
 
   async compressAudio(file) {
-    // Read the file exactly as-is, preserving original MIME type and bytes.
-    // Browsers (Chrome/Firefox/Safari) can all play data: URLs directly in new Audio().
-    // If the file is > 900KB, we truncate rather than corrupt the format.
-    const MAX_BYTES = 900 * 1024;
+    // Read file as-is. Preserve original bytes. We'll fix the MIME when creating a blob URL.
+    const MAX_BYTES = 850 * 1024;
     const source = file.size <= MAX_BYTES ? file : file.slice(0, MAX_BYTES);
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         let dataUrl = reader.result;
-        // If the browser couldn't detect the MIME type, tag it as audio/mpeg as fallback
-        if (dataUrl && dataUrl.startsWith('data:application/') || (dataUrl && dataUrl.startsWith('data:video/'))) {
-          dataUrl = dataUrl.replace(/^data:[^;]+;base64,/, 'data:audio/mpeg;base64,');
+        if (!dataUrl) { reject(new Error('FileReader returned empty result')); return; }
+
+        // Normalise MIME: WhatsApp audio often comes in as video/mpeg or application/octet-stream
+        const mime = this._detectAudioMime(dataUrl, file.name);
+        if (!dataUrl.startsWith(`data:${mime};`)) {
+          dataUrl = dataUrl.replace(/^data:[^;]+;base64,/, `data:${mime};base64,`);
         }
+
+        console.log(`[Audio] Prepared: ${file.name} → MIME: ${mime}, size: ${Math.round(source.size/1024)}KB`);
         resolve(dataUrl);
       };
-      reader.onerror = reject;
+      reader.onerror = (e) => reject(new Error('FileReader error: ' + e));
       reader.readAsDataURL(source);
     });
   }
 
-  // Returns a usable audio src: http URLs pass through; data: URLs pass through directly.
-  // new Audio(src) handles both natively — no blob conversion needed.
-  resolveAudioSrc(raw) {
-    if (!raw) return '';
-    // Firebase Storage HTTPS URL — use directly
-    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    // data: URL — use directly, browser Audio can handle it
-    return raw;
+  _detectAudioMime(dataUrl, fileName) {
+    // Try to detect MIME from data URL header first
+    const headerMatch = dataUrl.match(/^data:([^;]+);/);
+    const declared = headerMatch ? headerMatch[1] : '';
+
+    // If browser correctly detected an audio MIME, trust it
+    if (declared.startsWith('audio/')) return declared;
+
+    // Detect from file extension
+    const ext = (fileName || '').toLowerCase().split('.').pop();
+    const extMap = {
+      mp3: 'audio/mpeg', mpeg: 'audio/mpeg', mpg: 'audio/mpeg',
+      ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg',
+      wav: 'audio/wav', wave: 'audio/wav',
+      m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac',
+      webm: 'audio/webm', weba: 'audio/webm', amr: 'audio/amr',
+    };
+    if (extMap[ext]) return extMap[ext];
+
+    // Detect from magic bytes in base64
+    const b64 = (dataUrl.split(',')[1] || '').substring(0, 12);
+    if (b64.startsWith('UklGR')) return 'audio/wav';       // RIFF → WAV
+    if (b64.startsWith('SUQz') || b64.startsWith('//M')) return 'audio/mpeg'; // ID3 or MP3 sync
+    if (b64.startsWith('T2dnU')) return 'audio/ogg';       // OggS
+    if (b64.startsWith('AAAA') || b64.startsWith('AAAAF')) return 'audio/mp4'; // M4A/AAC
+
+    // Default fallback
+    return 'audio/mpeg';
   }
 
+  // Converts a data: URL to a Blob URL with correct MIME type, OR passes through https:// URLs
+  resolveAudioSrc(raw) {
+    if (!raw) return '';
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    if (!raw.startsWith('data:')) return raw;
+
+    try {
+      const headerMatch = raw.match(/^data:([^;]+);base64,/);
+      const mime = headerMatch ? headerMatch[1] : 'audio/mpeg';
+      const b64 = raw.split(',')[1];
+      if (!b64) return raw;
+
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+      const blob = new Blob([bytes], { type: mime });
+      const url = URL.createObjectURL(blob);
+      console.log(`[Audio] Blob URL created: ${mime}, ${Math.round(binary.length/1024)}KB → ${url.substring(0, 60)}`);
+      return url;
+    } catch (e) {
+      console.warn('[Audio] resolveAudioSrc blob conversion failed, using raw dataUrl:', e);
+      return raw;
+    }
+  }
 
 
   initEmojiPicker() {
