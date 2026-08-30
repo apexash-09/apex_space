@@ -349,13 +349,19 @@ class SocialModule {
         this.chatAttachmentPreview.style.display = 'flex';
       }
 
-      // If Firebase Storage is initialized and file is > 600KB, upload to Cloud Storage
-      if (window.fbStorage && file.size > 600 * 1024) {
+      // If file is > 700KB and Firebase Storage is available, attempt Storage upload with 4s timeout
+      if (window.fbStorage && file.size > 700 * 1024) {
         try {
-          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-          const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_${safeName}`);
-          const snapshot = await storageRef.put(file);
-          const downloadUrl = await snapshot.ref.getDownloadURL();
+          const uploadPromise = (async () => {
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_${safeName}`);
+            const snapshot = await storageRef.put(file);
+            return await snapshot.ref.getDownloadURL();
+          })();
+
+          // 4-second timeout race
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+          const downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
 
           this.pendingAttachment = {
             name: file.name,
@@ -369,25 +375,35 @@ class SocialModule {
           }
           return;
         } catch (storageErr) {
-          console.warn('Storage upload fallback to DataURL:', storageErr);
+          console.warn('Storage upload unavailable or timed out:', storageErr);
         }
       }
 
-      // Small clip or direct reader fallback
-      const reader = new FileReader();
-      reader.onload = () => {
-        this.pendingAttachment = {
-          name: file.name,
-          type: 'audio',
-          dataUrl: reader.result
-        };
+      // If file is <= 750KB, read directly as Base64 DataURL
+      if (file.size <= 750 * 1024) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          this.pendingAttachment = {
+            name: file.name,
+            type: 'audio',
+            dataUrl: reader.result
+          };
 
-        if (this.chatAttachmentPreview && this.attachmentPreviewName) {
-          this.attachmentPreviewName.innerText = `🎵 ${file.name}`;
-          this.chatAttachmentPreview.style.display = 'flex';
-        }
-      };
-      reader.readAsDataURL(file);
+          if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+            this.attachmentPreviewName.innerText = `🎵 Ready: ${file.name}`;
+            this.chatAttachmentPreview.style.display = 'flex';
+          }
+        };
+        reader.onerror = () => {
+          this.clearAttachment();
+          alert('Could not read audio file.');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // File > 750KB and Storage was not enabled
+        this.clearAttachment();
+        alert(`This audio file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Direct chat audio is limited to 700KB. You can play and stream any full song in the "🎵 Shared Music" tab!`);
+      }
     }
   }
 
@@ -693,8 +709,8 @@ class SocialModule {
         const docs = [];
         snapshot.forEach((doc) => docs.push({ id: doc.id, ...doc.data() }));
         docs.sort((a, b) => {
-          const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-          const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+          const ta = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : (a.localTimestamp || Date.now());
+          const tb = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : (b.localTimestamp || Date.now());
           return ta - tb;
         });
 
@@ -829,6 +845,7 @@ class SocialModule {
       senderName: sender.name,
       senderEmail: sender.email,
       isAnonymous: sender.isAnon,
+      localTimestamp: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
