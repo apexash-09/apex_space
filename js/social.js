@@ -219,10 +219,11 @@ class SocialModule {
       localStorage.setItem('apex_anon_uid', anonUid);
     }
 
-    let anonHandle = localStorage.getItem('apex_anon_handle');
-    if (!anonHandle) {
-      anonHandle = this.generateRandomAlias();
-      localStorage.setItem('apex_anon_handle', anonHandle);
+    let savedHandle = localStorage.getItem('apex_chat_handle') || localStorage.getItem('apex_anon_handle');
+    if (!savedHandle) {
+      savedHandle = this.generateRandomAlias();
+      localStorage.setItem('apex_chat_handle', savedHandle);
+      localStorage.setItem('apex_anon_handle', savedHandle);
     }
 
     this.updateAnonBadge();
@@ -248,7 +249,10 @@ class SocialModule {
   }
 
   setCustomHandle(name) {
-    localStorage.setItem('apex_anon_handle', name);
+    if (!name || !name.trim()) return;
+    const cleanName = name.trim();
+    localStorage.setItem('apex_chat_handle', cleanName);
+    localStorage.setItem('apex_anon_handle', cleanName);
     this.updateAnonBadge();
   }
 
@@ -268,16 +272,19 @@ class SocialModule {
   }
 
   getSenderIdentity() {
+    const savedCustomHandle = localStorage.getItem('apex_chat_handle') || localStorage.getItem('apex_anon_handle');
+
     if (this.currentUser) {
+      const defaultName = this.currentUser.displayName || this.currentUser.email.split('@')[0];
       return {
         uid: this.currentUser.uid,
-        name: this.currentUser.displayName || this.currentUser.email.split('@')[0],
+        name: savedCustomHandle || defaultName,
         email: this.currentUser.email,
         isAnon: false
       };
     } else {
       const anonUid = localStorage.getItem('apex_anon_uid') || 'anon_guest';
-      const anonName = localStorage.getItem('apex_anon_handle') || 'AnonymousUser';
+      const anonName = savedCustomHandle || 'AnonymousUser';
       return {
         uid: anonUid,
         name: anonName,
@@ -453,11 +460,13 @@ class SocialModule {
     const viewEmojis = document.getElementById('picker-view-emojis');
     const viewStickers = document.getElementById('picker-view-stickers');
     const gridEmojis = document.getElementById('chat-emoji-grid');
-    const gridStickers = document.getElementById('chat-stickers-grid');
     const btnAddSticker = document.getElementById('btn-add-custom-sticker');
     const stickerFileInput = document.getElementById('sticker-file-input');
 
     if (!btnEmoji || !picker) return;
+
+    // Prevent clicks inside picker from closing it
+    picker.addEventListener('click', (e) => e.stopPropagation());
 
     // 1. Emoji Tab Setup
     const emojis = [
@@ -489,29 +498,34 @@ class SocialModule {
 
     // 2. Tab Switcher
     if (tabEmojis && tabStickers && viewEmojis && viewStickers) {
-      tabEmojis.addEventListener('click', () => {
-        tabEmojis.style.background = 'rgba(255,255,255,0.12)';
+      tabEmojis.onclick = (e) => {
+        e.stopPropagation();
+        tabEmojis.style.background = 'rgba(255,255,255,0.15)';
         tabEmojis.style.color = '#fff';
         tabStickers.style.background = 'transparent';
         tabStickers.style.color = 'var(--text-muted)';
         viewEmojis.style.display = 'block';
         viewStickers.style.display = 'none';
-      });
+      };
 
-      tabStickers.addEventListener('click', () => {
-        tabStickers.style.background = 'rgba(255,255,255,0.12)';
+      tabStickers.onclick = (e) => {
+        e.stopPropagation();
+        tabStickers.style.background = 'rgba(255,255,255,0.15)';
         tabStickers.style.color = '#fff';
         tabEmojis.style.background = 'transparent';
         tabEmojis.style.color = 'var(--text-muted)';
         viewStickers.style.display = 'block';
         viewEmojis.style.display = 'none';
         this.renderStickersGrid();
-      });
+      };
     }
 
     // 3. Custom Sticker File Upload
     if (btnAddSticker && stickerFileInput) {
-      btnAddSticker.addEventListener('click', () => stickerFileInput.click());
+      btnAddSticker.onclick = (e) => {
+        e.stopPropagation();
+        stickerFileInput.click();
+      };
       stickerFileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -547,7 +561,7 @@ class SocialModule {
     const picker = document.getElementById('chat-emoji-picker');
     if (!grid) return;
 
-    // Built-in starter sticker library
+    // Rich built-in SVG and Web sticker icons
     const defaultStickers = [
       'https://api.iconify.design/fluent-emoji:cat-face.svg',
       'https://api.iconify.design/fluent-emoji:fire.svg',
@@ -556,7 +570,11 @@ class SocialModule {
       'https://api.iconify.design/fluent-emoji:smiling-face-with-sunglasses.svg',
       'https://api.iconify.design/fluent-emoji:sparkles.svg',
       'https://api.iconify.design/fluent-emoji:alien-monster.svg',
-      'https://api.iconify.design/fluent-emoji:glowing-star.svg'
+      'https://api.iconify.design/fluent-emoji:glowing-star.svg',
+      'https://api.iconify.design/fluent-emoji:crown.svg',
+      'https://api.iconify.design/fluent-emoji:gem-stone.svg',
+      'https://api.iconify.design/fluent-emoji:robot.svg',
+      'https://api.iconify.design/fluent-emoji:headphone.svg'
     ];
 
     const customStickers = JSON.parse(localStorage.getItem('apex_custom_stickers') || '[]');
@@ -566,16 +584,17 @@ class SocialModule {
     allStickers.forEach((stickerUrl) => {
       const img = document.createElement('img');
       img.src = stickerUrl;
-      img.style.cssText = 'width: 60px; height: 60px; object-fit: contain; cursor: pointer; padding: 4px; border-radius: 8px; background: rgba(255,255,255,0.04); transition: transform 0.15s, background 0.15s;';
+      img.style.cssText = 'width: 60px; height: 60px; object-fit: contain; cursor: pointer; padding: 4px; border-radius: 8px; background: rgba(255,255,255,0.06); transition: transform 0.15s, background 0.15s; display: block;';
       img.onmouseover = () => {
         img.style.transform = 'scale(1.15)';
-        img.style.background = 'rgba(255,255,255,0.12)';
+        img.style.background = 'rgba(255,255,255,0.18)';
       };
       img.onmouseout = () => {
         img.style.transform = 'scale(1)';
-        img.style.background = 'rgba(255,255,255,0.04)';
+        img.style.background = 'rgba(255,255,255,0.06)';
       };
-      img.onclick = () => {
+      img.onclick = (e) => {
+        e.stopPropagation();
         this.sendSticker(stickerUrl);
         if (picker) picker.style.display = 'none';
       };
