@@ -1040,7 +1040,37 @@ class SocialModule {
     this.listenToPinnedMessage(roomId);
   }
 
+  listenToPinnedMessage(roomId) {
+    if (!window.fbDb) return;
+    if (this._unsubscribePinned) {
+      this._unsubscribePinned();
+      this._unsubscribePinned = null;
+    }
 
+    const banner   = document.getElementById('chat-pinned-banner');
+    const textEl   = document.getElementById('chat-pinned-text');
+    const unpinBtn = document.getElementById('btn-unpin-msg');
+
+    this._unsubscribePinned = window.fbDb
+      .collection('chat_rooms')
+      .doc(roomId)
+      .onSnapshot((snap) => {
+        const data   = snap.data() || {};
+        const pinned = data.pinnedMessage;
+
+        if (pinned && pinned.text) {
+          this._pinnedMessageId = pinned.msgId || null;
+          const label = pinned.senderName ? `${pinned.senderName}: ${pinned.text}` : pinned.text;
+          if (textEl)   textEl.textContent = label;
+          if (banner)   banner.style.display = 'flex';
+          if (unpinBtn) unpinBtn.style.display = this.isAdminUser() ? 'inline-flex' : 'none';
+        } else {
+          this._pinnedMessageId = null;
+          if (banner)  banner.style.display = 'none';
+          if (textEl)  textEl.textContent = '';
+        }
+      }, (err) => console.warn('Pinned listener error:', err));
+  }
 
   async pinMessage(msgId, msgText, senderName) {
     if (!this.isAdminUser()) return;
