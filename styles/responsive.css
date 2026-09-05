@@ -266,25 +266,30 @@
     grid-template-columns: 1fr;
   }
 
-  /* === SOCIAL HUB: Mobile WhatsApp Layout === */
+  /* === SOCIAL HUB: Expansive Mobile WhatsApp Layout === */
   #social-chat-section {
-    height: calc(100vh - 180px) !important;
+    height: calc(100vh - 130px) !important;
     max-height: none !important;
-    min-height: 480px !important;
-    flex-direction: column !important;  /* sidebar on top, chat below on mobile */
+    min-height: 500px !important;
+    flex-direction: row !important;
+    position: relative !important;
+    overflow: hidden !important;
   }
 
   #chat-sidebar-panel {
     width: 100% !important;
-    min-width: unset !important;
-    height: auto !important;
-    max-height: 260px !important;
+    min-width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
     border-right: none !important;
-    border-bottom: 1px solid var(--border-subtle) !important;
-    flex-shrink: 0 !important;
+    border-bottom: none !important;
+    flex: 1 !important;
   }
 
   #chat-main-window {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 100% !important;
     flex: 1 !important;
     min-height: 0 !important;
   }
@@ -293,6 +298,7 @@
     flex: 1 !important;
     min-height: 0 !important;
     max-height: none !important;
+    padding: 14px 12px !important;
   }
 
   #form-chat-send {
@@ -311,7 +317,7 @@
   }
 
   #chat-rooms-list {
-    max-height: 120px !important;
+    max-height: 180px !important;
   }
 
   /* View panel remove fixed height for stacked layouts */

@@ -992,6 +992,30 @@ class SocialModule {
     }
   }
 
+  toggleSidebar() {
+    if (!this.chatSidebarPanel) return;
+
+    if (window.innerWidth <= 768) {
+      if (this.chatSidebarPanel.style.display === 'none') {
+        this.showMobileChannels();
+      } else {
+        this.showMobileChat();
+      }
+      return;
+    }
+
+    const isCollapsed = this.chatSidebarPanel.classList.toggle('collapsed');
+    const toggleIcon = document.getElementById('sidebar-toggle-icon');
+    const toggleBtn = document.getElementById('btn-toggle-sidebar-desktop');
+
+    if (toggleIcon) {
+      toggleIcon.innerText = isCollapsed ? '▶' : '◀';
+    }
+    if (toggleBtn) {
+      toggleBtn.title = isCollapsed ? 'Show Side Channels' : 'Hide Side Channels';
+    }
+  }
+
   startMessagesListener(roomId) {
     if (!window.fbDb) {
       if (this.chatMessagesContainer) {
@@ -1163,7 +1187,7 @@ class SocialModule {
       flex-direction: column;
       align-items: ${isMe ? 'flex-end' : 'flex-start'};
       margin-bottom: 14px;
-      max-width: 82%;
+      max-width: 86%;
       ${isMe ? 'margin-left: auto;' : 'margin-right: auto;'}
     `;
 

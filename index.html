@@ -256,45 +256,48 @@
 
         <!-- 3. SOCIAL SPACE & CLOUD COLLABORATION VIEW -->
         <section id="view-social" class="view-panel">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">Social Hub & Collaboration</h2>
-              <p class="section-desc">WhatsApp-style realtime groups, direct messaging with friends, and shared spaces.</p>
+          <div class="social-header-compact">
+            <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+              <h2 class="section-title" style="margin: 0; font-size: 22px;">💬 Social Hub</h2>
+              
+              <!-- Social Navigation Tabs -->
+              <div class="filter-tabs-row" style="margin: 0;">
+                <button class="btn-ghost social-nav-tab active" data-social-tab="chat" style="padding: 6px 14px; font-size: 12px;">💬 Live Chat</button>
+                <button class="btn-ghost social-nav-tab" data-social-tab="feed" style="padding: 6px 14px; font-size: 12px;">📝 Shared Feed</button>
+                <button class="btn-ghost social-nav-tab" data-social-tab="music" style="padding: 6px 14px; font-size: 12px;">🎵 Shared Music</button>
+                <button id="btn-social-tab-admin" class="btn-ghost social-nav-tab" data-social-tab="admin_users" style="display: none; border-color: rgba(255,255,255,0.4); color: #fff; padding: 6px 14px; font-size: 12px;">👑 Admin & Users</button>
+              </div>
             </div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button id="btn-open-create-group-modal" class="btn-primary" style="width: auto;">+ New Group</button>
-              <button id="btn-open-dm-modal" class="btn-ghost" style="width: auto;">💬 Direct Message</button>
-              <button id="btn-open-social-post-modal" class="btn-ghost" style="width: auto;">📝 Share Post</button>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button id="btn-open-create-group-modal" class="btn-primary" style="width: auto; padding: 6px 14px; font-size: 12px;">+ New Group</button>
+              <button id="btn-open-dm-modal" class="btn-ghost" style="width: auto; padding: 6px 14px; font-size: 12px;">💬 Direct Message</button>
+              <button id="btn-open-social-post-modal" class="btn-ghost" style="width: auto; padding: 6px 14px; font-size: 12px;">📝 Share Post</button>
             </div>
           </div>
 
           <!-- Main Social Content -->
-          <div id="social-main-content" style="display: block; height: calc(100% - 90px);">
+          <div id="social-main-content">
             
-            <!-- Social Navigation Tabs -->
-            <div class="filter-tabs-row" style="margin-bottom: 18px;">
-              <button class="btn-ghost social-nav-tab active" data-social-tab="chat">💬 Live Chat & Groups</button>
-              <button class="btn-ghost social-nav-tab" data-social-tab="feed">📝 Shared Feed</button>
-              <button class="btn-ghost social-nav-tab" data-social-tab="music">🎵 Shared Music</button>
-              <button id="btn-social-tab-admin" class="btn-ghost social-nav-tab" data-social-tab="admin_users" style="display: none; border-color: rgba(255,255,255,0.4); color: #fff;">👑 Admin & Users</button>
-            </div>
-
-            <!-- 1. WhatsApp-Style Single Unified Container Realtime Chat Window -->
-            <div id="social-chat-section" class="glass-panel" style="display: flex; height: 580px; max-height: calc(100vh - 230px); min-height: 480px; padding: 0; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: rgba(18, 18, 18, 0.7);">
+            <!-- 1. WhatsApp-Style Realtime Chat Window (Maximized & Expansive) -->
+            <div id="social-chat-section" class="glass-panel">
               
-              <!-- Left Sidebar: Channels & Friends List (Internal column with dividing line) -->
-              <div id="chat-sidebar-panel" style="width: 300px; min-width: 270px; border-right: 1px solid var(--border-subtle); background: rgba(12, 12, 12, 0.75); display: flex; flex-direction: column; height: 100%; padding: 16px; flex-shrink: 0;">
+              <!-- Left Sidebar: Channels & Friends List -->
+              <div id="chat-sidebar-panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
-                  <h3 style="font-size: 15px; font-weight: 700; color: #fff;">👥 Group Channels</h3>
-                  <button id="btn-quick-create-group" class="btn-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="if(window.socialModule) window.socialModule.openCreateGroupModal();">+ New</button>
+                  <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin: 0;">👥 Channels & DMs</h3>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <button id="btn-quick-create-group" class="btn-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="if(window.socialModule) window.socialModule.openCreateGroupModal();" title="Create Group">+ Group</button>
+                    <button id="btn-quick-start-dm" class="btn-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="if(window.socialModule) window.socialModule.openStartDmModal();" title="New Direct Chat">+ DM</button>
+                    <button id="btn-collapse-sidebar" class="btn-ghost" style="padding: 2px 7px; font-size: 12px;" onclick="if(window.socialModule) window.socialModule.toggleSidebar();" title="Hide Channels Sidebar">◀</button>
+                  </div>
                 </div>
 
                 <!-- Group Channels List -->
-                <div id="chat-rooms-list" style="overflow-y: auto; max-height: 180px; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; flex-shrink: 0;"></div>
+                <div id="chat-rooms-list" style="overflow-y: auto; max-height: 180px; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; flex-shrink: 0;"></div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
-                  <h3 style="font-size: 15px; font-weight: 700; color: #fff;">💬 Direct Messages</h3>
-                  <button id="btn-quick-start-dm" class="btn-ghost" style="padding: 2px 8px; font-size: 11px;" onclick="if(window.socialModule) window.socialModule.openStartDmModal();">+ DM</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-shrink: 0;">
+                  <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Direct Messages</span>
                 </div>
 
                 <!-- Direct Chats List -->
@@ -302,16 +305,21 @@
               </div>
 
               <!-- Right Area: WhatsApp-style Active Conversation Window -->
-              <div id="chat-main-window" style="flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; position: relative; background: rgba(16, 16, 16, 0.4); overflow: hidden;">
+              <div id="chat-main-window">
                 
                 <!-- Chat Active View Container -->
                 <div id="chat-active-window" style="display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden;">
                   
                   <!-- Conversation Header -->
-                  <div style="padding: 12px 18px; border-bottom: 1px solid var(--border-subtle); background: rgba(14, 14, 14, 0.85); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; flex-shrink: 0;">
+                  <div style="padding: 12px 18px; border-bottom: 1px solid var(--border-subtle); background: rgba(14, 14, 14, 0.9); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; flex-shrink: 0;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                       <!-- Mobile Back Button -->
                       <button id="btn-mobile-chat-back" class="btn-ghost" style="display: none; padding: 4px 8px; font-size: 12px;" title="Back to Channels">← Channels</button>
+
+                      <!-- Desktop Sidebar Expand/Collapse Toggle -->
+                      <button id="btn-toggle-sidebar-desktop" class="btn-ghost" style="padding: 4px 9px; font-size: 12px; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;" onclick="if(window.socialModule) window.socialModule.toggleSidebar();" title="Toggle Side Channels">
+                        <span id="sidebar-toggle-icon">◀</span> Side Channels
+                      </button>
 
                       <div id="active-chat-avatar" style="width: 36px; height: 36px; min-width: 36px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">
                         🌐
@@ -324,7 +332,7 @@
 
                     <!-- Name / Handle Badge with Direct Change Name Button -->
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <div id="chat-anon-badge" style="font-size: 12px; color: var(--text-muted);">
+                      <div id="chat-anon-badge" style="font-size: 12px; color: var(--text-muted); cursor: pointer;" title="Click to customize your handle">
                         Chatting as: <strong id="chat-handle-display" style="color: #fff; font-weight: 700;">Anonymous</strong>
                       </div>
                       <button type="button" id="btn-edit-chat-name" class="btn-ghost" style="padding: 4px 10px; font-size: 11px; border: 1px solid rgba(255,255,255,0.3); border-radius: 14px; color: #fff;" onclick="if(window.socialModule) window.socialModule.openAliasModal();" title="Change your chat display name">
