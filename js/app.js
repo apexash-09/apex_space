@@ -139,14 +139,13 @@ class AppRouter {
       }
     });
 
-    // Hide Current Panel
-    if (currentPanel) {
-      currentPanel.classList.remove('active');
-    }
+    // Hide All Panels cleanly
+    document.querySelectorAll('.view-panel').forEach(panel => {
+      panel.classList.remove('active', 'slide-in-right', 'slide-in-left');
+    });
 
     // Show Target Panel with Slide FX
     targetPanel.classList.add('active');
-    targetPanel.classList.remove('slide-in-right', 'slide-in-left');
 
     const navOrder = ['diary', 'notes', 'social', 'worklog', 'timetable', 'goals', 'buylist', 'songs', 'streak'];
     const prevIdx = navOrder.indexOf(this.activeTab);

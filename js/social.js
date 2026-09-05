@@ -928,9 +928,9 @@ class SocialModule {
 
     let roomTitle = room.name;
     let roomAvatar = room.icon || '💬';
+    const myId = this.getSenderIdentity();
 
     if (room.type === 'direct') {
-      const myId = this.getSenderIdentity();
       let otherName = 'Friend';
       if (room.memberNames && Array.isArray(room.memberNames)) {
         const found = room.memberNames.find(n => n && n !== myId.name && n !== myId.email);
@@ -943,12 +943,13 @@ class SocialModule {
     }
 
     const lastMsg = room.lastMessage || 'No messages yet';
+    const canDeleteRoom = room.type === 'direct' || (room.id !== 'general_lounge' && (this.isAdminUser() || room.createdBy === myId.uid));
 
     div.innerHTML = `
       <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: #ffffff; color: #000000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0;">
         ${roomAvatar}
       </div>
-      <div style="overflow: hidden; flex: 1;">
+      <div style="overflow: hidden; flex: 1; min-width: 0;">
         <div style="font-size: 13px; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
           ${this.escapeHtml(roomTitle)}
         </div>
@@ -956,13 +957,73 @@ class SocialModule {
           ${this.escapeHtml(lastMsg)}
         </div>
       </div>
+      ${canDeleteRoom ? `
+        <button type="button" class="btn-delete-room-item" style="background: transparent; border: none; cursor: pointer; color: var(--text-dim); font-size: 12px; padding: 4px 6px; border-radius: 4px; opacity: 0.5; transition: opacity 0.2s, color 0.2s; flex-shrink: 0;" title="${room.type === 'direct' ? 'Delete this DM conversation' : 'Delete group'}">🗑️</button>
+      ` : ''}
     `;
+
+    const delRoomBtn = div.querySelector('.btn-delete-room-item');
+    if (delRoomBtn) {
+      delRoomBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.deleteRoom(room, roomTitle);
+      });
+    }
 
     div.addEventListener('click', () => {
       this.selectRoom(room);
       this.showMobileChat();
     });
     return div;
+  }
+
+  async deleteRoom(room, roomTitle) {
+    if (!room || !room.id || room.id === 'general_lounge') return;
+    if (!window.fbDb) {
+      alert('Firebase connection not ready.');
+      return;
+    }
+
+    const typeLabel = room.type === 'direct' ? 'direct conversation' : 'group channel';
+    const confirmed = confirm(`🗑️ Delete Conversation\n\nAre you sure you want to delete your ${typeLabel} with "${roomTitle || room.name}"?\n\nThis will permanently delete this chat from your Direct Messages.`);
+    if (!confirmed) return;
+
+    try {
+      // 1. Batch delete all messages inside this room
+      const messagesRef = window.fbDb
+        .collection('chat_rooms')
+        .doc(room.id)
+        .collection('messages');
+
+      const snap = await messagesRef.get();
+      if (!snap.empty) {
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 400) {
+          const batch = window.fbDb.batch();
+          const chunk = docs.slice(i, i + 400);
+          chunk.forEach((doc) => batch.delete(doc.ref));
+          await batch.commit();
+        }
+      }
+
+      // 2. Delete the room doc
+      await window.fbDb.collection('chat_rooms').doc(room.id).delete();
+
+      // 3. If currently open, switch back to general lounge
+      if (this.activeRoomId === room.id) {
+        const genRoom = this.roomsList.find(r => r.id === 'general_lounge') || {
+          id: 'general_lounge',
+          name: '🌐 General Lounge',
+          description: 'Public community group for all friends',
+          icon: '🌐',
+          type: 'group'
+        };
+        this.selectRoom(genRoom);
+      }
+    } catch (err) {
+      console.error('Failed to delete room:', err);
+      alert('Could not delete conversation: ' + err.message);
+    }
   }
 
   getCleanDisplayName(raw) {

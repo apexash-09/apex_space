@@ -449,7 +449,7 @@ html, body {
 }
 
 .view-panel {
-  display: none;
+  display: none !important;
   opacity: 0;
   transform: translateY(12px);
   transition: opacity 0.35s ease, transform 0.35s ease;
@@ -457,7 +457,7 @@ html, body {
 }
 
 .view-panel.active {
-  display: block;
+  display: block !important;
   opacity: 1;
   transform: translateY(0);
 }
@@ -952,9 +952,8 @@ select.form-control {
 /* ==========================================================================
    EXPANDED SOCIAL HUB & CHAT WINDOW
    ========================================================================== */
-#view-social {
-  height: 100%;
-  display: flex;
+#view-social.active {
+  display: flex !important;
   flex-direction: column;
 }
 
