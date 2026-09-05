@@ -977,12 +977,19 @@
     <div class="modal-container" style="max-width: 480px;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 20px;">💬</span>
-          <h3 class="modal-title">Direct 1-on-1 Message</h3>
+          <span style="font-size: 20px;">🔒</span>
+          <h3 class="modal-title">Private Direct Message</h3>
         </div>
         <button class="close-btn" data-close="modal-start-dm">&times;</button>
       </div>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Select a registered friend to start chatting personally in real-time:</p>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Search for friends by name or handle to start a private conversation. <em>(Emails are kept strictly private)</em></p>
+      
+      <!-- Privacy Search Bar for Friends -->
+      <div style="position: relative; margin-bottom: 14px;">
+        <input type="text" id="dm-friend-search-input" class="form-control" placeholder="🔍 Search friend by name / handle..." style="padding: 10px 14px; padding-left: 36px; border-radius: var(--radius-md);">
+        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.6; pointer-events: none;">🔍</span>
+      </div>
+
       <div id="dm-friends-picker-list" style="max-height: 320px; overflow-y: auto;"></div>
     </div>
   </div>

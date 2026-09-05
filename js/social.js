@@ -190,10 +190,17 @@ class SocialModule {
       });
     }
 
-    // 9. Start DM Triggers
+    // 9. Start DM Triggers & Privacy Search
     const btnOpenDmModal = document.getElementById('btn-open-dm-modal');
     if (btnOpenDmModal) {
       btnOpenDmModal.addEventListener('click', () => this.openStartDmModal());
+    }
+
+    const dmSearchInput = document.getElementById('dm-friend-search-input');
+    if (dmSearchInput) {
+      dmSearchInput.addEventListener('input', (e) => {
+        this.renderDmFriendsPicker(e.target.value.trim());
+      });
     }
 
     document.querySelectorAll('[data-close="modal-start-dm"]').forEach((btn) => {
@@ -914,9 +921,15 @@ class SocialModule {
     let roomTitle = room.name;
     let roomAvatar = room.icon || '💬';
 
-    if (room.type === 'direct' && room.memberNames) {
+    if (room.type === 'direct') {
       const myId = this.getSenderIdentity();
-      const otherName = room.memberNames.find(n => n !== myId.name) || 'Friend';
+      let otherName = 'Friend';
+      if (room.memberNames && Array.isArray(room.memberNames)) {
+        const found = room.memberNames.find(n => n && n !== myId.name && n !== myId.email);
+        if (found) otherName = this.getCleanDisplayName(found);
+      } else if (room.name) {
+        otherName = this.getCleanDisplayName(room.name.replace(/^Chat with\s+/i, ''));
+      }
       roomTitle = otherName;
       roomAvatar = otherName.charAt(0).toUpperCase();
     }
@@ -944,6 +957,14 @@ class SocialModule {
     return div;
   }
 
+  getCleanDisplayName(raw) {
+    if (!raw) return 'Friend';
+    if (raw.includes('@')) {
+      return raw.split('@')[0];
+    }
+    return raw;
+  }
+
   selectRoom(room) {
     this.activeRoomId = room.id;
     this.activeRoomData = room;
@@ -957,13 +978,20 @@ class SocialModule {
     // Update Header
     let roomTitle = room.name;
     let roomAvatar = room.icon || '💬';
-    let roomSubtitle = room.description || (room.type === 'direct' ? 'Direct 1-on-1 Conversation' : 'Group Channel');
+    let roomSubtitle = room.description || (room.type === 'direct' ? '🔒 Private 1-on-1 Direct Chat' : 'Group Channel');
 
-    if (room.type === 'direct' && room.memberNames) {
+    if (room.type === 'direct') {
       const myId = this.getSenderIdentity();
-      const otherName = room.memberNames.find(n => n !== myId.name) || 'Friend';
+      let otherName = 'Friend';
+      if (room.memberNames && Array.isArray(room.memberNames)) {
+        const found = room.memberNames.find(n => n && n !== myId.name && n !== myId.email);
+        if (found) otherName = this.getCleanDisplayName(found);
+      } else if (room.name) {
+        otherName = this.getCleanDisplayName(room.name.replace(/^Chat with\s+/i, ''));
+      }
       roomTitle = otherName;
       roomAvatar = otherName.charAt(0).toUpperCase();
+      roomSubtitle = '🔒 Private 1-on-1 Direct Chat';
     }
 
     if (this.chatHeaderTitle) this.chatHeaderTitle.innerText = roomTitle;
@@ -1496,58 +1524,93 @@ class SocialModule {
   }
 
   openStartDmModal() {
-    this.renderDmFriendsPicker();
+    const searchInput = document.getElementById('dm-friend-search-input');
+    if (searchInput) {
+      searchInput.value = '';
+    }
+    this.renderDmFriendsPicker('');
     if (this.startDmModal) this.startDmModal.classList.add('active');
+    if (searchInput) setTimeout(() => searchInput.focus(), 80);
   }
 
   closeStartDmModal() {
     if (this.startDmModal) this.startDmModal.classList.remove('active');
   }
 
-  async renderDmFriendsPicker() {
+  async renderDmFriendsPicker(searchQuery = '') {
     const container = document.getElementById('dm-friends-picker-list');
     if (!container) return;
 
-    container.innerHTML = '<p style="font-size: 12px; color: var(--text-muted); text-align: center;">Loading registered friends...</p>';
-
-    try {
-      await this.fetchRegisteredUsers();
-      container.innerHTML = '';
-
-      if (this.friendsList.length === 0) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 20px 0; color: var(--text-muted);">
-            <p style="font-size: 13px;">No other friends found online yet.</p>
-            <p style="font-size: 11px; margin-top: 4px;">Share your app link with friends so they can join!</p>
-          </div>
-        `;
-        return;
+    if (!this.friendsList || this.friendsList.length === 0) {
+      container.innerHTML = '<p style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">Loading registered friends...</p>';
+      try {
+        await this.fetchRegisteredUsers();
+      } catch (err) {
+        console.error('Error loading DM friends:', err);
       }
+    }
 
-      this.friendsList.forEach((friend) => {
-        const item = document.createElement('div');
-        item.className = 'glass-card';
-        item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; margin-bottom: 8px;';
-        
-        item.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 30px; height: 30px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
-              ${(friend.displayName || friend.email || 'U').charAt(0).toUpperCase()}
+    container.innerHTML = '';
+
+    if (!this.friendsList || this.friendsList.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
+          <div style="font-size: 28px; margin-bottom: 6px;">👥</div>
+          <p style="font-size: 13px; color: #fff;">No other users found online yet.</p>
+          <p style="font-size: 11px; margin-top: 4px;">Share your app link with friends so they can join!</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Filter by search query (name / handle / alias)
+    const query = (searchQuery || '').toLowerCase().trim();
+    const filtered = this.friendsList.filter((friend) => {
+      const name = (friend.displayName || (friend.email ? friend.email.split('@')[0] : 'friend')).toLowerCase();
+      return name.includes(query);
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
+          <div style="font-size: 24px; margin-bottom: 6px;">🔍</div>
+          <p style="font-size: 13px; color: #fff;">No friends found matching "<strong>${this.escapeHtml(searchQuery)}</strong>"</p>
+          <p style="font-size: 11px; margin-top: 4px;">Try searching by another name or nickname.</p>
+        </div>
+      `;
+      return;
+    }
+
+    filtered.forEach((friend) => {
+      const rawName = friend.displayName || (friend.email ? friend.email.split('@')[0] : 'Friend');
+      const friendName = this.getCleanDisplayName(rawName);
+      const isFriendAdmin = friend.isAdmin || friend.role === 'admin' || (friend.email && friend.email.toLowerCase() === window.ADMIN_EMAIL.toLowerCase());
+
+      const item = document.createElement('div');
+      item.className = 'glass-card';
+      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 11px 14px; cursor: pointer; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-subtle); transition: all 0.2s ease;';
+      
+      item.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 34px; height: 34px; min-width: 34px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0;">
+            ${friendName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+              <span>${this.escapeHtml(friendName)}</span>
+              ${isFriendAdmin ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 5px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
             </div>
-            <div>
-              <div style="font-size: 13px; font-weight: 600; color: #fff;">${this.escapeHtml(friend.displayName || 'Friend')}</div>
-              <div style="font-size: 11px; color: var(--text-muted);">${this.escapeHtml(friend.email)}</div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
+              ${isFriendAdmin ? '👑 Verified Admin' : '👤 Apex Member • Active'}
             </div>
           </div>
-          <button class="btn-primary" style="width: auto; padding: 6px 12px; font-size: 11px;">Chat 💬</button>
-        `;
+        </div>
+        <button type="button" class="btn-primary" style="width: auto; padding: 6px 14px; font-size: 11px; border-radius: 6px;">Chat 💬</button>
+      `;
 
-        item.addEventListener('click', () => this.startDirectChatWithFriend(friend));
-        container.appendChild(item);
-      });
-    } catch (err) {
-      console.error('Error loading DM friends:', err);
-    }
+      item.addEventListener('click', () => this.startDirectChatWithFriend(friend));
+      container.appendChild(item);
+    });
   }
 
   async startDirectChatWithFriend(friend) {
@@ -1568,19 +1631,20 @@ class SocialModule {
         return;
       }
 
-      const friendName = friend.displayName || friend.email.split('@')[0];
+      const rawName = friend.displayName || (friend.email ? friend.email.split('@')[0] : 'Friend');
+      const friendName = this.getCleanDisplayName(rawName);
 
       const dmRoom = {
-        name: `Chat with ${friendName}`,
-        description: `Direct conversation between ${sender.name} and ${friendName}`,
+        name: friendName,
+        description: '🔒 Private 1-on-1 Direct Chat',
         type: 'direct',
         icon: friendName.charAt(0).toUpperCase(),
         createdBy: sender.uid,
         createdByName: sender.name,
         members: [sender.uid, friend.uid],
-        memberEmails: [sender.email.toLowerCase(), friend.email.toLowerCase()],
+        memberEmails: [sender.email.toLowerCase(), (friend.email || '').toLowerCase()],
         memberNames: [sender.name, friendName],
-        lastMessage: 'Direct conversation started',
+        lastMessage: 'Private conversation started',
         lastMessageSender: sender.name,
         lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
