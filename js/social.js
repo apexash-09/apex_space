@@ -144,6 +144,14 @@ class SocialModule {
       });
     }
 
+    const btnClearChat = document.getElementById('btn-clear-chat');
+    if (btnClearChat) {
+      btnClearChat.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.clearCurrentChat();
+      });
+    }
+
     if (this.aliasModal) {
       this.aliasModal.addEventListener('click', (e) => {
         if (e.target === this.aliasModal) this.closeAliasModal();
@@ -1471,6 +1479,76 @@ class SocialModule {
       setTimeout(() => {
         this.chatMessagesContainer.scrollTop = this.chatMessagesContainer.scrollHeight;
       }, 60);
+    }
+  }
+
+  // --- Clear Chat / Delete Conversation History ---
+  async clearCurrentChat() {
+    if (!this.activeRoomId) return;
+    if (!window.fbDb) {
+      alert('Firebase connection not ready.');
+      return;
+    }
+
+    const roomData = this.activeRoomData || {};
+    const roomName = roomData.name || 'this conversation';
+
+    const confirmed = confirm(`🧹 Clear Chat Confirmation\n\nAre you sure you want to delete all messages in "${roomName}"?\n\nThis will permanently delete the message history for this chat.`);
+    if (!confirmed) return;
+
+    try {
+      if (this.chatMessagesContainer) {
+        this.chatMessagesContainer.innerHTML = `
+          <div style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
+            <div style="font-size: 32px; margin-bottom: 10px;">⏳</div>
+            <h4 style="font-size: 15px; font-weight: 600; color: #fff;">Clearing conversation...</h4>
+          </div>
+        `;
+      }
+
+      const messagesRef = window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .collection('messages');
+
+      const snapshot = await messagesRef.get();
+      
+      if (!snapshot.empty) {
+        const docs = snapshot.docs;
+        for (let i = 0; i < docs.length; i += 400) {
+          const batch = window.fbDb.batch();
+          const chunk = docs.slice(i, i + 400);
+          chunk.forEach((doc) => batch.delete(doc.ref));
+          await batch.commit();
+        }
+      }
+
+      // Reset room's last message and unpin any active pinned message
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .set({
+          lastMessage: 'Chat history cleared',
+          lastMessageSender: 'System',
+          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+          pinnedMessage: firebase.firestore.FieldValue.delete()
+        }, { merge: true });
+
+      if (this.chatMessagesContainer) {
+        this.chatMessagesContainer.innerHTML = `
+          <div style="text-align: center; padding: 40px 16px; color: var(--text-muted);">
+            <div style="font-size: 36px; margin-bottom: 10px;">✨</div>
+            <h4 style="font-size: 15px; font-weight: 600; color: #fff;">Chat Cleared</h4>
+            <p style="font-size: 12px; margin-top: 6px;">All messages in this chat have been removed.</p>
+          </div>
+        `;
+      }
+    } catch (err) {
+      console.error('Failed to clear chat:', err);
+      alert('Could not clear chat: ' + err.message);
+      if (this.activeRoomId) {
+        this.startMessagesListener(this.activeRoomId);
+      }
     }
   }
 

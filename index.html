@@ -330,13 +330,16 @@
                       </div>
                     </div>
 
-                    <!-- Name / Handle Badge with Direct Change Name Button -->
+                    <!-- Name / Handle Badge with Change Name and Clear Chat Buttons -->
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                       <div id="chat-anon-badge" style="font-size: 12px; color: var(--text-muted); cursor: pointer;" title="Click to customize your handle">
                         Chatting as: <strong id="chat-handle-display" style="color: #fff; font-weight: 700;">Anonymous</strong>
                       </div>
                       <button type="button" id="btn-edit-chat-name" class="btn-ghost" style="padding: 4px 10px; font-size: 11px; border: 1px solid rgba(255,255,255,0.3); border-radius: 14px; color: #fff;" onclick="if(window.socialModule) window.socialModule.openAliasModal();" title="Change your chat display name">
                         ✏️ Change Name
+                      </button>
+                      <button type="button" id="btn-clear-chat" class="btn-ghost" style="padding: 4px 10px; font-size: 11px; border: 1px solid rgba(255,80,80,0.35); border-radius: 14px; color: #ff6b6b; display: inline-flex; align-items: center; gap: 4px;" onclick="if(window.socialModule) window.socialModule.clearCurrentChat();" title="Clear all messages in this conversation">
+                        🧹 Clear Chat
                       </button>
                     </div>
                   </div>
