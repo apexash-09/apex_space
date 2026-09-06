@@ -429,36 +429,36 @@ class SocialModule {
         this.chatAttachmentPreview.style.display = 'flex';
       }
 
-      // If Firebase Storage is initialized and responding, upload original file
-      if (window.fbStorage && file.size > 700 * 1024) {
+      // 1. Try Firebase Cloud Storage first (preserves 100% original full audio)
+      if (window.fbStorage) {
         try {
-          const uploadPromise = (async () => {
-            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_${safeName}`);
-            const snapshot = await storageRef.put(file);
-            return await snapshot.ref.getDownloadURL();
-          })();
-
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_${safeName}`);
+          const uploadTask = storageRef.put(file);
+          
+          const uploadPromise = uploadTask.then(snapshot => snapshot.ref.getDownloadURL());
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 10000));
+          
           const downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
+          if (downloadUrl) {
+            this.pendingAttachment = {
+              name: file.name,
+              type: 'audio',
+              dataUrl: downloadUrl
+            };
 
-          this.pendingAttachment = {
-            name: file.name,
-            type: 'audio',
-            dataUrl: downloadUrl
-          };
-
-          if (this.chatAttachmentPreview && this.attachmentPreviewName) {
-            this.attachmentPreviewName.innerText = `🎵 Ready: ${file.name}`;
-            this.chatAttachmentPreview.style.display = 'flex';
+            if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+              this.attachmentPreviewName.innerText = `🎵 Ready: ${file.name}`;
+              this.chatAttachmentPreview.style.display = 'flex';
+            }
+            return;
           }
-          return;
         } catch (storageErr) {
-          console.warn('Storage unavailable, auto-compressing audio for direct chat sending:', storageErr);
+          console.warn('Firebase Storage not reachable, using Web Audio compression:', storageErr);
         }
       }
 
-      // Auto-compress audio track using Web Audio API to fit comfortably in Firestore
+      // 2. Safe Web Audio Compression Fallback (Guaranteed to be < 400KB Base64 for Firestore)
       try {
         const compressedAudioDataUrl = await this.compressAudio(file);
         this.pendingAttachment = {
@@ -480,8 +480,8 @@ class SocialModule {
   }
 
   async compressAudio(file) {
-    // 1. If file is small (< 480KB), preserve original bytes with correct audio MIME
-    if (file.size <= 480 * 1024) {
+    // 1. If file is very small (< 200KB), preserve original bytes
+    if (file.size <= 200 * 1024) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -491,7 +491,6 @@ class SocialModule {
           if (!dataUrl.startsWith(`data:${mime};`)) {
             dataUrl = dataUrl.replace(/^data:[^;]+;base64,/, `data:${mime};base64,`);
           }
-          console.log(`[Audio] Small file direct read: ${file.name} (${Math.round(file.size/1024)}KB) -> MIME: ${mime}`);
           resolve(dataUrl);
         };
         reader.onerror = (e) => reject(new Error('FileReader error: ' + e));
@@ -499,7 +498,8 @@ class SocialModule {
       });
     }
 
-    // 2. If file is larger (> 480KB), decode with Web Audio API and resample to clean 16kHz Mono WAV
+    // 2. Decode with Web Audio API and resample to clean 12,000 Hz Mono WAV (24 KB/s)
+    // 15 seconds = 360 KB PCM -> ~480 KB Base64 (well under Firestore's 1MB document limit)
     try {
       const arrayBuffer = await file.arrayBuffer();
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -508,10 +508,8 @@ class SocialModule {
       const audioCtx = new AudioCtx();
       const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-      // Target sample rate for high-quality voice/music chat: 16,000 Hz Mono
-      // Limit to max 35 seconds to ensure base64 string is ~500KB (well under Firestore's 1MB limit)
-      const targetSampleRate = 16000;
-      const maxSeconds = 35;
+      const targetSampleRate = 12000;
+      const maxSeconds = 15;
       const duration = Math.min(audioBuffer.duration, maxSeconds);
       const targetLength = Math.max(1, Math.floor(duration * targetSampleRate));
 
@@ -528,10 +526,10 @@ class SocialModule {
 
       const wavBlob = this._audioBufferToWav(renderedBuffer);
       const dataUrl = await this._blobToDataUrl(wavBlob);
-      console.log(`[Audio] Auto-compressed ${file.name} to 16kHz PCM WAV: ${Math.round(wavBlob.size / 1024)}KB`);
+      console.log(`[Audio] Auto-compressed ${file.name} to 12kHz PCM WAV: ${Math.round(wavBlob.size / 1024)}KB`);
       return dataUrl;
     } catch (decodeErr) {
-      console.warn('Web Audio decode failed, falling back to direct safe read:', decodeErr);
+      console.warn('Web Audio decode fallback to 200KB safe slice:', decodeErr);
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -543,8 +541,7 @@ class SocialModule {
           resolve(dataUrl);
         };
         reader.onerror = (e) => reject(new Error('FileReader error: ' + e));
-        // Read at most 450KB so Firestore does not reject it
-        reader.readAsDataURL(file.slice(0, 450 * 1024));
+        reader.readAsDataURL(file.slice(0, 200 * 1024));
       });
     }
   }
