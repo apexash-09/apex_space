@@ -480,39 +480,129 @@ class SocialModule {
   }
 
   async compressAudio(file) {
-    // Read file as-is. Preserve original bytes. We'll fix the MIME when creating a blob URL.
-    const MAX_BYTES = 850 * 1024;
-    const source = file.size <= MAX_BYTES ? file : file.slice(0, MAX_BYTES);
+    // 1. If file is small (< 480KB), preserve original bytes with correct audio MIME
+    if (file.size <= 480 * 1024) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          let dataUrl = reader.result;
+          if (!dataUrl) { reject(new Error('Empty audio result')); return; }
+          const mime = this._detectAudioMime(dataUrl, file.name);
+          if (!dataUrl.startsWith(`data:${mime};`)) {
+            dataUrl = dataUrl.replace(/^data:[^;]+;base64,/, `data:${mime};base64,`);
+          }
+          console.log(`[Audio] Small file direct read: ${file.name} (${Math.round(file.size/1024)}KB) -> MIME: ${mime}`);
+          resolve(dataUrl);
+        };
+        reader.onerror = (e) => reject(new Error('FileReader error: ' + e));
+        reader.readAsDataURL(file);
+      });
+    }
 
+    // 2. If file is larger (> 480KB), decode with Web Audio API and resample to clean 16kHz Mono WAV
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) throw new Error('Web Audio API not supported');
+
+      const audioCtx = new AudioCtx();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+      // Target sample rate for high-quality voice/music chat: 16,000 Hz Mono
+      // Limit to max 35 seconds to ensure base64 string is ~500KB (well under Firestore's 1MB limit)
+      const targetSampleRate = 16000;
+      const maxSeconds = 35;
+      const duration = Math.min(audioBuffer.duration, maxSeconds);
+      const targetLength = Math.max(1, Math.floor(duration * targetSampleRate));
+
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const offlineCtx = new OfflineCtx(1, targetLength, targetSampleRate);
+
+      const source = offlineCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(offlineCtx.destination);
+      source.start(0);
+
+      const renderedBuffer = await offlineCtx.startRendering();
+      try { await audioCtx.close(); } catch (_) {}
+
+      const wavBlob = this._audioBufferToWav(renderedBuffer);
+      const dataUrl = await this._blobToDataUrl(wavBlob);
+      console.log(`[Audio] Auto-compressed ${file.name} to 16kHz PCM WAV: ${Math.round(wavBlob.size / 1024)}KB`);
+      return dataUrl;
+    } catch (decodeErr) {
+      console.warn('Web Audio decode failed, falling back to direct safe read:', decodeErr);
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          let dataUrl = reader.result;
+          const mime = this._detectAudioMime(dataUrl, file.name);
+          if (!dataUrl.startsWith(`data:${mime};`)) {
+            dataUrl = dataUrl.replace(/^data:[^;]+;base64,/, `data:${mime};base64,`);
+          }
+          resolve(dataUrl);
+        };
+        reader.onerror = (e) => reject(new Error('FileReader error: ' + e));
+        // Read at most 450KB so Firestore does not reject it
+        reader.readAsDataURL(file.slice(0, 450 * 1024));
+      });
+    }
+  }
+
+  _audioBufferToWav(buffer) {
+    const numChannels = 1;
+    const sampleRate = buffer.sampleRate;
+    const samples = buffer.getChannelData(0);
+    const dataSize = samples.length * 2;
+    const bufferArray = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(bufferArray);
+
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    // RIFF chunk descriptor
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, 'WAVE');
+
+    // fmt sub-chunk
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+    view.setUint16(20, 1, true);  // AudioFormat (1 for PCM)
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * 2, true); // ByteRate
+    view.setUint16(32, numChannels * 2, true);              // BlockAlign
+    view.setUint16(34, 16, true);                           // BitsPerSample
+
+    // data sub-chunk
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    // Write PCM 16-bit samples
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+
+    return new Blob([view], { type: 'audio/wav' });
+  }
+
+  _blobToDataUrl(blob) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        let dataUrl = reader.result;
-        if (!dataUrl) { reject(new Error('FileReader returned empty result')); return; }
-
-        // Normalise MIME: WhatsApp audio often comes in as video/mpeg or application/octet-stream
-        const mime = this._detectAudioMime(dataUrl, file.name);
-        if (!dataUrl.startsWith(`data:${mime};`)) {
-          dataUrl = dataUrl.replace(/^data:[^;]+;base64,/, `data:${mime};base64,`);
-        }
-
-        console.log(`[Audio] Prepared: ${file.name} → MIME: ${mime}, size: ${Math.round(source.size/1024)}KB`);
-        resolve(dataUrl);
-      };
-      reader.onerror = (e) => reject(new Error('FileReader error: ' + e));
-      reader.readAsDataURL(source);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
   }
 
   _detectAudioMime(dataUrl, fileName) {
-    // Try to detect MIME from data URL header first
-    const headerMatch = dataUrl.match(/^data:([^;]+);/);
-    const declared = headerMatch ? headerMatch[1] : '';
-
-    // If browser correctly detected an audio MIME, trust it
-    if (declared.startsWith('audio/')) return declared;
-
-    // Detect from file extension
     const ext = (fileName || '').toLowerCase().split('.').pop();
     const extMap = {
       mp3: 'audio/mpeg', mpeg: 'audio/mpeg', mpg: 'audio/mpeg',
@@ -525,12 +615,14 @@ class SocialModule {
 
     // Detect from magic bytes in base64
     const b64 = (dataUrl.split(',')[1] || '').substring(0, 12);
-    if (b64.startsWith('UklGR')) return 'audio/wav';       // RIFF → WAV
-    if (b64.startsWith('SUQz') || b64.startsWith('//M')) return 'audio/mpeg'; // ID3 or MP3 sync
-    if (b64.startsWith('T2dnU')) return 'audio/ogg';       // OggS
-    if (b64.startsWith('AAAA') || b64.startsWith('AAAAF')) return 'audio/mp4'; // M4A/AAC
+    if (b64.startsWith('UklGR')) return 'audio/wav';
+    if (b64.startsWith('SUQz') || b64.startsWith('//M')) return 'audio/mpeg';
+    if (b64.startsWith('T2dnU')) return 'audio/ogg';
+    if (b64.startsWith('AAAA')) return 'audio/mp4';
 
-    // Default fallback
+    const headerMatch = dataUrl.match(/^data:([^;]+);/);
+    if (headerMatch && headerMatch[1].startsWith('audio/')) return headerMatch[1];
+
     return 'audio/mpeg';
   }
 
@@ -542,7 +634,7 @@ class SocialModule {
 
     try {
       const headerMatch = raw.match(/^data:([^;]+);base64,/);
-      const mime = headerMatch ? headerMatch[1] : 'audio/mpeg';
+      const mime = headerMatch ? headerMatch[1] : 'audio/wav';
       const b64 = raw.split(',')[1];
       if (!b64) return raw;
 
@@ -552,10 +644,9 @@ class SocialModule {
 
       const blob = new Blob([bytes], { type: mime });
       const url = URL.createObjectURL(blob);
-      console.log(`[Audio] Blob URL created: ${mime}, ${Math.round(binary.length/1024)}KB → ${url.substring(0, 60)}`);
       return url;
     } catch (e) {
-      console.warn('[Audio] resolveAudioSrc blob conversion failed, using raw dataUrl:', e);
+      console.warn('[Audio] resolveAudioSrc fallback:', e);
       return raw;
     }
   }
@@ -1497,13 +1588,22 @@ class SocialModule {
     if (this.chatInput) this.chatInput.value = '';
     this.clearAttachment();
 
+    let cleanAttachment = null;
+    if (attachment && typeof attachment === 'object') {
+      cleanAttachment = {
+        name: String(attachment.name || 'Attachment'),
+        type: String(attachment.type || 'file'),
+        dataUrl: String(attachment.dataUrl || '')
+      };
+    }
+
     const newMsg = {
       text: text || '',
-      attachment: attachment || null,
-      senderId: sender.uid,
-      senderName: sender.name,
-      senderEmail: sender.email,
-      isAnonymous: sender.isAnon,
+      attachment: cleanAttachment,
+      senderId: String(sender.uid || 'anon'),
+      senderName: String(sender.name || 'Anonymous'),
+      senderEmail: String(sender.email || ''),
+      isAnonymous: Boolean(sender.isAnon),
       localTimestamp: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
