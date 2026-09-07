@@ -163,26 +163,54 @@ class NotesModule {
       if (note.fileBlob) {
         this.activeBlobUrl = URL.createObjectURL(note.fileBlob);
 
-        if (note.fileType.includes('pdf')) {
+        const isPdf = (note.fileType && note.fileType.includes('pdf')) || (note.fileName && /\.pdf$/i.test(note.fileName));
+        const isImage = (note.fileType && note.fileType.startsWith('image/')) || (note.fileName && /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(note.fileName));
+        const isWord = (note.fileType && (note.fileType.includes('word') || note.fileType.includes('officedocument'))) || (note.fileName && /\.(doc|docx)$/i.test(note.fileName));
+
+        if (isPdf) {
           // Render PDF in iframe
           this.readerViewer.innerHTML = `
             <iframe src="${this.activeBlobUrl}" style="width: 100%; height: 100%; border: none; border-radius: var(--radius-md); background: #ffffff;"></iframe>
           `;
-        } else if (note.fileType.startsWith('image/')) {
+        } else if (isImage) {
           // Render Image Note
           this.readerViewer.innerHTML = `
             <div style="width: 100%; height: 100%; overflow: auto; display: flex; justify-content: center; align-items: center; background: #080808;">
               <img src="${this.activeBlobUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-md);">
             </div>
           `;
-        } else {
-          // Read File as Text
-          const text = await note.fileBlob.text();
+        } else if (isWord) {
+          // Render Word Document Card
           this.readerViewer.innerHTML = `
-            <div class="markdown-body" style="padding: 20px; overflow-y: auto; height: 100%;">
-              <pre><code>${this.escapeHtml(text)}</code></pre>
+            <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px; background: rgba(255,255,255,0.02); border-radius: var(--radius-md);">
+              <div style="font-size: 54px; margin-bottom: 16px;">📝</div>
+              <h3 style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 8px;">${this.escapeHtml(note.fileName || 'Word Document')}</h3>
+              <p style="font-size: 13px; color: var(--text-muted); max-width: 400px; margin-bottom: 20px; line-height: 1.5;">
+                Microsoft Word document. Download to view in Microsoft Word, WPS Office, or Google Docs.
+              </p>
+              <a href="${this.activeBlobUrl}" download="${this.escapeHtml(note.fileName || 'document.docx')}" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 12px 24px; font-weight: 700; border-radius: var(--radius-md);">
+                <span>⬇️ Download Word Document</span>
+              </a>
             </div>
           `;
+        } else {
+          // Read File as Text
+          try {
+            const text = await note.fileBlob.text();
+            this.readerViewer.innerHTML = `
+              <div class="markdown-body" style="padding: 20px; overflow-y: auto; height: 100%;">
+                <pre><code>${this.escapeHtml(text)}</code></pre>
+              </div>
+            `;
+          } catch (readErr) {
+            this.readerViewer.innerHTML = `
+              <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                <div style="font-size: 40px; margin-bottom: 12px;">📁</div>
+                <h4>${this.escapeHtml(note.fileName || 'Document')}</h4>
+                <a href="${this.activeBlobUrl}" download="${this.escapeHtml(note.fileName || 'file')}" class="btn-primary" style="display: inline-block; margin-top: 14px; text-decoration: none; padding: 10px 20px;">⬇️ Download File</a>
+              </div>
+            `;
+          }
         }
       } else if (note.textContent) {
         // Render Text / Markdown content directly

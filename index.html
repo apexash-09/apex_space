@@ -330,11 +330,14 @@
                       </div>
                     </div>
 
-                    <!-- Name / Handle Badge with Change Name and Clear Chat Buttons -->
+                    <!-- Name / Handle Badge with Change Name, Incognito and Clear Chat Buttons -->
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                       <div id="chat-anon-badge" style="font-size: 12px; color: var(--text-muted); cursor: pointer;" title="Click to customize your handle">
                         Chatting as: <strong id="chat-handle-display" style="color: #fff; font-weight: 700;">Anonymous</strong>
                       </div>
+                      <button type="button" id="btn-admin-incognito" class="btn-ghost" style="display: none; padding: 4px 10px; font-size: 11px; border: 1px solid rgba(255,255,255,0.25); border-radius: 14px; color: var(--text-muted); cursor: pointer; align-items: center; gap: 4px; transition: all 0.2s;" onclick="if(window.socialModule) window.socialModule.toggleAdminIncognito();" title="Toggle Admin Incognito Mode (Hide ADMIN badge)">
+                        🎭 Incognito: <strong>OFF</strong>
+                      </button>
                       <button type="button" id="btn-edit-chat-name" class="btn-ghost" style="padding: 4px 10px; font-size: 11px; border: 1px solid rgba(255,255,255,0.3); border-radius: 14px; color: #fff;" onclick="if(window.socialModule) window.socialModule.openAliasModal();" title="Change your chat display name">
                         ✏️ Change Name
                       </button>
@@ -367,10 +370,10 @@
 
                   <!-- Chat Input Bar (Fully pinned at bottom of window with Emojis & Attachments) -->
                   <form id="form-chat-send" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: rgba(10, 10, 10, 0.98); display: flex; gap: 8px; align-items: center; flex-shrink: 0; position: relative;">
-                    <!-- Hidden File Input for All Audio, Music, MPEG & Images -->
-                    <input type="file" id="chat-file-input" accept="audio/*,image/*,video/*,.mpeg,.mpg,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus,.weba,.amr,.mp4,.*" style="display: none;">
+                    <!-- Hidden File Input for PDF, Word Docs, Photos, Audio, Music -->
+                    <input type="file" id="chat-file-input" accept="audio/*,image/*,.pdf,.doc,.docx,.txt,.md,.ppt,.pptx,.xls,.xlsx,.csv,.zip,.*" style="display: none;">
                     
-                    <button type="button" id="btn-chat-attach" class="btn-ghost" style="padding: 8px 12px; font-size: 16px; flex-shrink: 0; border-radius: var(--radius-md);" title="Attach Audio Track, Music, or Photo">
+                    <button type="button" id="btn-chat-attach" class="btn-ghost" style="padding: 8px 12px; font-size: 16px; flex-shrink: 0; border-radius: var(--radius-md);" title="Attach PDF, Word Document, Photo, or Audio Track">
                       📎
                     </button>
 
@@ -657,8 +660,8 @@
           <input type="text" id="note-subject" class="form-control" required placeholder="e.g. Computer Science, Math, Physics...">
         </div>
         <div class="form-group">
-          <label for="note-file-input">Attach PDF / Document / Image (Optional)</label>
-          <input type="file" id="note-file-input" class="form-control" accept=".pdf,.txt,.md,.png,.jpg,.jpeg">
+          <label for="note-file-input">Attach PDF, Word Document, or Image (Optional)</label>
+          <input type="file" id="note-file-input" class="form-control" accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.xlsx,.pptx">
         </div>
         <div class="form-group">
           <label for="note-text-content">Or Write Text / Markdown Note Content</label>
@@ -902,8 +905,8 @@
         </div>
 
         <div class="form-group">
-          <label for="social-post-file">Attach Photo, Music / Audio Track (Optional)</label>
-          <input type="file" id="social-post-file" class="form-control" accept="image/*,audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac">
+          <label for="social-post-file">Attach Photo, Document, or Audio Track (Optional)</label>
+          <input type="file" id="social-post-file" class="form-control" accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.md,.mp3,.wav,.ogg,.m4a,.aac,.flac">
         </div>
 
         <div class="form-group">
@@ -940,6 +943,18 @@
           <button type="button" id="btn-randomize-alias" class="btn-ghost" style="padding: 10px 16px; flex-shrink: 0; width: auto; white-space: nowrap; border: 1px solid var(--border-subtle); border-radius: var(--radius-md);" title="Generate cool random cyberpunk alias">🎲 Random</button>
         </div>
       </div>
+
+      <!-- Admin Incognito Option (Only shown to Admin) -->
+      <div id="admin-incognito-wrapper" style="display: none; margin-top: 14px; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius-md);">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px;">
+          <input type="checkbox" id="chk-admin-incognito" style="width: 17px; height: 17px; accent-color: #fff; cursor: pointer;">
+          <span>🎭 Chat Anonymously (Hide ADMIN Badge)</span>
+        </label>
+        <p style="font-size: 11px; color: var(--text-muted); margin: 0; padding-left: 27px; line-height: 1.4;">
+          When active, messages you send will NOT display the white <strong>ADMIN</strong> badge, allowing you to participate incognito under your custom nickname.
+        </p>
+      </div>
+
       <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
         <button type="button" class="btn-ghost" data-close="modal-change-alias">Cancel</button>
         <button type="button" id="btn-save-alias" class="btn-primary" style="width: auto; padding: 10px 22px;">Save Handle</button>

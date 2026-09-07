@@ -166,10 +166,28 @@ class SocialModule {
     if (btnSaveAlias) {
       btnSaveAlias.addEventListener('click', () => {
         const input = document.getElementById('custom-alias-input');
+        const chk = document.getElementById('chk-admin-incognito');
+        if (chk && this.isAdminUser()) {
+          this.setAdminIncognito(chk.checked);
+        }
         if (input && input.value.trim()) {
           this.setCustomHandle(input.value.trim());
-          this.closeAliasModal();
         }
+        this.closeAliasModal();
+      });
+    }
+
+    const chkAdminIncognito = document.getElementById('chk-admin-incognito');
+    if (chkAdminIncognito) {
+      chkAdminIncognito.addEventListener('change', (e) => {
+        this.setAdminIncognito(e.target.checked);
+      });
+    }
+
+    const btnAdminIncognito = document.getElementById('btn-admin-incognito');
+    if (btnAdminIncognito) {
+      btnAdminIncognito.addEventListener('click', () => {
+        this.toggleAdminIncognito();
       });
     }
 
@@ -279,6 +297,7 @@ class SocialModule {
     }
 
     this.updateAnonBadge();
+    this.updateAdminIncognitoUI();
   }
 
   generateRandomAlias() {
@@ -293,6 +312,19 @@ class SocialModule {
   openAliasModal() {
     const input = document.getElementById('custom-alias-input');
     if (input) input.value = this.getSenderIdentity().name;
+
+    // Show/hide admin incognito toggle in modal
+    const incognitoWrapper = document.getElementById('admin-incognito-wrapper');
+    const chk = document.getElementById('chk-admin-incognito');
+    if (incognitoWrapper) {
+      if (this.isAdminUser()) {
+        incognitoWrapper.style.display = 'block';
+        if (chk) chk.checked = localStorage.getItem('apex_admin_incognito') === 'true';
+      } else {
+        incognitoWrapper.style.display = 'none';
+      }
+    }
+
     const modal = this.aliasModal || document.getElementById('modal-change-alias');
     if (modal) {
       this.aliasModal = modal;
@@ -304,6 +336,46 @@ class SocialModule {
   closeAliasModal() {
     const modal = this.aliasModal || document.getElementById('modal-change-alias');
     if (modal) modal.classList.remove('active');
+  }
+
+  toggleAdminIncognito() {
+    if (!this.isAdminUser()) return;
+    const currentState = localStorage.getItem('apex_admin_incognito') === 'true';
+    this.setAdminIncognito(!currentState);
+  }
+
+  setAdminIncognito(enabled) {
+    if (!this.isAdminUser()) return;
+    localStorage.setItem('apex_admin_incognito', enabled ? 'true' : 'false');
+    this.updateAdminIncognitoUI();
+  }
+
+  updateAdminIncognitoUI() {
+    const isIncognito = this.isAdminUser() && localStorage.getItem('apex_admin_incognito') === 'true';
+    const btn = document.getElementById('btn-admin-incognito');
+    if (btn) {
+      if (this.isAdminUser()) {
+        btn.style.display = 'inline-flex';
+        if (isIncognito) {
+          btn.style.background = 'rgba(52, 199, 89, 0.2)';
+          btn.style.borderColor = '#34c759';
+          btn.style.color = '#34c759';
+          btn.innerHTML = '🎭 Incognito: <strong>ON</strong>';
+          btn.title = 'Incognito Mode Active: messages you send will NOT show the ADMIN badge';
+        } else {
+          btn.style.background = 'transparent';
+          btn.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+          btn.style.color = 'var(--text-muted)';
+          btn.innerHTML = '🎭 Incognito: <strong>OFF</strong>';
+          btn.title = 'Incognito Mode OFF: your messages will display the ADMIN badge';
+        }
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    const chk = document.getElementById('chk-admin-incognito');
+    if (chk) chk.checked = isIncognito;
   }
 
   setCustomHandle(name) {
@@ -338,14 +410,16 @@ class SocialModule {
 
   getSenderIdentity() {
     const savedCustomHandle = localStorage.getItem('apex_chat_handle') || localStorage.getItem('apex_anon_handle');
+    const isIncognito = this.isAdminUser() && localStorage.getItem('apex_admin_incognito') === 'true';
 
     if (this.currentUser) {
       const defaultName = this.currentUser.displayName || this.currentUser.email.split('@')[0];
       return {
         uid: this.currentUser.uid,
         name: savedCustomHandle || defaultName,
-        email: this.currentUser.email,
-        isAnon: false
+        email: isIncognito ? '' : this.currentUser.email,
+        isAnon: isIncognito ? true : false,
+        isIncognito: isIncognito
       };
     } else {
       const anonUid = localStorage.getItem('apex_anon_uid') || 'anon_guest';
@@ -353,14 +427,16 @@ class SocialModule {
       return {
         uid: anonUid,
         name: anonName,
-        email: 'anonymous@apex',
-        isAnon: true
+        email: '',
+        isAnon: true,
+        isIncognito: false
       };
     }
   }
 
   handleAuthUpdate() {
     this.updateAnonBadge();
+    this.updateAdminIncognitoUI();
 
     if (this.adminTabBtn) {
       this.adminTabBtn.style.display = this.isAdmin ? 'inline-flex' : 'none';
@@ -397,30 +473,69 @@ class SocialModule {
     }
   }
 
-  // --- Attachments Handling (Auto-Compressed Images & Audio Tracks) ---
+  // --- Attachments Handling (Images, Audio, PDF & Word Documents) ---
   async handleChatFileSelected(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac|mpeg|mpg|opus|weba|amr)$/i.test(file.name);
-    const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name);
+    const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|bmp|svg|avif)$/i.test(file.name);
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    const isWord = /msword|wordprocessingml/i.test(file.type) || /\.(doc|docx)$/i.test(file.name);
+    const isExcel = /spreadsheet|excel/i.test(file.type) || /\.(xls|xlsx|csv)$/i.test(file.name);
+    const isPpt = /presentation|powerpoint/i.test(file.type) || /\.(ppt|pptx)$/i.test(file.name);
+    const isDocument = isPdf || isWord || isExcel || isPpt || /\.(txt|md|rtf|zip|rar|7z)$/i.test(file.name) || (!isAudio && !isImage);
 
     if (isImage) {
-      // Auto-compress image to fit comfortably under Firestore 1MB document limit
+      if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+        this.attachmentPreviewName.innerText = `⏳ Preparing 🖼️ ${file.name}...`;
+        this.chatAttachmentPreview.style.display = 'flex';
+      }
+
+      // 1. Try Firebase Cloud Storage first
+      if (window.fbStorage) {
+        try {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const storageRef = window.fbStorage.ref(`chat_images/${Date.now()}_${safeName}`);
+          const uploadTask = storageRef.put(file);
+          const uploadPromise = uploadTask.then(snapshot => snapshot.ref.getDownloadURL());
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 12000));
+          const downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
+          if (downloadUrl) {
+            this.pendingAttachment = {
+              name: file.name,
+              type: 'image',
+              dataUrl: downloadUrl,
+              size: file.size
+            };
+            if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+              this.attachmentPreviewName.innerText = `🖼️ Ready: ${file.name}`;
+              this.chatAttachmentPreview.style.display = 'flex';
+            }
+            return;
+          }
+        } catch (storageErr) {
+          console.warn('Firebase Storage not reachable for image, using client compression:', storageErr);
+        }
+      }
+
+      // 2. Client-side Image compression fallback (guaranteed to fit under Firestore 1MB document limit)
       try {
-        const compressedDataUrl = await this.compressImage(file, 800, 0.75);
+        const compressedDataUrl = await this.compressImage(file, 900, 0.75);
         this.pendingAttachment = {
           name: file.name,
           type: 'image',
-          dataUrl: compressedDataUrl
+          dataUrl: compressedDataUrl,
+          size: file.size
         };
 
         if (this.chatAttachmentPreview && this.attachmentPreviewName) {
-          this.attachmentPreviewName.innerText = `🖼️ ${file.name}`;
+          this.attachmentPreviewName.innerText = `🖼️ Ready: ${file.name}`;
           this.chatAttachmentPreview.style.display = 'flex';
         }
       } catch (err) {
         console.error('Image compression error:', err);
+        this.clearAttachment();
         alert('Could not process image: ' + err.message);
       }
     } else if (isAudio) {
@@ -435,7 +550,6 @@ class SocialModule {
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
           const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_${safeName}`);
           const uploadTask = storageRef.put(file);
-          
           const uploadPromise = uploadTask.then(snapshot => snapshot.ref.getDownloadURL());
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 10000));
           
@@ -444,7 +558,8 @@ class SocialModule {
             this.pendingAttachment = {
               name: file.name,
               type: 'audio',
-              dataUrl: downloadUrl
+              dataUrl: downloadUrl,
+              size: file.size
             };
 
             if (this.chatAttachmentPreview && this.attachmentPreviewName) {
@@ -464,7 +579,8 @@ class SocialModule {
         this.pendingAttachment = {
           name: file.name,
           type: 'audio',
-          dataUrl: compressedAudioDataUrl
+          dataUrl: compressedAudioDataUrl,
+          size: file.size
         };
 
         if (this.chatAttachmentPreview && this.attachmentPreviewName) {
@@ -475,6 +591,76 @@ class SocialModule {
         console.error('Audio processing error:', err);
         this.clearAttachment();
         alert('Could not process audio: ' + err.message);
+      }
+    } else if (isDocument) {
+      let docIcon = '📄';
+      let docType = 'Document';
+      if (isPdf) { docIcon = '📕'; docType = 'PDF Document'; }
+      else if (isWord) { docIcon = '📝'; docType = 'Word Document'; }
+      else if (isExcel) { docIcon = '📊'; docType = 'Spreadsheet'; }
+      else if (isPpt) { docIcon = '📑'; docType = 'Presentation'; }
+
+      if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+        this.attachmentPreviewName.innerText = `⏳ Attaching ${docIcon} ${file.name}...`;
+        this.chatAttachmentPreview.style.display = 'flex';
+      }
+
+      // 1. Try Firebase Cloud Storage first
+      if (window.fbStorage) {
+        try {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const storageRef = window.fbStorage.ref(`chat_documents/${Date.now()}_${safeName}`);
+          const uploadTask = storageRef.put(file);
+          const uploadPromise = uploadTask.then(snapshot => snapshot.ref.getDownloadURL());
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 12000));
+          
+          const downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
+          if (downloadUrl) {
+            this.pendingAttachment = {
+              name: file.name,
+              type: 'document',
+              docType: docType,
+              docIcon: docIcon,
+              dataUrl: downloadUrl,
+              size: file.size
+            };
+
+            if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+              this.attachmentPreviewName.innerText = `${docIcon} Ready: ${file.name}`;
+              this.chatAttachmentPreview.style.display = 'flex';
+            }
+            return;
+          }
+        } catch (storageErr) {
+          console.warn('Firebase Storage not reachable for document, falling back to data URL:', storageErr);
+        }
+      }
+
+      // 2. Safe Data URL fallback for documents <= 450KB
+      if (file.size <= 450 * 1024) {
+        try {
+          const dataUrl = await this._blobToDataUrl(file);
+          this.pendingAttachment = {
+            name: file.name,
+            type: 'document',
+            docType: docType,
+            docIcon: docIcon,
+            dataUrl: dataUrl,
+            size: file.size
+          };
+
+          if (this.chatAttachmentPreview && this.attachmentPreviewName) {
+            this.attachmentPreviewName.innerText = `${docIcon} Ready: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+            this.chatAttachmentPreview.style.display = 'flex';
+          }
+        } catch (err) {
+          console.error('Document read error:', err);
+          this.clearAttachment();
+          alert('Could not read document: ' + err.message);
+        }
+      } else {
+        this.clearAttachment();
+        alert(`⚠️ Document "${file.name}" is ${Math.round(file.size / 1024)} KB.\nWithout active cloud storage, attachments must be under 450 KB to fit Firestore limits. Please select a smaller file or connect Firebase Storage.`);
       }
     }
   }
@@ -802,6 +988,7 @@ class SocialModule {
   async sendSticker(stickerUrl) {
     if (!this.activeRoomId) this.activeRoomId = 'general_lounge';
     const sender = this.getSenderIdentity();
+    const isIncognito = Boolean(sender.isIncognito);
     const newMsg = {
       text: '',
       attachment: {
@@ -811,8 +998,9 @@ class SocialModule {
       },
       senderId: sender.uid,
       senderName: sender.name,
-      senderEmail: sender.email,
-      isAnonymous: sender.isAnon,
+      senderEmail: isIncognito ? '' : sender.email,
+      isAnonymous: isIncognito ? true : sender.isAnon,
+      hideAdminBadge: isIncognito,
       localTimestamp: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -1360,6 +1548,7 @@ class SocialModule {
     const isMe = msg.senderId === myIdentity.uid;
     const canDelete = isMe || this.isAdmin;
     const canPin = this.isAdminUser();
+    const showAdminBadge = !msg.hideAdminBadge && (msg.senderEmail === window.ADMIN_EMAIL);
 
     const timeFormatted = msg.createdAt && msg.createdAt.toDate
       ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -1383,7 +1572,7 @@ class SocialModule {
         ${!isMe ? `
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
             <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
-            ${msg.senderEmail === window.ADMIN_EMAIL ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
+            ${showAdminBadge ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
           </div>
         ` : ''}
 
@@ -1404,7 +1593,7 @@ class SocialModule {
         ${!isMe ? `
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
             <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
-            ${msg.senderEmail === window.ADMIN_EMAIL ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
+            ${showAdminBadge ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
           </div>
         ` : ''}
 
@@ -1450,8 +1639,30 @@ class SocialModule {
 
           <!-- Image Attachment (Clean, properly bounded like WhatsApp) -->
           ${msg.attachment && msg.attachment.type === 'image' ? `
-            <div style="margin-top: 8px; border-radius: 10px; overflow: hidden; max-width: 260px; max-height: 200px; border: 1px solid rgba(255,255,255,0.15);">
-              <img src="${msg.attachment.dataUrl}" style="width: 100%; height: 100%; max-height: 200px; object-fit: cover; display: block; cursor: pointer;" onclick="window.open('${msg.attachment.dataUrl}', '_blank');" title="Click to view full image">
+            <div style="margin-top: 8px; border-radius: 10px; overflow: hidden; max-width: 280px; max-height: 240px; border: 1px solid rgba(255,255,255,0.15);">
+              <img src="${msg.attachment.dataUrl}" style="width: 100%; height: 100%; max-height: 240px; object-fit: cover; display: block; cursor: pointer;" onclick="window.open('${msg.attachment.dataUrl}', '_blank');" title="Click to view full image">
+            </div>
+          ` : ''}
+
+          <!-- Document Attachment (PDF, Word, Excel, PPT, etc.) -->
+          ${msg.attachment && (msg.attachment.type === 'document' || msg.attachment.type === 'file' || msg.attachment.type === 'pdf') ? `
+            <div class="chat-custom-doc-attachment" style="margin-top: 8px; padding: 10px 14px; background: ${isMe ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.06)'}; border-radius: 12px; border: 1px solid ${isMe ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'}; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 220px; max-width: 320px;">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div style="width: 36px; height: 36px; min-width: 36px; border-radius: 8px; background: ${isMe ? '#000000' : '#ffffff'}; color: ${isMe ? '#ffffff' : '#000000'}; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 800;">
+                  ${msg.attachment.docIcon || (/\.pdf$/i.test(msg.attachment.name || '') ? '📕' : (/\.(doc|docx)$/i.test(msg.attachment.name || '') ? '📝' : (/\.(xls|xlsx|csv)$/i.test(msg.attachment.name || '') ? '📊' : '📄')))}
+                </div>
+                <div style="overflow: hidden;">
+                  <div style="font-size: 12px; font-weight: 700; color: ${isMe ? '#000' : '#fff'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${this.escapeHtml(msg.attachment.name || 'Document')}">
+                    ${this.escapeHtml(msg.attachment.name || 'Document')}
+                  </div>
+                  <div style="font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'}; margin-top: 2px;">
+                    ${this.escapeHtml(msg.attachment.docType || (/\.pdf$/i.test(msg.attachment.name || '') ? 'PDF Document' : (/\.(doc|docx)$/i.test(msg.attachment.name || '') ? 'Word Document' : 'Document')))}
+                  </div>
+                </div>
+              </div>
+              <a href="${msg.attachment.dataUrl}" download="${this.escapeHtml(msg.attachment.name || 'document')}" target="_blank" rel="noopener noreferrer" style="padding: 6px 12px; background: ${isMe ? '#000000' : '#ffffff'}; color: ${isMe ? '#ffffff' : '#000000'}; border-radius: 8px; text-decoration: none; font-size: 11px; font-weight: 700; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);" title="Download or view document">
+                <span>⬇️ Open</span>
+              </a>
             </div>
           ` : ''}
 
@@ -1590,17 +1801,22 @@ class SocialModule {
       cleanAttachment = {
         name: String(attachment.name || 'Attachment'),
         type: String(attachment.type || 'file'),
+        docType: String(attachment.docType || ''),
+        docIcon: String(attachment.docIcon || ''),
         dataUrl: String(attachment.dataUrl || '')
       };
     }
+
+    const isIncognito = Boolean(sender.isIncognito);
 
     const newMsg = {
       text: text || '',
       attachment: cleanAttachment,
       senderId: String(sender.uid || 'anon'),
       senderName: String(sender.name || 'Anonymous'),
-      senderEmail: String(sender.email || ''),
-      isAnonymous: Boolean(sender.isAnon),
+      senderEmail: isIncognito ? '' : String(sender.email || ''),
+      isAnonymous: isIncognito ? true : Boolean(sender.isAnon),
+      hideAdminBadge: isIncognito,
       localTimestamp: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -1614,7 +1830,9 @@ class SocialModule {
         .add(newMsg);
 
       // 2. Update room's lastMessage
-      const previewText = attachment ? (attachment.type === 'audio' ? '🎵 Audio Track' : '🖼️ Image') : text;
+      const previewText = attachment
+        ? (attachment.type === 'audio' ? '🎵 Audio Track' : (attachment.type === 'image' ? '🖼️ Photo' : `${cleanAttachment.docIcon || '📄'} ${cleanAttachment.name || 'Document'}`))
+        : text;
       await window.fbDb
         .collection('chat_rooms')
         .doc(this.activeRoomId)
@@ -1960,6 +2178,8 @@ class SocialModule {
         ? note.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
         : 'Recently';
 
+      const showAdmin = !note.hideAdminBadge && (note.authorEmail === window.ADMIN_EMAIL);
+
       card.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -1967,14 +2187,33 @@ class SocialModule {
               ${(note.authorName || 'U').charAt(0).toUpperCase()}
             </div>
             <div>
-              <div style="font-size: 13px; font-weight: 600; color: #fff;">${this.escapeHtml(note.authorName || 'Friend')}</div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 13px; font-weight: 600; color: #fff;">${this.escapeHtml(note.authorName || 'Friend')}</span>
+                ${showAdmin ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
+              </div>
               <div style="font-size: 11px; color: var(--text-muted);">${dateFormatted}</div>
             </div>
           </div>
           ${canDelete ? `<button class="btn-ghost btn-delete-post" style="padding: 2px 6px; font-size: 11px; color: var(--accent-red);">✕</button>` : ''}
         </div>
         ${note.title ? `<h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;">${this.escapeHtml(note.title)}</h4>` : ''}
-        <div style="font-size: 13px; color: var(--text-main); line-height: 1.5;">${this.formatPostContent(note.content)}</div>
+        ${note.content ? `<div style="font-size: 13px; color: var(--text-main); line-height: 1.5; margin-bottom: 8px;">${this.formatPostContent(note.content)}</div>` : ''}
+        ${note.attachment && note.attachment.type === 'image' ? `
+          <div style="margin-top: 10px; border-radius: 10px; overflow: hidden; max-height: 320px; border: 1px solid rgba(255,255,255,0.15);">
+            <img src="${note.attachment.dataUrl}" style="width: 100%; max-height: 320px; object-fit: cover; cursor: pointer; display: block;" onclick="window.open('${note.attachment.dataUrl}', '_blank');" title="Click to view full image">
+          </div>
+        ` : ''}
+        ${note.attachment && note.attachment.type === 'audio' ? `
+          <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.06); border-radius: 8px;">
+            <audio controls src="${note.attachment.dataUrl}" style="width: 100%; height: 32px;"></audio>
+          </div>
+        ` : ''}
+        ${note.attachment && note.attachment.type === 'document' ? `
+          <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(255,255,255,0.06); border-radius: 8px; border: 1px solid rgba(255,255,255,0.12);">
+            <span style="font-size: 12px; font-weight: 600; color: #fff;">📄 ${this.escapeHtml(note.attachment.name || 'Document')}</span>
+            <a href="${note.attachment.dataUrl}" download="${this.escapeHtml(note.attachment.name || 'document')}" target="_blank" class="btn-primary" style="padding: 4px 12px; font-size: 11px; text-decoration: none; border-radius: 6px;">⬇️ Open</a>
+          </div>
+        ` : ''}
       `;
 
       const delBtn = card.querySelector('.btn-delete-post');
@@ -2117,26 +2356,69 @@ class SocialModule {
   }
 
   async createSharedPost() {
-    const title = document.getElementById('social-post-title').value.trim();
-    const content = document.getElementById('social-post-content').value.trim();
+    const title = document.getElementById('social-post-title') ? document.getElementById('social-post-title').value.trim() : '';
+    const content = document.getElementById('social-post-content') ? document.getElementById('social-post-content').value.trim() : '';
+    const fileInput = document.getElementById('social-post-file');
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
-    if (!content) return;
+    if (!content && !file) return;
 
     const sender = this.getSenderIdentity();
+    const isIncognito = Boolean(sender.isIncognito);
+
+    let attachment = null;
+    if (file) {
+      const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
+      const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name);
+
+      if (window.fbStorage) {
+        try {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const folder = isImage ? 'feed_images' : (isAudio ? 'feed_audio' : 'feed_documents');
+          const storageRef = window.fbStorage.ref(`${folder}/${Date.now()}_${safeName}`);
+          const uploadTask = await storageRef.put(file);
+          const downloadUrl = await uploadTask.ref.getDownloadURL();
+          attachment = {
+            name: file.name,
+            type: isImage ? 'image' : (isAudio ? 'audio' : 'document'),
+            dataUrl: downloadUrl
+          };
+        } catch (storageErr) {
+          console.warn('Storage upload error in post, trying local compression:', storageErr);
+        }
+      }
+
+      if (!attachment) {
+        if (isImage) {
+          try {
+            const dataUrl = await this.compressImage(file, 800, 0.75);
+            attachment = { name: file.name, type: 'image', dataUrl };
+          } catch (_) {}
+        } else if (file.size <= 450 * 1024) {
+          try {
+            const dataUrl = await this._blobToDataUrl(file);
+            attachment = { name: file.name, type: isAudio ? 'audio' : 'document', dataUrl };
+          } catch (_) {}
+        }
+      }
+    }
 
     try {
       await window.fbDb.collection('shared_notes').add({
         title,
-        content,
+        content: content || '',
+        attachment: attachment || null,
         authorId: sender.uid,
         authorName: sender.name,
-        authorEmail: sender.email,
+        authorEmail: isIncognito ? '' : sender.email,
+        hideAdminBadge: isIncognito,
         sharedWith: ['all'],
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       this.closePostModal();
     } catch (err) {
       console.error('Failed to post:', err);
+      alert('Could not publish post: ' + err.message);
     }
   }
 
