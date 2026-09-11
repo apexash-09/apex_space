@@ -262,7 +262,7 @@ class SocialModule {
   isReservedAdminName(name) {
     if (!name) return false;
     const clean = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const reserved = ['admin', 'ayush', 'ash', 'apex'];
+    const reserved = ['admin', 'ayush', 'ash', 'apex', 'palak'];
     return reserved.some(r => clean.includes(r));
   }
 
