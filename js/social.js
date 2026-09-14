@@ -151,6 +151,9 @@ class SocialModule {
       this.btnRemoveAttachment.addEventListener('click', () => this.clearAttachment());
     }
 
+    // 5b. Emoji & Sticker Picker Initialization
+    this.initEmojiPicker();
+
     // 5c. Voice Recording Handlers
     if (this.btnChatMic) {
       this.btnChatMic.addEventListener('click', () => {
@@ -917,6 +920,13 @@ class SocialModule {
     }
   }
 
+  toggleEmojiPicker(e) {
+    if (e) e.stopPropagation();
+    const picker = document.getElementById('chat-emoji-picker');
+    if (!picker) return;
+    const isVisible = picker.style.display === 'block';
+    picker.style.display = isVisible ? 'none' : 'block';
+  }
 
   initEmojiPicker() {
     const btnEmoji = document.getElementById('btn-chat-emoji');
