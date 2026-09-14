@@ -313,6 +313,45 @@ class SocialModule {
     this.updateAdminIncognitoUI();
   }
 
+  // --- Helper: Client-Side Image Compression & Blob Conversion ---
+  compressImage(file, maxWidth = 600, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+      if (!file) return reject(new Error('No image file provided'));
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('Invalid image file format'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Failed to read image file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  _blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      if (!blob) return resolve('');
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
   generateRandomAlias() {
     const adjectives = ['Cyber', 'Neon', 'Shadow', 'Phantom', 'Cosmic', 'Solar', 'Quantum', 'Vortex', 'Astral', 'Hyper', 'Velox', 'Echo'];
     const nouns = ['Pilot', 'Hacker', 'Nomad', 'Scholar', 'Ninja', 'Rider', 'Voyager', 'Ghost', 'Architect', 'Spark', 'Titan', 'Drifter'];
@@ -325,18 +364,18 @@ class SocialModule {
   // --- Profile Photo, Avatar & Identity Customization ---
   getPresetAvatars() {
     return [
-      'https://api.iconify.design/fluent-emoji:smiling-face-with-sunglasses.svg',
-      'https://api.iconify.design/fluent-emoji:robot.svg',
-      'https://api.iconify.design/fluent-emoji:alien-monster.svg',
-      'https://api.iconify.design/fluent-emoji:rocket.svg',
-      'https://api.iconify.design/fluent-emoji:fire.svg',
-      'https://api.iconify.design/fluent-emoji:glowing-star.svg',
-      'https://api.iconify.design/fluent-emoji:crown.svg',
-      'https://api.iconify.design/fluent-emoji:gem-stone.svg',
-      'https://api.iconify.design/fluent-emoji:headphone.svg',
-      'https://api.iconify.design/fluent-emoji:cat-face.svg',
-      'https://api.iconify.design/fluent-emoji:sparkles.svg',
-      'https://api.iconify.design/fluent-emoji:dragon-face.svg'
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%236366f1"/><stop offset="100%" stop-color="%23a855f7"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g1)"/><text x="50" y="65" font-size="50" text-anchor="middle">🤖</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23ec4899"/><stop offset="100%" stop-color="%23f43f5e"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g2)"/><text x="50" y="65" font-size="50" text-anchor="middle">🚀</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2306b6d4"/><stop offset="100%" stop-color="%233b82f6"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g3)"/><text x="50" y="65" font-size="50" text-anchor="middle">🕶️</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23eab308"/><stop offset="100%" stop-color="%23f59e0b"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g4)"/><text x="50" y="65" font-size="50" text-anchor="middle">👑</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23f97316"/><stop offset="100%" stop-color="%23ef4444"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g5)"/><text x="50" y="65" font-size="50" text-anchor="middle">🔥</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g6" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2338bdf8"/><stop offset="100%" stop-color="%23818cf8"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g6)"/><text x="50" y="65" font-size="50" text-anchor="middle">💎</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g7" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23d946ef"/><stop offset="100%" stop-color="%238b5cf6"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g7)"/><text x="50" y="65" font-size="50" text-anchor="middle">🐱</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g8" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2310b981"/><stop offset="100%" stop-color="%23059669"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g8)"/><text x="50" y="65" font-size="50" text-anchor="middle">🎧</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g9" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23a855f7"/><stop offset="100%" stop-color="%236366f1"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g9)"/><text x="50" y="65" font-size="50" text-anchor="middle">✨</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g10" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2314b8a6"/><stop offset="100%" stop-color="%230284c7"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g10)"/><text x="50" y="65" font-size="50" text-anchor="middle">👾</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g11" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23facc15"/><stop offset="100%" stop-color="%23ea580c"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g11)"/><text x="50" y="65" font-size="50" text-anchor="middle">⚡</text></svg>',
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g12" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23ef4444"/><stop offset="100%" stop-color="%237c3aed"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g12)"/><text x="50" y="65" font-size="50" text-anchor="middle">🐉</text></svg>'
     ];
   }
 
@@ -346,7 +385,6 @@ class SocialModule {
     const removeBtn = document.getElementById('btn-remove-avatar');
     const saveBtn = document.getElementById('btn-save-profile-modal');
     const randomBtn = document.getElementById('btn-profile-random-handle');
-    const chk = document.getElementById('chk-profile-admin-incognito');
 
     if (uploadBtn && fileInput) {
       uploadBtn.addEventListener('click', () => fileInput.click());
@@ -357,6 +395,8 @@ class SocialModule {
       removeBtn.addEventListener('click', () => {
         this._tempAvatarUrl = '';
         this.updateProfileModalAvatarPreview('');
+        const grid = document.getElementById('preset-avatars-grid');
+        if (grid) grid.querySelectorAll('button').forEach(b => b.style.borderColor = 'transparent');
       });
     }
 
@@ -364,6 +404,21 @@ class SocialModule {
       randomBtn.addEventListener('click', () => {
         const input = document.getElementById('profile-custom-handle-input');
         if (input) input.value = this.generateRandomAlias();
+        
+        // Pick random preset avatar and immediately preview
+        const presets = this.getPresetAvatars();
+        const randIdx = Math.floor(Math.random() * presets.length);
+        const randAvatar = presets[randIdx];
+        this._tempAvatarUrl = randAvatar;
+        this.updateProfileModalAvatarPreview(randAvatar);
+
+        const grid = document.getElementById('preset-avatars-grid');
+        if (grid) {
+          const buttons = grid.querySelectorAll('button');
+          buttons.forEach((b, idx) => {
+            b.style.borderColor = idx === randIdx ? '#ffffff' : 'transparent';
+          });
+        }
       });
     }
 
@@ -390,11 +445,11 @@ class SocialModule {
     grid.innerHTML = '';
 
     const presets = this.getPresetAvatars();
-    presets.forEach((url) => {
+    presets.forEach((url, idx) => {
       const item = document.createElement('button');
       item.type = 'button';
-      item.style.cssText = 'width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid transparent; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;';
-      item.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: contain;">`;
+      item.style.cssText = 'width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid transparent; padding: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; overflow: hidden;';
+      item.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
       item.addEventListener('click', () => {
         this._tempAvatarUrl = url;
         this.updateProfileModalAvatarPreview(url);
@@ -437,7 +492,7 @@ class SocialModule {
     const preview = document.getElementById('profile-modal-avatar-preview');
     if (!preview) return;
     if (url) {
-      preview.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover;">`;
+      preview.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
     } else {
       const name = this.getSenderIdentity().name || 'U';
       preview.innerHTML = `<span style="font-size: 28px; font-weight: 800;">${name.charAt(0).toUpperCase()}</span>`;
@@ -445,17 +500,26 @@ class SocialModule {
   }
 
   async handleCustomAvatarUpload(e) {
-    const file = e.target.files[0];
+    const file = e.target.files && e.target.files[0];
     if (!file) return;
+
+    const preview = document.getElementById('profile-modal-avatar-preview');
+    if (preview) {
+      preview.innerHTML = '<span style="font-size: 14px; font-weight: 600;">⌛...</span>';
+    }
 
     try {
       // Compress avatar to clean base64 / JPEG
-      const compressed = await this.compressImage(file);
-      this._tempAvatarUrl = compressed.dataUrl;
+      const compressedDataUrl = await this.compressImage(file, 300, 0.85);
+      this._tempAvatarUrl = compressedDataUrl;
       this.updateProfileModalAvatarPreview(this._tempAvatarUrl);
+      
+      const grid = document.getElementById('preset-avatars-grid');
+      if (grid) grid.querySelectorAll('button').forEach(b => b.style.borderColor = 'transparent');
     } catch (err) {
       console.error('Avatar upload error:', err);
       alert('Could not process avatar image: ' + err.message);
+      this.updateProfileModalAvatarPreview(this._tempAvatarUrl);
     }
   }
 
@@ -1317,38 +1381,20 @@ class SocialModule {
           lastMessageSender: 'Apex System',
           lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        },
-        {
-          id: 'study_notes',
-          name: '📚 Study & College Notes',
-          description: 'Collaborate on subjects, exam tips, and study materials',
-          type: 'group',
-          icon: '📚',
-          createdBy: 'system',
-          createdByName: 'Apex Space',
-          members: ['all'],
-          memberEmails: ['all'],
-          lastMessage: 'Share your college notes, formulas, and study sessions here.',
-          lastMessageSender: 'Apex System',
-          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        },
-        {
-          id: 'projects_code',
-          name: '💻 Projects & Code Hub',
-          description: 'Discuss software projects, web apps, tools & ideas',
-          type: 'group',
-          icon: '💻',
-          createdBy: 'system',
-          createdByName: 'Apex Space',
-          members: ['all'],
-          memberEmails: ['all'],
-          lastMessage: 'Discuss your development progress and technical questions.',
-          lastMessageSender: 'Apex System',
-          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }
       ];
+
+      // Clean up deleted groups for everyone across database
+      try {
+        await window.fbDb.collection('chat_rooms').doc('study_notes').delete();
+        await window.fbDb.collection('chat_rooms').doc('projects_code').delete();
+      } catch (_) {}
+
+      // Reset active room if it was on a deleted room
+      if (this.activeRoomId === 'study_notes' || this.activeRoomId === 'projects_code') {
+        this.activeRoomId = 'general_lounge';
+        localStorage.setItem('apex_active_room', 'general_lounge');
+      }
 
       for (const r of defaultRooms) {
         await window.fbDb.collection('chat_rooms').doc(r.id).set(r, { merge: true });
@@ -2621,47 +2667,58 @@ class SocialModule {
     }
   }
 
-  // --- 👥 Friend Requests System ---
+  // --- 👥 Friend Requests & Member Discovery System ---
   initFriendRequests() {
     const triggerBtn = document.getElementById('btn-open-friend-requests-modal');
     if (triggerBtn) {
       triggerBtn.addEventListener('click', () => this.openFriendRequestsModal());
     }
 
-    const form = document.getElementById('form-send-friend-request');
-    if (form) {
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const input = document.getElementById('friend-request-target-input');
-        if (input && input.value.trim()) {
-          this.sendFriendRequest(input.value.trim());
-        }
-      });
-    }
-
+    const tabDiscover = document.getElementById('tab-friends-discover');
     const tabPending = document.getElementById('tab-friends-pending');
     const tabAll = document.getElementById('tab-friends-all');
+    const viewDiscover = document.getElementById('view-friends-discover');
     const viewPending = document.getElementById('view-friends-pending');
     const viewAll = document.getElementById('view-friends-all');
 
-    if (tabPending && tabAll && viewPending && viewAll) {
-      tabPending.addEventListener('click', () => {
-        tabPending.style.background = 'rgba(255,255,255,0.14)';
-        tabPending.style.color = '#fff';
-        tabAll.style.background = 'transparent';
-        tabAll.style.color = 'var(--text-muted)';
-        viewPending.style.display = 'block';
-        viewAll.style.display = 'none';
+    const switchTab = (activeTab, activeView) => {
+      [tabDiscover, tabPending, tabAll].forEach(t => {
+        if (t) {
+          t.style.background = (t === activeTab) ? 'rgba(255,255,255,0.14)' : 'transparent';
+          t.style.color = (t === activeTab) ? '#fff' : 'var(--text-muted)';
+        }
       });
+      [viewDiscover, viewPending, viewAll].forEach(v => {
+        if (v) v.style.display = (v === activeView) ? 'block' : 'none';
+      });
+    };
 
+    if (tabDiscover) {
+      tabDiscover.addEventListener('click', () => {
+        switchTab(tabDiscover, viewDiscover);
+        this.renderDiscoverUsersList();
+      });
+    }
+
+    if (tabPending) {
+      tabPending.addEventListener('click', () => {
+        switchTab(tabPending, viewPending);
+        this.renderFriendRequestsUI();
+      });
+    }
+
+    if (tabAll) {
       tabAll.addEventListener('click', () => {
-        tabAll.style.background = 'rgba(255,255,255,0.14)';
-        tabAll.style.color = '#fff';
-        tabPending.style.background = 'transparent';
-        tabPending.style.color = 'var(--text-muted)';
-        viewPending.style.display = 'none';
-        viewAll.style.display = 'block';
+        switchTab(tabAll, viewAll);
         this.renderConfirmedFriendsList();
+      });
+    }
+
+    // Live search filter in Discover tab
+    const filterInput = document.getElementById('discover-users-filter-input');
+    if (filterInput) {
+      filterInput.addEventListener('input', (e) => {
+        this.renderDiscoverUsersList(e.target.value.trim().toLowerCase());
       });
     }
 
@@ -2678,11 +2735,174 @@ class SocialModule {
 
   openFriendRequestsModal() {
     if (this.friendsModal) this.friendsModal.classList.add('active');
+    this.renderDiscoverUsersList();
     this.renderFriendRequestsUI();
+    this.renderConfirmedFriendsList();
   }
 
   closeFriendRequestsModal() {
     if (this.friendsModal) this.friendsModal.classList.remove('active');
+  }
+
+  async renderDiscoverUsersList(filterQuery = '') {
+    const container = document.getElementById('discover-users-list');
+    if (!container || !window.fbDb) return;
+
+    try {
+      const snap = await window.fbDb.collection('users').get();
+      const myId = this.getSenderIdentity();
+      const myUid = myId.uid;
+      const myEmail = (myId.email || '').toLowerCase();
+
+      // Find my sent requests
+      const mySentReqs = this.friendRequestsList.filter(r => r.fromUid === myUid && r.status === 'pending');
+      // Find my received requests
+      const myRecvReqs = this.friendRequestsList.filter(r => 
+        r.status === 'pending' &&
+        (r.toUid === myUid || (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail))
+      );
+
+      const allUsers = [];
+      snap.forEach(doc => {
+        const u = { id: doc.id, ...doc.data() };
+        // Exclude current user
+        if (u.id !== myUid && (!myEmail || (u.email || '').toLowerCase() !== myEmail)) {
+          allUsers.push(u);
+        }
+      });
+
+      // Apply client-side search filter
+      const filteredUsers = filterQuery
+        ? allUsers.filter(u => {
+            const name = (u.displayName || '').toLowerCase();
+            const email = (u.email || '').toLowerCase();
+            return name.includes(filterQuery) || email.includes(filterQuery);
+          })
+        : allUsers;
+
+      if (filteredUsers.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
+            <div style="font-size: 28px; margin-bottom: 6px;">🔍</div>
+            <p style="font-size: 13px; color: #fff;">${filterQuery ? 'No matching members found' : 'No other registered members yet'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      filteredUsers.forEach(u => {
+        const name = this.getCleanDisplayName(u.displayName || (u.email ? u.email.split('@')[0] : 'Member'));
+        const uEmail = (u.email || '').toLowerCase();
+        
+        // Check if already in confirmed friends list
+        const isAlreadyFriend = (this.friendsList || []).some(f => f.uid === u.id || (uEmail && f.email && f.email.toLowerCase() === uEmail));
+        
+        // Check if I sent a request
+        const isSent = mySentReqs.some(r => r.toUid === u.id || (uEmail && r.toEmail && r.toEmail.toLowerCase() === uEmail));
+        
+        // Check if they sent me a request
+        const incomingReq = myRecvReqs.find(r => r.fromUid === u.id || (r.fromEmail && r.fromEmail.toLowerCase() === uEmail));
+
+        const item = document.createElement('div');
+        item.className = 'glass-card';
+        item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;';
+
+        item.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 36px; height: 36px; min-width: 36px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; overflow: hidden;">
+              ${u.photoURL ? `<img src="${u.photoURL}" style="width:100%;height:100%;object-fit:cover;">` : name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                <span>${this.escapeHtml(name)}</span>
+                ${u.role === 'admin' ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px;">ADMIN</span>' : ''}
+              </div>
+              <div style="font-size: 11px; color: var(--text-dim);">${this.escapeHtml(u.email || 'Apex Member')}</div>
+            </div>
+          </div>
+          <div>
+            ${isAlreadyFriend ? `
+              <button type="button" class="btn-primary btn-dm-friend-direct" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">💬 Chat</button>
+            ` : isSent ? `
+              <span class="badge badge-personal" style="padding: 5px 10px; font-size: 11px;">⏳ Sent</span>
+            ` : incomingReq ? `
+              <button type="button" class="btn-primary btn-accept-direct" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">✓ Accept</button>
+            ` : `
+              <button type="button" class="btn-primary btn-add-friend-action" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">➕ Add Friend</button>
+            `}
+          </div>
+        `;
+
+        const dmBtn = item.querySelector('.btn-dm-friend-direct');
+        if (dmBtn) {
+          dmBtn.addEventListener('click', () => {
+            this.startDirectChatWithFriend(u);
+            this.closeFriendRequestsModal();
+          });
+        }
+
+        const acceptBtn = item.querySelector('.btn-accept-direct');
+        if (acceptBtn && incomingReq) {
+          acceptBtn.addEventListener('click', () => {
+            this.acceptFriendRequest(incomingReq);
+          });
+        }
+
+        const addBtn = item.querySelector('.btn-add-friend-action');
+        if (addBtn) {
+          addBtn.addEventListener('click', async () => {
+            addBtn.disabled = true;
+            addBtn.innerText = '⌛ Sending...';
+            await this.sendFriendRequestToUser(u);
+            this.renderDiscoverUsersList(filterQuery);
+          });
+        }
+
+        container.appendChild(item);
+      });
+    } catch (err) {
+      console.error('Error rendering discover users:', err);
+      container.innerHTML = '<p style="color: #ff4d4d; text-align: center; padding: 10px;">Could not load members.</p>';
+    }
+  }
+
+  async sendFriendRequestToUser(targetUser) {
+    if (!targetUser || !window.fbDb) return;
+    const sender = this.getSenderIdentity();
+    const alertEl = document.getElementById('discover-users-alert');
+
+    try {
+      await window.fbDb.collection('friend_requests').add({
+        fromUid: sender.uid,
+        fromName: sender.name,
+        fromEmail: sender.email || '',
+        fromPhoto: sender.photoURL || '',
+        toUid: targetUser.id || targetUser.uid || '',
+        toEmail: (targetUser.email || '').toLowerCase(),
+        toHandle: targetUser.displayName || targetUser.name || '',
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      if (alertEl) {
+        alertEl.style.display = 'block';
+        alertEl.style.background = 'rgba(52, 199, 89, 0.15)';
+        alertEl.style.color = '#34c759';
+        alertEl.style.border = '1px solid rgba(52, 199, 89, 0.3)';
+        alertEl.innerText = `✓ Friend request sent to ${targetUser.displayName || targetUser.email}!`;
+        setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 4000);
+      }
+    } catch (err) {
+      console.error('Send friend request error:', err);
+      if (alertEl) {
+        alertEl.style.display = 'block';
+        alertEl.style.background = 'rgba(239, 68, 68, 0.15)';
+        alertEl.style.color = '#ef4444';
+        alertEl.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        alertEl.innerText = `Could not send request: ${err.message}`;
+      }
+    }
   }
 
   startFriendRequestsListener() {
@@ -2744,7 +2964,7 @@ class SocialModule {
         <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
           <div style="font-size: 28px; margin-bottom: 6px;">📩</div>
           <p style="font-size: 13px; color: #fff;">No pending friend requests</p>
-          <p style="font-size: 11px; margin-top: 4px;">Send a request above using your friend's email or handle!</p>
+          <p style="font-size: 11px; margin-top: 4px;">Discover new members in the "Discover Members" tab!</p>
         </div>
       `;
       return;
@@ -2777,26 +2997,15 @@ class SocialModule {
 
   async sendFriendRequest(target) {
     if (!target || !window.fbDb) return;
-    const alertEl = document.getElementById('friend-request-alert');
     const sender = this.getSenderIdentity();
 
     try {
-      if (alertEl) {
-        alertEl.style.display = 'block';
-        alertEl.style.color = '#c0c0c0';
-        alertEl.innerText = 'Searching user and sending request...';
-      }
-
       // Check if target is user's own email/handle
       if (sender.email && target.toLowerCase() === sender.email.toLowerCase()) {
-        if (alertEl) {
-          alertEl.style.color = '#ff4d4d';
-          alertEl.innerText = 'You cannot send a friend request to yourself.';
-        }
+        alert('You cannot send a friend request to yourself.');
         return;
       }
 
-      // Create friend request doc
       await window.fbDb.collection('friend_requests').add({
         fromUid: sender.uid,
         fromName: sender.name,
@@ -2808,26 +3017,15 @@ class SocialModule {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      const input = document.getElementById('friend-request-target-input');
-      if (input) input.value = '';
-
-      if (alertEl) {
-        alertEl.style.color = '#34c759';
-        alertEl.innerText = `✓ Friend request sent to "${target}"!`;
-        setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 4000);
-      }
+      alert(`✓ Friend request sent to "${target}"!`);
     } catch (err) {
       console.error('Send friend request error:', err);
-      if (alertEl) {
-        alertEl.style.color = '#ff4d4d';
-        alertEl.innerText = 'Could not send request: ' + err.message;
-      }
+      alert('Could not send request: ' + err.message);
     }
   }
 
   async acceptFriendRequest(req) {
     if (!req || !req.id || !window.fbDb) return;
-    const sender = this.getSenderIdentity();
 
     try {
       // 1. Mark request accepted
@@ -2839,6 +3037,7 @@ class SocialModule {
       // 2. Automatically create/open a direct conversation
       const otherFriend = {
         uid: req.fromUid,
+        id: req.fromUid,
         displayName: req.fromName,
         email: req.fromEmail
       };
@@ -3630,8 +3829,8 @@ class SocialModule {
       card.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;">
-              ${(note.authorName || 'U').charAt(0).toUpperCase()}
+            <div style="width: 34px; height: 34px; min-width: 34px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; overflow: hidden;">
+              ${note.authorPhotoURL ? `<img src="${note.authorPhotoURL}" style="width: 100%; height: 100%; object-fit: cover;">` : (note.authorName || 'U').charAt(0).toUpperCase()}
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 6px;">
@@ -3891,7 +4090,17 @@ class SocialModule {
     const fileInput = document.getElementById('social-post-file');
     const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
-    if (!content && !file) return;
+    if (!content && !file && !title) {
+      alert('Please enter some text or attach an image to post.');
+      return;
+    }
+
+    const submitBtn = this.postForm ? this.postForm.querySelector('button[type="submit"]') : null;
+    const origBtnText = submitBtn ? submitBtn.innerHTML : 'Share with Friends';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerText = '⏳ Publishing post...';
+    }
 
     const sender = this.getSenderIdentity();
     const isIncognito = Boolean(sender.isIncognito);
@@ -3914,7 +4123,7 @@ class SocialModule {
             dataUrl: downloadUrl
           };
         } catch (storageErr) {
-          console.warn('Storage upload error in post, trying local compression:', storageErr);
+          console.warn('Storage upload error in post, falling back to compression:', storageErr);
         }
       }
 
@@ -3923,7 +4132,9 @@ class SocialModule {
           try {
             const dataUrl = await this.compressImage(file, 800, 0.75);
             attachment = { name: file.name, type: 'image', dataUrl };
-          } catch (_) {}
+          } catch (cErr) {
+            console.warn('Image compression error:', cErr);
+          }
         } else if (file.size <= 450 * 1024) {
           try {
             const dataUrl = await this._blobToDataUrl(file);
@@ -3941,14 +4152,21 @@ class SocialModule {
         authorId: sender.uid,
         authorName: sender.name,
         authorEmail: isIncognito ? '' : sender.email,
+        authorPhotoURL: isIncognito ? '' : (sender.photoURL || ''),
         hideAdminBadge: isIncognito,
         sharedWith: ['all'],
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       this.closePostModal();
+      this.switchSocialTab('feed');
     } catch (err) {
       console.error('Failed to post:', err);
       alert('Could not publish post: ' + err.message);
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnText;
+      }
     }
   }
 

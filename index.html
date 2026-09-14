@@ -138,11 +138,6 @@
         </div>
 
         <div class="header-right">
-          <button id="btn-theme-toggle" class="theme-toggle-btn" title="Switch between Dark & Light Theme">
-            <span id="theme-toggle-icon">🌙</span>
-            <span id="theme-toggle-text">Dark</span>
-          </button>
-
           <div id="header-user-profile"></div>
 
           <div class="streak-badge-mini" title="Active Study Streak">
@@ -1172,44 +1167,50 @@
   </div>
 
   <!-- FRIEND REQUESTS & FRIENDS MANAGEMENT MODAL -->
+  <!-- FRIEND REQUESTS & DIRECT MESSAGING SYSTEM MODAL -->
   <div id="modal-friend-requests" class="modal-overlay">
-    <div class="modal-container" style="max-width: 520px;">
+    <div class="modal-container" style="max-width: 540px;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 20px;">👥</span>
-          <h3 class="modal-title">Friends & Requests</h3>
+          <h3 class="modal-title">Friends & Community Members</h3>
         </div>
         <button class="close-btn" data-close="modal-friend-requests">&times;</button>
       </div>
 
-      <!-- Send Friend Request Form -->
-      <form id="form-send-friend-request" style="margin-bottom: 20px; padding: 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
-        <label style="font-size: 12px; font-weight: 700; color: #fff; display: block; margin-bottom: 6px;">Add New Friend</label>
-        <div style="display: flex; gap: 8px;">
-          <input type="text" id="friend-request-target-input" class="form-control" required placeholder="Enter friend's email or handle..." style="flex: 1;">
-          <button type="submit" class="btn-primary" style="width: auto; padding: 8px 18px; font-size: 12px; white-space: nowrap;">+ Send Request</button>
-        </div>
-        <div id="friend-request-alert" style="display: none; font-size: 11px; margin-top: 8px;"></div>
-      </form>
-
-      <!-- Tabs: Incoming Requests vs My Friends -->
-      <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 14px;">
-        <button type="button" id="tab-friends-pending" class="btn-ghost" style="padding: 5px 14px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.14); border-radius: 12px;">
-          <span>📩 Incoming Requests</span>
-          <span id="tab-pending-count-badge" style="display: none; background: #ff4d4d; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 10px; margin-left: 4px;">0</span>
+      <!-- Tabs: Discover Members vs Incoming Requests vs Confirmed Friends -->
+      <div style="display: flex; gap: 6px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+        <button type="button" id="tab-friends-discover" class="btn-ghost" style="padding: 6px 14px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.14); border-radius: 12px;">
+          <span>🌐 Discover Members</span>
         </button>
-        <button type="button" id="tab-friends-all" class="btn-ghost" style="padding: 5px 14px; font-size: 12px; font-weight: 600; color: var(--text-muted); border-radius: 12px;">
-          <span>👥 Confirmed Friends</span>
+        <button type="button" id="tab-friends-pending" class="btn-ghost" style="padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--text-muted); border-radius: 12px;">
+          <span>📩 Requests</span>
+          <span id="tab-pending-count-badge" style="display: none; background: #ef4444; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 10px; margin-left: 4px;">0</span>
+        </button>
+        <button type="button" id="tab-friends-all" class="btn-ghost" style="padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--text-muted); border-radius: 12px;">
+          <span>👥 My Friends</span>
         </button>
       </div>
 
-      <!-- Pending Requests View -->
-      <div id="view-friends-pending" style="max-height: 260px; overflow-y: auto;">
+      <!-- 1. Discover Registered Members View -->
+      <div id="view-friends-discover">
+        <div style="position: relative; margin-bottom: 12px;">
+          <input type="text" id="discover-users-filter-input" class="form-control" placeholder="🔍 Search members by name or handle..." style="padding-left: 36px;">
+          <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.6; pointer-events: none;">🔍</span>
+        </div>
+        <div id="discover-users-alert" style="display: none; font-size: 12px; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px;"></div>
+        <div id="discover-users-list" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+          <p style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 13px;">Loading community members...</p>
+        </div>
+      </div>
+
+      <!-- 2. Pending Requests View -->
+      <div id="view-friends-pending" style="display: none; max-height: 280px; overflow-y: auto;">
         <div id="friends-pending-list"></div>
       </div>
 
-      <!-- All Friends View -->
-      <div id="view-friends-all" style="display: none; max-height: 260px; overflow-y: auto;">
+      <!-- 3. Confirmed Friends View -->
+      <div id="view-friends-all" style="display: none; max-height: 280px; overflow-y: auto;">
         <div id="friends-all-list"></div>
       </div>
     </div>
