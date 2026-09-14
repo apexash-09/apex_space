@@ -1033,5 +1033,156 @@ select.form-control {
   flex-direction: column;
 }
 
+/* --- Voice Recording Bar Animations --- */
+@keyframes pulseRed {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  100% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 6px rgba(255, 59, 48, 0.8)); }
+}
+
+@keyframes waveBar {
+  0%, 100% { height: 4px; }
+  50% { height: 18px; }
+}
+
+.voice-wave-bar {
+  width: 3px;
+  background: #ffffff;
+  border-radius: 2px;
+  animation: waveBar 0.8s ease-in-out infinite;
+}
+
+/* --- Message Action Buttons & Reaction Dock --- */
+.chat-msg-wrapper {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.chat-msg-actions {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  position: absolute;
+  top: -14px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(22, 22, 22, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  padding: 2px 6px;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+}
+
+.chat-msg-wrapper:hover .chat-msg-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chat-msg-wrapper.is-me .chat-msg-actions {
+  right: 12px;
+}
+
+.chat-msg-wrapper:not(.is-me) .chat-msg-actions {
+  left: 12px;
+}
+
+.chat-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 3px 5px;
+  font-size: 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  transition: background 0.15s, transform 0.15s, color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-action-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: scale(1.15);
+}
+
+/* Reaction Dock Popover */
+.chat-reaction-dock {
+  display: none;
+  position: absolute;
+  top: -42px;
+  background: rgba(18, 18, 18, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(16px);
+  padding: 4px 8px;
+  border-radius: 20px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+  z-index: 25;
+  gap: 6px;
+  align-items: center;
+  animation: popIn 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.chat-reaction-dock.active {
+  display: flex;
+}
+
+.reaction-emoji-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px 4px;
+  border-radius: 50%;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.reaction-emoji-btn:hover {
+  transform: scale(1.35);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Reaction Pills */
+.chat-reactions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.chat-reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  font-size: 11px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.chat-reaction-pill:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.chat-reaction-pill.reacted-by-me {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
 
 

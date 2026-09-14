@@ -23,6 +23,20 @@ class SocialModule {
       type: 'group'
     };
     this.pendingAttachment = null;
+    this.replyingTo = null;
+
+    // In-App Voice Recording properties
+    this.mediaRecorder = null;
+    this.audioChunks = [];
+    this.audioStream = null;
+    this.recordingStartTime = null;
+    this.recordingTimerInterval = null;
+
+    // Presence & Notifications
+    this.presenceHeartbeatInterval = null;
+    this.currentRoomPresenceUnsub = null;
+    this._lastLoadedMessages = [];
+    this._initialMessagesLoaded = false;
 
     // Listeners
     this.unsubscribeRooms = null;
@@ -46,12 +60,26 @@ class SocialModule {
     this.chatHeaderTitle = document.getElementById('active-chat-title');
     this.chatHeaderSubtitle = document.getElementById('active-chat-subtitle');
     this.chatHeaderAvatar = document.getElementById('active-chat-avatar');
+    this.activeChatStatus = document.getElementById('active-chat-status');
     this.chatInput = document.getElementById('chat-message-input');
     this.chatForm = document.getElementById('form-chat-send');
     this.chatEmptyState = document.getElementById('chat-empty-state');
     this.chatActiveWindow = document.getElementById('chat-active-window');
     this.mobileBackBtn = document.getElementById('btn-mobile-chat-back');
     this.anonBadge = document.getElementById('chat-anon-badge');
+
+    // Quoted Reply Preview
+    this.replyPreview = document.getElementById('chat-reply-preview');
+    this.replyPreviewSender = document.getElementById('reply-preview-sender');
+    this.replyPreviewText = document.getElementById('reply-preview-text');
+    this.btnCancelReply = document.getElementById('btn-cancel-reply');
+
+    // Voice Recording elements
+    this.btnChatMic = document.getElementById('btn-chat-mic');
+    this.voiceRecordingBar = document.getElementById('chat-voice-recording-bar');
+    this.voiceRecordingTimer = document.getElementById('voice-recording-timer');
+    this.btnCancelVoice = document.getElementById('btn-cancel-voice-recording');
+    this.btnSendVoice = document.getElementById('btn-send-voice-recording');
 
     // Attachment elements
     this.chatFileInput = document.getElementById('chat-file-input');
@@ -123,8 +151,46 @@ class SocialModule {
       this.btnRemoveAttachment.addEventListener('click', () => this.clearAttachment());
     }
 
-    // 5b. Emoji Picker Initialization
-    this.initEmojiPicker();
+    // 5c. Voice Recording Handlers
+    if (this.btnChatMic) {
+      this.btnChatMic.addEventListener('click', () => {
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+          this.sendVoiceRecording();
+        } else {
+          this.startVoiceRecording();
+        }
+      });
+    }
+
+    if (this.btnCancelVoice) {
+      this.btnCancelVoice.addEventListener('click', () => this.cancelVoiceRecording());
+    }
+
+    if (this.btnSendVoice) {
+      this.btnSendVoice.addEventListener('click', () => this.sendVoiceRecording());
+    }
+
+    // 5d. Quoted Reply Cancel Handler
+    if (this.btnCancelReply) {
+      this.btnCancelReply.addEventListener('click', () => this.clearReply());
+    }
+
+    // 5e. Notifications Toggle
+    const btnNotifications = document.getElementById('btn-chat-notifications');
+    if (btnNotifications) {
+      this.updateNotificationsUI();
+      btnNotifications.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.toggleNotifications();
+      });
+    }
+
+    // 5f. Close reaction docks on outer click
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.chat-reaction-dock.active').forEach((dock) => {
+        dock.classList.remove('active');
+      });
+    });
 
     // 6. Mobile Back to Channels
     if (this.mobileBackBtn) {
@@ -250,12 +316,13 @@ class SocialModule {
       });
     }
 
-    // Initial setup: start rooms listener & messages listener on general lounge
+    // Initial setup: start rooms listener, messages listener, & presence system
     this.seedDefaultRoomsIfEmpty();
     this.startRoomsListener();
     this.startMessagesListener('general_lounge');
     this.startNotesListener();
     this.startSharedSongsListener();
+    this.startPresenceSystem();
   }
 
   // --- Anonymous & Custom Alias Identity System with Admin Protection ---
@@ -996,14 +1063,20 @@ class SocialModule {
         type: 'sticker',
         dataUrl: stickerUrl
       },
-      senderId: sender.uid,
-      senderName: sender.name,
-      senderEmail: isIncognito ? '' : sender.email,
-      isAnonymous: isIncognito ? true : sender.isAnon,
+      senderId: String(sender.uid || 'anon'),
+      senderName: String(sender.name || 'Anonymous'),
+      senderEmail: isIncognito ? '' : String(sender.email || ''),
+      isAnonymous: isIncognito ? true : Boolean(sender.isAnon),
       hideAdminBadge: isIncognito,
+      readBy: [String(sender.uid || 'anon')],
       localTimestamp: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+
+    if (this.replyingTo) {
+      newMsg.replyTo = this.replyingTo;
+      this.clearReply();
+    }
 
     try {
       await window.fbDb
@@ -1346,6 +1419,9 @@ class SocialModule {
     if (this.chatEmptyState) this.chatEmptyState.style.display = 'none';
     if (this.chatActiveWindow) this.chatActiveWindow.style.display = 'flex';
 
+    // Start presence status for this direct conversation
+    this.listenToRoomPresence(room);
+
     this.startMessagesListener(room.id);
   }
 
@@ -1403,6 +1479,7 @@ class SocialModule {
     }
 
     this.activeRoomId = roomId;
+    this._initialMessagesLoaded = false;
 
     if (this.chatMessagesContainer) {
       this.chatMessagesContainer.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-dim);">Loading messages...</div>`;
@@ -1440,10 +1517,25 @@ class SocialModule {
           return ta - tb;
         });
 
+        this._lastLoadedMessages = docs;
+
         docs.forEach((msg) => {
           const msgEl = this.createMessageBubbleElement(msg);
           this.chatMessagesContainer.appendChild(msgEl);
         });
+
+        // 👁️ Automatically mark unread messages as read
+        this.markActiveRoomMessagesAsRead(docs);
+
+        // 🔔 Push / Sound notification for new incoming message
+        if (this._initialMessagesLoaded && docs.length > 0) {
+          const latestMsg = docs[docs.length - 1];
+          const myId = this.getSenderIdentity();
+          if (latestMsg.senderId !== myId.uid) {
+            this.notifyNewMessage(latestMsg);
+          }
+        }
+        this._initialMessagesLoaded = true;
 
         this.scrollChatToBottom();
       },
@@ -1534,12 +1626,123 @@ class SocialModule {
 
   scrollToPinnedMessage() {
     if (!this._pinnedMessageId) return;
-    const el = document.getElementById(`msg-${this._pinnedMessageId}`);
+    this.scrollToMessage(this._pinnedMessageId);
+  }
+
+  scrollToMessage(msgId) {
+    if (!msgId) return;
+    const el = document.getElementById(`msg-${msgId}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.style.transition = 'background 0.3s';
-      el.style.background = 'rgba(255,200,0,0.18)';
-      setTimeout(() => { el.style.background = ''; }, 1800);
+      const bubble = el.querySelector('.chat-bubble-content') || el;
+      bubble.style.transition = 'all 0.3s';
+      bubble.style.boxShadow = '0 0 25px rgba(255, 255, 255, 0.9)';
+      setTimeout(() => { bubble.style.boxShadow = ''; }, 1600);
+    }
+  }
+
+  setReplyTarget(msg) {
+    if (!msg) return;
+    const preview = msg.text
+      ? msg.text.slice(0, 90)
+      : (msg.attachment ? `[${msg.attachment.type || 'Attachment'}: ${msg.attachment.name || ''}]` : 'Message');
+
+    this.replyingTo = {
+      id: msg.id || '',
+      senderName: msg.senderName || 'Friend',
+      text: preview
+    };
+
+    if (this.replyPreview && this.replyPreviewSender && this.replyPreviewText) {
+      this.replyPreviewSender.innerText = this.replyingTo.senderName;
+      this.replyPreviewText.innerText = this.replyingTo.text;
+      this.replyPreview.style.display = 'flex';
+    }
+
+    if (this.chatInput) {
+      this.chatInput.focus();
+    }
+  }
+
+  clearReply() {
+    this.replyingTo = null;
+    if (this.replyPreview) {
+      this.replyPreview.style.display = 'none';
+    }
+  }
+
+  async toggleReaction(msgId, emoji) {
+    if (!msgId || !emoji || !this.activeRoomId || !window.fbDb) return;
+    const myUid = this.getSenderIdentity().uid;
+    const msgRef = window.fbDb
+      .collection('chat_rooms')
+      .doc(this.activeRoomId)
+      .collection('messages')
+      .doc(msgId);
+
+    try {
+      const snap = await msgRef.get();
+      if (!snap.exists) return;
+      const data = snap.data() || {};
+      const reactions = { ...(data.reactions || {}) };
+      let currentUids = Array.isArray(reactions[emoji]) ? [...reactions[emoji]] : [];
+
+      if (currentUids.includes(myUid)) {
+        currentUids = currentUids.filter(id => id !== myUid);
+      } else {
+        currentUids.push(myUid);
+      }
+
+      if (currentUids.length === 0) {
+        delete reactions[emoji];
+      } else {
+        reactions[emoji] = currentUids;
+      }
+
+      await msgRef.update({ reactions });
+    } catch (err) {
+      console.error('Toggle reaction error:', err);
+    }
+  }
+
+  renderReactionsHtml(msg, myUid) {
+    if (!msg.reactions || typeof msg.reactions !== 'object') return '';
+    const emojis = Object.keys(msg.reactions).filter(e => Array.isArray(msg.reactions[e]) && msg.reactions[e].length > 0);
+    if (emojis.length === 0) return '';
+
+    return `
+      <div class="chat-reactions-row">
+        ${emojis.map(emoji => {
+          const uids = msg.reactions[emoji];
+          const hasReacted = uids.includes(myUid);
+          return `
+            <button type="button" class="chat-reaction-pill ${hasReacted ? 'reacted-by-me' : ''}" data-msg-id="${msg.id}" data-emoji="${emoji}" title="${uids.length} reaction${uids.length > 1 ? 's' : ''}">
+              <span>${emoji}</span>
+              <span>${uids.length}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  renderReadReceiptHtml(msg) {
+    const isDirect = this.activeRoomData && this.activeRoomData.type === 'direct';
+    const myUid = this.getSenderIdentity().uid;
+    const readBy = msg.readBy || [];
+
+    if (isDirect) {
+      const isSeenByOther = readBy.some(id => id && id !== myUid);
+      if (isSeenByOther) {
+        return `<span style="color: #007aff; font-size: 11px; font-weight: 800; letter-spacing: -1px;" title="Read / Seen">✓✓</span>`;
+      }
+      return `<span style="color: rgba(0,0,0,0.35); font-size: 11px; font-weight: 700;" title="Delivered">✓</span>`;
+    } else {
+      const isReadByOthers = readBy.filter(id => id && id !== myUid).length > 0;
+      if (isReadByOthers) {
+        return `<span style="color: #34c759; font-size: 11px; font-weight: 800; letter-spacing: -1px;" title="Seen by members">✓✓</span>`;
+      }
+      return `<span style="color: rgba(0,0,0,0.35); font-size: 11px; font-weight: 700;" title="Sent">✓</span>`;
     }
   }
 
@@ -1556,6 +1759,7 @@ class SocialModule {
 
     const div = document.createElement('div');
     if (msg.id) div.id = `msg-${msg.id}`;
+    div.className = `chat-msg-wrapper ${isMe ? 'is-me' : ''}`;
     div.style.cssText = `
       display: flex;
       flex-direction: column;
@@ -1569,6 +1773,24 @@ class SocialModule {
 
     if (isSticker) {
       div.innerHTML = `
+        <!-- Floating Hover Action Bar -->
+        <div class="chat-msg-actions">
+          <button type="button" class="chat-action-btn btn-trigger-react" title="React with emoji">😀+</button>
+          <button type="button" class="chat-action-btn btn-trigger-reply" title="Reply to this message">↩️</button>
+          ${canPin ? `<button type="button" class="chat-action-btn btn-pin-chat-msg" title="Pin message">📌</button>` : ''}
+          ${canDelete ? `<button type="button" class="chat-action-btn btn-delete-chat-msg" style="color: #ff4d4d;" title="Delete">🗑️</button>` : ''}
+        </div>
+
+        <!-- Floating Reaction Dock -->
+        <div class="chat-reaction-dock" style="${isMe ? 'right: 0;' : 'left: 0;'}">
+          <button type="button" class="reaction-emoji-btn" data-emoji="❤️">❤️</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="😂">😂</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="👍">👍</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="🔥">🔥</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="😮">😮</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="😢">😢</button>
+        </div>
+
         ${!isMe ? `
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
             <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
@@ -1576,13 +1798,24 @@ class SocialModule {
           </div>
         ` : ''}
 
-        <div style="position: relative; padding: 4px;">
+        <!-- Quoted Reply Card if Present -->
+        ${msg.replyTo ? `
+          <div class="chat-bubble-reply-quote" onclick="if(window.socialModule) window.socialModule.scrollToMessage('${msg.replyTo.id}')" style="margin-bottom: 4px; padding: 5px 9px; background: rgba(255,255,255,0.08); border-left: 3px solid #ffffff; border-radius: 6px; font-size: 11px; cursor: pointer; max-width: 160px;">
+            <div style="font-weight: 700; color: #ffffff; margin-bottom: 2px;">↩️ ${this.escapeHtml(msg.replyTo.senderName || 'Friend')}</div>
+            <div style="color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(msg.replyTo.text || '[Attachment]')}</div>
+          </div>
+        ` : ''}
+
+        <div class="chat-bubble-content" style="position: relative; padding: 4px;">
           <img src="${msg.attachment.dataUrl}" style="width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.55)); display: block;" alt="Sticker">
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: var(--text-dim);">
             <span>${timeFormatted}</span>
-            ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: var(--text-dim); font-size: 11px; opacity: 0.7;" title="${isMe ? 'Delete my sticker' : 'Delete as Admin'}">🗑️</button>` : ''}
+            ${isMe ? this.renderReadReceiptHtml(msg) : ''}
           </div>
         </div>
+
+        <!-- Reactions Row -->
+        ${this.renderReactionsHtml(msg, myIdentity.uid)}
       `;
     } else {
       const audioSrc = msg.attachment && msg.attachment.type === 'audio' 
@@ -1590,6 +1823,24 @@ class SocialModule {
         : '';
 
       div.innerHTML = `
+        <!-- Floating Hover Action Bar -->
+        <div class="chat-msg-actions">
+          <button type="button" class="chat-action-btn btn-trigger-react" title="React with emoji">😀+</button>
+          <button type="button" class="chat-action-btn btn-trigger-reply" title="Reply to this message">↩️</button>
+          ${canPin ? `<button type="button" class="chat-action-btn btn-pin-chat-msg" title="Pin message">📌</button>` : ''}
+          ${canDelete ? `<button type="button" class="chat-action-btn btn-delete-chat-msg" style="color: #ff4d4d;" title="Delete">🗑️</button>` : ''}
+        </div>
+
+        <!-- Floating Reaction Dock -->
+        <div class="chat-reaction-dock" style="${isMe ? 'right: 0;' : 'left: 0;'}">
+          <button type="button" class="reaction-emoji-btn" data-emoji="❤️">❤️</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="😂">😂</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="👍">👍</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="🔥">🔥</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="😮">😮</button>
+          <button type="button" class="reaction-emoji-btn" data-emoji="😢">😢</button>
+        </div>
+
         ${!isMe ? `
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
             <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
@@ -1597,7 +1848,7 @@ class SocialModule {
           </div>
         ` : ''}
 
-        <div style="
+        <div class="chat-bubble-content" style="
           background: ${isMe ? '#ffffff' : 'rgba(24, 24, 24, 0.9)'};
           color: ${isMe ? '#000000' : '#f4f4f5'};
           padding: 10px 14px;
@@ -1609,13 +1860,21 @@ class SocialModule {
           word-break: break-word;
           box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         ">
+          <!-- Quoted Reply Card inside Bubble -->
+          ${msg.replyTo ? `
+            <div class="chat-bubble-reply-quote" onclick="if(window.socialModule) window.socialModule.scrollToMessage('${msg.replyTo.id}')" style="margin-bottom: 6px; padding: 6px 10px; background: ${isMe ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}; border-left: 3px solid ${isMe ? '#000000' : '#ffffff'}; border-radius: 6px; font-size: 11px; cursor: pointer;">
+              <div style="font-weight: 700; color: ${isMe ? '#000000' : '#ffffff'}; margin-bottom: 2px;">↩️ ${this.escapeHtml(msg.replyTo.senderName || 'Friend')}</div>
+              <div style="color: ${isMe ? 'rgba(0,0,0,0.65)' : 'var(--text-muted)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${this.escapeHtml(msg.replyTo.text || '[Attachment]')}</div>
+            </div>
+          ` : ''}
+
           ${msg.text ? `<div>${this.formatPostContent(msg.text)}</div>` : ''}
 
           <!-- Custom Interactive Audio Player -->
           ${msg.attachment && msg.attachment.type === 'audio' ? `
             <div class="chat-custom-audio-player" style="margin-top: 8px; padding: 10px 14px; background: ${isMe ? 'rgba(0,0,0,0.07)' : 'rgba(0,0,0,0.6)'}; border-radius: 12px; min-width: 250px; max-width: 320px; border: 1px solid rgba(255,255,255,0.1);">
               <div style="font-size: 11px; font-weight: 700; margin-bottom: 8px; color: ${isMe ? '#000' : '#fff'}; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">🎵 ${this.escapeHtml(msg.attachment.name)}</span>
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${msg.attachment.name.startsWith('🎙️') ? msg.attachment.name : '🎵 ' + this.escapeHtml(msg.attachment.name)}</span>
                 <a href="${audioSrc}" download="${this.escapeHtml(msg.attachment.name)}" style="font-size: 12px; color: ${isMe ? '#000' : '#fff'}; text-decoration: none;" title="Download audio track">⬇️</a>
               </div>
               
@@ -1666,13 +1925,57 @@ class SocialModule {
             </div>
           ` : ''}
 
+          <!-- Footer with Timestamp & Read Receipt Checkmarks -->
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
             <span>${timeFormatted}</span>
-            ${canPin ? `<button class="btn-pin-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? 'rgba(0,0,0,0.5)' : 'rgba(255,200,0,0.6)'}; font-size: 11px; opacity: 0.7; transition: opacity 0.2s;" title="📌 Pin this message (Admin only)">📌</button>` : ''}
-            ${canDelete ? `<button class="btn-delete-chat-msg" style="background: transparent; border: none; cursor: pointer; color: ${isMe ? '#ff3b30' : 'var(--text-dim)'}; font-size: 11px; opacity: 0.7; transition: opacity 0.2s;" title="${isMe ? 'Delete my message' : 'Delete as Admin'}">🗑️</button>` : ''}
+            ${isMe ? this.renderReadReceiptHtml(msg) : ''}
           </div>
         </div>
+
+        <!-- Reactions Row -->
+        ${this.renderReactionsHtml(msg, myIdentity.uid)}
       `;
+    }
+
+    // Reaction pill clicks
+    div.querySelectorAll('.chat-reaction-pill').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const emoji = btn.getAttribute('data-emoji');
+        const msgId = btn.getAttribute('data-msg-id') || msg.id;
+        this.toggleReaction(msgId, emoji);
+      });
+    });
+
+    // Reaction dock trigger
+    const reactTrigger = div.querySelector('.btn-trigger-react');
+    const reactionDock = div.querySelector('.chat-reaction-dock');
+    if (reactTrigger && reactionDock) {
+      reactTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.chat-reaction-dock.active').forEach(d => {
+          if (d !== reactionDock) d.classList.remove('active');
+        });
+        reactionDock.classList.toggle('active');
+      });
+
+      reactionDock.querySelectorAll('.reaction-emoji-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const emoji = btn.getAttribute('data-emoji');
+          this.toggleReaction(msg.id, emoji);
+          reactionDock.classList.remove('active');
+        });
+      });
+    }
+
+    // Reply trigger
+    const replyTrigger = div.querySelector('.btn-trigger-reply');
+    if (replyTrigger) {
+      replyTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.setReplyTarget(msg);
+      });
     }
 
     // Interactive custom audio player controls
@@ -1780,6 +2083,386 @@ class SocialModule {
     return div;
   }
 
+  // 👁️ Read Receipts: Mark Active Room Messages as Read
+  markActiveRoomMessagesAsRead(messages) {
+    if (document.hidden || !window.fbDb || !this.activeRoomId || !Array.isArray(messages)) return;
+    const myUid = this.getSenderIdentity().uid;
+    const unreadDocs = messages.filter(m => m.id && (!m.readBy || !m.readBy.includes(myUid)));
+    if (unreadDocs.length === 0) return;
+
+    const batch = window.fbDb.batch();
+    unreadDocs.slice(0, 400).forEach(m => {
+      const ref = window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .collection('messages')
+        .doc(m.id);
+      batch.update(ref, {
+        readBy: firebase.firestore.FieldValue.arrayUnion(myUid)
+      });
+    });
+
+    batch.commit().catch(e => console.warn('Mark read batch error:', e));
+  }
+
+  // 🟢 Presence System: Online / Last Seen
+  startPresenceSystem() {
+    if (!window.fbDb) return;
+    
+    this.updatePresence(true);
+
+    if (this.presenceHeartbeatInterval) clearInterval(this.presenceHeartbeatInterval);
+    this.presenceHeartbeatInterval = setInterval(() => {
+      if (!document.hidden) {
+        this.updatePresence(true);
+      }
+    }, 30000);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.updatePresence(true);
+        if (this.activeRoomId && this._lastLoadedMessages) {
+          this.markActiveRoomMessagesAsRead(this._lastLoadedMessages);
+        }
+      } else {
+        this.updatePresence(false);
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      this.updatePresence(true);
+      if (this.activeRoomId && this._lastLoadedMessages) {
+        this.markActiveRoomMessagesAsRead(this._lastLoadedMessages);
+      }
+    });
+
+    window.addEventListener('blur', () => {
+      this.updatePresence(false);
+    });
+
+    window.addEventListener('beforeunload', () => {
+      this.updatePresence(false);
+    });
+  }
+
+  updatePresence(isOnline) {
+    if (!window.fbDb) return;
+    const identity = this.getSenderIdentity();
+    if (!identity.uid) return;
+
+    try {
+      window.fbDb.collection('presence').doc(identity.uid).set({
+        uid: identity.uid,
+        name: identity.name,
+        isOnline: Boolean(isOnline),
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(e => console.warn('Presence update error:', e));
+    } catch (_) {}
+  }
+
+  listenToRoomPresence(room) {
+    if (this.currentRoomPresenceUnsub) {
+      this.currentRoomPresenceUnsub();
+      this.currentRoomPresenceUnsub = null;
+    }
+
+    if (!this.activeChatStatus) return;
+
+    if (!room || room.type !== 'direct' || !window.fbDb) {
+      this.activeChatStatus.style.display = 'none';
+      return;
+    }
+
+    const myUid = this.getSenderIdentity().uid;
+    const otherUid = (room.members || []).find(uid => uid && uid !== myUid);
+    if (!otherUid) {
+      this.activeChatStatus.style.display = 'none';
+      return;
+    }
+
+    this.currentRoomPresenceUnsub = window.fbDb
+      .collection('presence')
+      .doc(otherUid)
+      .onSnapshot((snap) => {
+        if (!snap.exists) {
+          this.activeChatStatus.style.display = 'none';
+          return;
+        }
+        const data = snap.data() || {};
+        const now = Date.now();
+        const lastSeenMs = data.lastSeen && data.lastSeen.toMillis ? data.lastSeen.toMillis() : 0;
+        const isRecent = (now - lastSeenMs) < 65000;
+
+        if (data.isOnline && isRecent) {
+          this.activeChatStatus.innerHTML = `<span style="color: #34c759; font-weight: 700;">🟢 Online</span>`;
+          this.activeChatStatus.style.display = 'inline-flex';
+        } else if (lastSeenMs > 0) {
+          this.activeChatStatus.innerHTML = `<span style="color: var(--text-dim);">⚪ Last seen ${this.formatTimeAgo(new Date(lastSeenMs))}</span>`;
+          this.activeChatStatus.style.display = 'inline-flex';
+        } else {
+          this.activeChatStatus.style.display = 'none';
+        }
+      }, e => console.warn('Presence listen error:', e));
+  }
+
+  formatTimeAgo(date) {
+    if (!date) return 'recently';
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  // 🎙️ In-App Voice Message Recording (MediaRecorder API)
+  async startVoiceRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Microphone recording is not supported in this browser.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.audioStream = stream;
+      this.audioChunks = [];
+
+      let mimeType = 'audio/webm';
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+          mimeType = 'audio/ogg;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        }
+      }
+
+      this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+      this.mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          this.audioChunks.push(e.data);
+        }
+      };
+
+      this.mediaRecorder.start(200);
+      this.recordingStartTime = Date.now();
+
+      if (this.voiceRecordingBar) this.voiceRecordingBar.style.display = 'flex';
+      if (this.voiceRecordingTimer) this.voiceRecordingTimer.innerText = '0:00';
+
+      if (this.recordingTimerInterval) clearInterval(this.recordingTimerInterval);
+      this.recordingTimerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = (elapsed % 60).toString().padStart(2, '0');
+        if (this.voiceRecordingTimer) this.voiceRecordingTimer.innerText = `${mins}:${secs}`;
+      }, 500);
+
+    } catch (err) {
+      console.error('Microphone permission error:', err);
+      alert('Could not access microphone. Please allow microphone permissions in your browser settings.');
+    }
+  }
+
+  cancelVoiceRecording() {
+    if (this.recordingTimerInterval) {
+      clearInterval(this.recordingTimerInterval);
+      this.recordingTimerInterval = null;
+    }
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      try { this.mediaRecorder.stop(); } catch (_) {}
+    }
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(t => t.stop());
+      this.audioStream = null;
+    }
+    this.audioChunks = [];
+    if (this.voiceRecordingBar) this.voiceRecordingBar.style.display = 'none';
+  }
+
+  async sendVoiceRecording() {
+    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') return;
+
+    if (this.recordingTimerInterval) {
+      clearInterval(this.recordingTimerInterval);
+      this.recordingTimerInterval = null;
+    }
+
+    const recPromise = new Promise((resolve) => {
+      this.mediaRecorder.onstop = () => {
+        const mime = this.mediaRecorder.mimeType || 'audio/webm';
+        const blob = new Blob(this.audioChunks, { type: mime });
+        resolve(blob);
+      };
+      this.mediaRecorder.stop();
+    });
+
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(t => t.stop());
+      this.audioStream = null;
+    }
+
+    if (this.voiceRecordingBar) this.voiceRecordingBar.style.display = 'none';
+
+    try {
+      const audioBlob = await recPromise;
+      if (!audioBlob || audioBlob.size < 100) return;
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const fileName = `Voice_Note_${Date.now()}.wav`;
+
+      // 1. Try Firebase Cloud Storage first
+      let downloadUrl = null;
+      if (window.fbStorage) {
+        try {
+          const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_voice.webm`);
+          const uploadTask = storageRef.put(audioBlob);
+          const uploadPromise = uploadTask.then(snapshot => snapshot.ref.getDownloadURL());
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 10000));
+          downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
+        } catch (e) {
+          console.warn('Storage upload error for voice note:', e);
+        }
+      }
+
+      // 2. Fallback to Web Audio WAV compression
+      if (!downloadUrl) {
+        downloadUrl = await this.compressAudio(new File([audioBlob], fileName, { type: audioBlob.type }));
+      }
+
+      this.pendingAttachment = {
+        name: `🎙️ Voice Note (${timeStr})`,
+        type: 'audio',
+        dataUrl: downloadUrl
+      };
+
+      await this.sendMessage();
+    } catch (err) {
+      console.error('Voice send error:', err);
+      alert('Could not send voice note: ' + err.message);
+    }
+  }
+
+  // 🔔 Push & Sound Notifications
+  toggleNotifications() {
+    if (!('Notification' in window)) {
+      alert('Desktop notifications are not supported in this browser.');
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      const current = localStorage.getItem('apex_chat_notifications') !== 'false';
+      const newState = !current;
+      localStorage.setItem('apex_chat_notifications', newState ? 'true' : 'false');
+      this.updateNotificationsUI();
+      if (newState) {
+        this.playNotificationSound();
+      }
+    } else {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          localStorage.setItem('apex_chat_notifications', 'true');
+          this.updateNotificationsUI();
+          this.playNotificationSound();
+          new Notification('🔔 Apex Notifications Enabled', {
+            body: 'You will now receive realtime alerts when new messages and DMs arrive.',
+            icon: 'assets/apex-logo.png'
+          });
+        } else {
+          localStorage.setItem('apex_chat_notifications', 'false');
+          this.updateNotificationsUI();
+          alert('Notification permission was denied. Please allow notifications in your browser site settings.');
+        }
+      });
+    }
+  }
+
+  updateNotificationsUI() {
+    const btn = document.getElementById('btn-chat-notifications');
+    if (!btn) return;
+    const isGranted = ('Notification' in window) && Notification.permission === 'granted';
+    const isEnabled = isGranted && localStorage.getItem('apex_chat_notifications') !== 'false';
+
+    if (isEnabled) {
+      btn.style.background = 'rgba(52, 199, 89, 0.15)';
+      btn.style.borderColor = 'rgba(52, 199, 89, 0.45)';
+      btn.style.color = '#34c759';
+      btn.innerHTML = '🔔 Notifications: <strong>ON</strong>';
+      btn.title = 'Desktop and sound notifications are enabled';
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+      btn.style.color = 'var(--text-muted)';
+      btn.innerHTML = '🔔 Notifications: <strong>OFF</strong>';
+      btn.title = 'Click to enable desktop and sound notifications';
+    }
+  }
+
+  playNotificationSound() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, now); // D5
+      osc1.frequency.setValueAtTime(880, now + 0.1); // A5
+
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(587.33, now);
+      osc2.frequency.setValueAtTime(880, now + 0.1);
+
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.35);
+      osc2.stop(now + 0.35);
+
+      setTimeout(() => { try { ctx.close(); } catch (_) {} }, 500);
+    } catch (_) {}
+  }
+
+  notifyNewMessage(msg) {
+    const myUid = this.getSenderIdentity().uid;
+    if (msg.senderId === myUid) return;
+
+    const isGranted = ('Notification' in window) && Notification.permission === 'granted';
+    const isEnabled = isGranted && localStorage.getItem('apex_chat_notifications') !== 'false';
+
+    if (isEnabled) {
+      this.playNotificationSound();
+
+      if (document.hidden) {
+        const title = msg.senderName ? `${msg.senderName}` : 'New Message';
+        const body = msg.text || (msg.attachment ? `[${msg.attachment.type}]` : 'Sent an attachment');
+        try {
+          const n = new Notification(title, {
+            body: body,
+            icon: 'assets/apex-logo.png',
+            tag: msg.id || 'apex_chat_msg'
+          });
+          n.onclick = () => {
+            window.focus();
+            n.close();
+          };
+        } catch (_) {}
+      }
+    }
+  }
 
   async sendMessage() {
     const text = this.chatInput ? this.chatInput.value.trim() : '';
@@ -1817,9 +2500,15 @@ class SocialModule {
       senderEmail: isIncognito ? '' : String(sender.email || ''),
       isAnonymous: isIncognito ? true : Boolean(sender.isAnon),
       hideAdminBadge: isIncognito,
+      readBy: [String(sender.uid || 'anon')],
       localTimestamp: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+
+    if (this.replyingTo) {
+      newMsg.replyTo = this.replyingTo;
+      this.clearReply();
+    }
 
     try {
       // 1. Add to messages subcollection
@@ -1831,7 +2520,7 @@ class SocialModule {
 
       // 2. Update room's lastMessage
       const previewText = attachment
-        ? (attachment.type === 'audio' ? '🎵 Audio Track' : (attachment.type === 'image' ? '🖼️ Photo' : `${cleanAttachment.docIcon || '📄'} ${cleanAttachment.name || 'Document'}`))
+        ? (attachment.type === 'audio' ? (cleanAttachment.name.startsWith('🎙️') ? cleanAttachment.name : '🎵 Audio Track') : (attachment.type === 'image' ? '🖼️ Photo' : `${cleanAttachment.docIcon || '📄'} ${cleanAttachment.name || 'Document'}`))
         : text;
       await window.fbDb
         .collection('chat_rooms')
