@@ -25,13 +25,6 @@ class SocialModule {
     this.pendingAttachment = null;
     this.replyingTo = null;
 
-    // In-App Voice Recording properties
-    this.mediaRecorder = null;
-    this.audioChunks = [];
-    this.audioStream = null;
-    this.recordingStartTime = null;
-    this.recordingTimerInterval = null;
-
     // Presence & Notifications
     this.presenceHeartbeatInterval = null;
     this.currentRoomPresenceUnsub = null;
@@ -73,13 +66,6 @@ class SocialModule {
     this.replyPreviewSender = document.getElementById('reply-preview-sender');
     this.replyPreviewText = document.getElementById('reply-preview-text');
     this.btnCancelReply = document.getElementById('btn-cancel-reply');
-
-    // Voice Recording elements
-    this.btnChatMic = document.getElementById('btn-chat-mic');
-    this.voiceRecordingBar = document.getElementById('chat-voice-recording-bar');
-    this.voiceRecordingTimer = document.getElementById('voice-recording-timer');
-    this.btnCancelVoice = document.getElementById('btn-cancel-voice-recording');
-    this.btnSendVoice = document.getElementById('btn-send-voice-recording');
 
     // Attachment elements
     this.chatFileInput = document.getElementById('chat-file-input');
@@ -154,26 +140,7 @@ class SocialModule {
     // 5b. Emoji & Sticker Picker Initialization
     this.initEmojiPicker();
 
-    // 5c. Voice Recording Handlers
-    if (this.btnChatMic) {
-      this.btnChatMic.addEventListener('click', () => {
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-          this.sendVoiceRecording();
-        } else {
-          this.startVoiceRecording();
-        }
-      });
-    }
-
-    if (this.btnCancelVoice) {
-      this.btnCancelVoice.addEventListener('click', () => this.cancelVoiceRecording());
-    }
-
-    if (this.btnSendVoice) {
-      this.btnSendVoice.addEventListener('click', () => this.sendVoiceRecording());
-    }
-
-    // 5d. Quoted Reply Cancel Handler
+    // 5c. Quoted Reply Cancel Handler
     if (this.btnCancelReply) {
       this.btnCancelReply.addEventListener('click', () => this.clearReply());
     }
@@ -2270,139 +2237,6 @@ class SocialModule {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
-  }
-
-  // 🎙️ In-App Voice Message Recording (MediaRecorder API)
-  async startVoiceRecording() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('Microphone recording is not supported in this browser.');
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.audioStream = stream;
-      this.audioChunks = [];
-
-      let mimeType = 'audio/webm';
-      if (typeof MediaRecorder !== 'undefined') {
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-          mimeType = 'audio/webm;codecs=opus';
-        } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-          mimeType = 'audio/ogg;codecs=opus';
-        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          mimeType = 'audio/mp4';
-        }
-      }
-
-      this.mediaRecorder = new MediaRecorder(stream, { mimeType });
-      this.mediaRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          this.audioChunks.push(e.data);
-        }
-      };
-
-      this.mediaRecorder.start(200);
-      this.recordingStartTime = Date.now();
-
-      if (this.voiceRecordingBar) this.voiceRecordingBar.style.display = 'flex';
-      if (this.voiceRecordingTimer) this.voiceRecordingTimer.innerText = '0:00';
-
-      if (this.recordingTimerInterval) clearInterval(this.recordingTimerInterval);
-      this.recordingTimerInterval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - this.recordingStartTime) / 1000);
-        const mins = Math.floor(elapsed / 60);
-        const secs = (elapsed % 60).toString().padStart(2, '0');
-        if (this.voiceRecordingTimer) this.voiceRecordingTimer.innerText = `${mins}:${secs}`;
-      }, 500);
-
-    } catch (err) {
-      console.error('Microphone permission error:', err);
-      alert('Could not access microphone. Please allow microphone permissions in your browser settings.');
-    }
-  }
-
-  cancelVoiceRecording() {
-    if (this.recordingTimerInterval) {
-      clearInterval(this.recordingTimerInterval);
-      this.recordingTimerInterval = null;
-    }
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      try { this.mediaRecorder.stop(); } catch (_) {}
-    }
-    if (this.audioStream) {
-      this.audioStream.getTracks().forEach(t => t.stop());
-      this.audioStream = null;
-    }
-    this.audioChunks = [];
-    if (this.voiceRecordingBar) this.voiceRecordingBar.style.display = 'none';
-  }
-
-  async sendVoiceRecording() {
-    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') return;
-
-    if (this.recordingTimerInterval) {
-      clearInterval(this.recordingTimerInterval);
-      this.recordingTimerInterval = null;
-    }
-
-    const recPromise = new Promise((resolve) => {
-      this.mediaRecorder.onstop = () => {
-        const mime = this.mediaRecorder.mimeType || 'audio/webm';
-        const blob = new Blob(this.audioChunks, { type: mime });
-        resolve(blob);
-      };
-      this.mediaRecorder.stop();
-    });
-
-    if (this.audioStream) {
-      this.audioStream.getTracks().forEach(t => t.stop());
-      this.audioStream = null;
-    }
-
-    if (this.voiceRecordingBar) this.voiceRecordingBar.style.display = 'none';
-
-    try {
-      const audioBlob = await recPromise;
-      if (!audioBlob || audioBlob.size < 100) return;
-
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const mimeType = audioBlob.type || 'audio/webm';
-      let ext = 'webm';
-      if (mimeType.includes('mp4')) ext = 'm4a';
-      else if (mimeType.includes('ogg')) ext = 'ogg';
-      else if (mimeType.includes('wav')) ext = 'wav';
-
-      // 1. Try Firebase Cloud Storage first
-      let downloadUrl = null;
-      if (window.fbStorage) {
-        try {
-          const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_voice.${ext}`);
-          const uploadTask = storageRef.put(audioBlob, { contentType: mimeType });
-          const uploadPromise = uploadTask.then(snapshot => snapshot.ref.getDownloadURL());
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 10000));
-          downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
-        } catch (e) {
-          console.warn('Storage upload fallback for voice note:', e);
-        }
-      }
-
-      // 2. Direct Base64 dataUrl conversion (preserves genuine uncorrupted recording)
-      if (!downloadUrl) {
-        downloadUrl = await this._blobToDataUrl(audioBlob);
-      }
-
-      this.pendingAttachment = {
-        name: `🎙️ Voice Note (${timeStr})`,
-        type: 'audio',
-        dataUrl: downloadUrl
-      };
-
-      await this.sendMessage();
-    } catch (err) {
-      console.error('Voice send error:', err);
-      alert('Could not send voice note: ' + err.message);
-    }
   }
 
   // 🔔 Push & Sound Notifications
