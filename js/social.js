@@ -853,27 +853,29 @@ class SocialModule {
   }
 
   _detectAudioMime(dataUrl, fileName) {
-    const ext = (fileName || '').toLowerCase().split('.').pop();
-    const extMap = {
-      mp3: 'audio/mpeg', mpeg: 'audio/mpeg', mpg: 'audio/mpeg',
-      ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg',
-      wav: 'audio/wav', wave: 'audio/wav',
-      m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac',
-      webm: 'audio/webm', weba: 'audio/webm', amr: 'audio/amr',
-    };
-    if (extMap[ext]) return extMap[ext];
+    if (!dataUrl) return 'audio/mpeg';
 
-    // Detect from magic bytes in base64
-    const b64 = (dataUrl.split(',')[1] || '').substring(0, 12);
+    const b64 = (dataUrl.split(',')[1] || '').substring(0, 16);
+    if (b64.startsWith('GkXf') || b64.startsWith('Gk')) return 'audio/webm';
     if (b64.startsWith('UklGR')) return 'audio/wav';
-    if (b64.startsWith('SUQz') || b64.startsWith('//M')) return 'audio/mpeg';
+    if (b64.startsWith('SUQz') || b64.startsWith('//M') || b64.startsWith('//+')) return 'audio/mpeg';
     if (b64.startsWith('T2dnU')) return 'audio/ogg';
-    if (b64.startsWith('AAAA')) return 'audio/mp4';
+    if (b64.startsWith('AAAA') || b64.includes('ZnR5cA')) return 'audio/mp4';
 
     const headerMatch = dataUrl.match(/^data:([^;]+);/);
     if (headerMatch && headerMatch[1].startsWith('audio/')) return headerMatch[1];
 
-    return 'audio/mpeg';
+    const ext = (fileName || '').toLowerCase().split('.').pop();
+    const extMap = {
+      webm: 'audio/webm', weba: 'audio/webm',
+      ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg',
+      wav: 'audio/wav', wave: 'audio/wav',
+      mp3: 'audio/mpeg', mpeg: 'audio/mpeg', mpg: 'audio/mpeg',
+      m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac', amr: 'audio/amr'
+    };
+    if (extMap[ext]) return extMap[ext];
+
+    return 'audio/webm';
   }
 
   // Converts a data: URL to a Blob URL with correct MIME type, OR passes through https:// URLs
@@ -883,18 +885,32 @@ class SocialModule {
     if (!raw.startsWith('data:')) return raw;
 
     try {
-      const headerMatch = raw.match(/^data:([^;]+);base64,/);
-      const mime = headerMatch ? headerMatch[1] : 'audio/wav';
-      const b64 = raw.split(',')[1];
+      const b64 = (raw.split(',')[1] || '').trim();
       if (!b64) return raw;
+
+      // Detect actual binary audio format from base64 magic bytes
+      let mime = 'audio/webm';
+      if (b64.startsWith('GkXf') || b64.startsWith('Gk')) {
+        mime = 'audio/webm';
+      } else if (b64.startsWith('UklGR')) {
+        mime = 'audio/wav';
+      } else if (b64.startsWith('SUQz') || b64.startsWith('//M') || b64.startsWith('//+')) {
+        mime = 'audio/mpeg';
+      } else if (b64.startsWith('T2dnU')) {
+        mime = 'audio/ogg';
+      } else if (b64.startsWith('AAAA') || b64.includes('ZnR5cA')) {
+        mime = 'audio/mp4';
+      } else {
+        const headerMatch = raw.match(/^data:([^;]+);/);
+        if (headerMatch && headerMatch[1].startsWith('audio/')) mime = headerMatch[1];
+      }
 
       const binary = atob(b64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
       const blob = new Blob([bytes], { type: mime });
-      const url = URL.createObjectURL(blob);
-      return url;
+      return URL.createObjectURL(blob);
     } catch (e) {
       console.warn('[Audio] resolveAudioSrc fallback:', e);
       return raw;
@@ -1987,20 +2003,30 @@ class SocialModule {
       const currentTimeEl = div.querySelector('.chat-audio-current-time');
       const durationEl = div.querySelector('.chat-audio-duration');
 
-      const audio = new Audio(audioSrc);
+      const audio = new Audio();
+      audio.preload = 'metadata';
+      audio.src = audioSrc;
 
-      audio.addEventListener('loadedmetadata', () => {
-        if (audio.duration && !isNaN(audio.duration)) {
+      const updateDuration = () => {
+        if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
           const mins = Math.floor(audio.duration / 60);
           const secs = Math.floor(audio.duration % 60).toString().padStart(2, '0');
           if (durationEl) durationEl.innerText = `${mins}:${secs}`;
         }
-      });
+      };
+
+      audio.addEventListener('loadedmetadata', updateDuration);
+      audio.addEventListener('durationchange', updateDuration);
 
       audio.addEventListener('timeupdate', () => {
-        if (audio.duration && !isNaN(audio.duration)) {
+        if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
           const pct = (audio.currentTime / audio.duration) * 100;
           if (progressFill) progressFill.style.width = `${pct}%`;
+          const mins = Math.floor(audio.currentTime / 60);
+          const secs = Math.floor(audio.currentTime % 60).toString().padStart(2, '0');
+          if (currentTimeEl) currentTimeEl.innerText = `${mins}:${secs}`;
+          updateDuration();
+        } else {
           const mins = Math.floor(audio.currentTime / 60);
           const secs = Math.floor(audio.currentTime % 60).toString().padStart(2, '0');
           if (currentTimeEl) currentTimeEl.innerText = `${mins}:${secs}`;
@@ -2011,6 +2037,13 @@ class SocialModule {
         playBtn.innerText = '▶';
         if (progressFill) progressFill.style.width = '0%';
         if (currentTimeEl) currentTimeEl.innerText = '0:00';
+      });
+
+      audio.addEventListener('error', (e) => {
+        console.warn('Audio element error with blob URL, falling back:', e);
+        if (msg.attachment.dataUrl && audio.src !== msg.attachment.dataUrl) {
+          audio.src = msg.attachment.dataUrl;
+        }
       });
 
       playBtn.addEventListener('click', (e) => {
@@ -2026,9 +2059,21 @@ class SocialModule {
             this.currentActiveAudio = audio;
             this.currentActiveAudioBtn = playBtn;
           }).catch(err => {
-            console.error('Audio play error:', err);
-            playBtn.innerText = '▶';
-            alert(`⚠️ Audio Playback Error:\n${err.name}: ${err.message}\n\nThe audio src starts with: "${audioSrc ? audioSrc.substring(0, 80) : 'EMPTY'}"`);
+            console.warn('First play attempt failed, trying raw dataUrl:', err);
+            if (msg.attachment.dataUrl && audio.src !== msg.attachment.dataUrl) {
+              audio.src = msg.attachment.dataUrl;
+              audio.play().then(() => {
+                playBtn.innerText = '⏸';
+                this.currentActiveAudio = audio;
+                this.currentActiveAudioBtn = playBtn;
+              }).catch(e2 => {
+                playBtn.innerText = '▶';
+                alert(`⚠️ Audio Playback Error: ${e2.message}`);
+              });
+            } else {
+              playBtn.innerText = '▶';
+              alert(`⚠️ Audio Playback Error: ${err.message}`);
+            }
           });
         } else {
           audio.pause();
@@ -2042,7 +2087,7 @@ class SocialModule {
           const rect = progressBar.getBoundingClientRect();
           const clickX = e.clientX - rect.left;
           const width = rect.width;
-          if (audio.duration && !isNaN(audio.duration)) {
+          if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
             audio.currentTime = (clickX / width) * audio.duration;
           }
         });
@@ -2312,25 +2357,29 @@ class SocialModule {
       if (!audioBlob || audioBlob.size < 100) return;
 
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const fileName = `Voice_Note_${Date.now()}.wav`;
+      const mimeType = audioBlob.type || 'audio/webm';
+      let ext = 'webm';
+      if (mimeType.includes('mp4')) ext = 'm4a';
+      else if (mimeType.includes('ogg')) ext = 'ogg';
+      else if (mimeType.includes('wav')) ext = 'wav';
 
       // 1. Try Firebase Cloud Storage first
       let downloadUrl = null;
       if (window.fbStorage) {
         try {
-          const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_voice.webm`);
-          const uploadTask = storageRef.put(audioBlob);
+          const storageRef = window.fbStorage.ref(`chat_audio/${Date.now()}_voice.${ext}`);
+          const uploadTask = storageRef.put(audioBlob, { contentType: mimeType });
           const uploadPromise = uploadTask.then(snapshot => snapshot.ref.getDownloadURL());
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Storage timeout')), 10000));
           downloadUrl = await Promise.race([uploadPromise, timeoutPromise]);
         } catch (e) {
-          console.warn('Storage upload error for voice note:', e);
+          console.warn('Storage upload fallback for voice note:', e);
         }
       }
 
-      // 2. Fallback to Web Audio WAV compression
+      // 2. Direct Base64 dataUrl conversion (preserves genuine uncorrupted recording)
       if (!downloadUrl) {
-        downloadUrl = await this.compressAudio(new File([audioBlob], fileName, { type: audioBlob.type }));
+        downloadUrl = await this._blobToDataUrl(audioBlob);
       }
 
       this.pendingAttachment = {
