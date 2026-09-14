@@ -82,6 +82,33 @@ class AppRouter {
     if (this.sidebarOverlay) {
       this.sidebarOverlay.addEventListener('click', () => this.closeMobileSidebar());
     }
+
+    // 8. Dark / Light Theme Toggle Listener
+    this.initTheme();
+    const btnTheme = document.getElementById('btn-theme-toggle');
+    if (btnTheme) {
+      btnTheme.addEventListener('click', () => this.toggleTheme());
+    }
+  }
+
+  initTheme() {
+    const savedTheme = localStorage.getItem('apex_theme') || 'dark';
+    this.applyTheme(savedTheme);
+  }
+
+  toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    this.applyTheme(newTheme);
+  }
+
+  applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('apex_theme', theme);
+    const icon = document.getElementById('theme-toggle-icon');
+    const text = document.getElementById('theme-toggle-text');
+    if (icon) icon.innerText = theme === 'light' ? '☀️' : '🌙';
+    if (text) text.innerText = theme === 'light' ? 'Light' : 'Dark';
   }
 
   toggleMobileSidebar() {

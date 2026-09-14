@@ -6,7 +6,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
 
 :root {
-  /* High-Contrast Monochrome Color Palette */
+  /* High-Contrast Monochrome Color Palette (Dark Default) */
   --bg-deep: #030303;
   --bg-surface: rgba(14, 14, 14, 0.75);
   --bg-surface-hover: rgba(24, 24, 24, 0.9);
@@ -42,6 +42,69 @@
   --radius-lg: 20px;
   --radius-xl: 28px;
   --sidebar-width: 260px;
+}
+
+[data-theme="light"] {
+  --bg-deep: #f2f3f5;
+  --bg-surface: rgba(255, 255, 255, 0.88);
+  --bg-surface-hover: rgba(240, 242, 245, 0.95);
+  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-input: rgba(245, 246, 248, 0.95);
+
+  --border-subtle: rgba(0, 0, 0, 0.12);
+  --border-glow: rgba(0, 0, 0, 0.25);
+  --border-active: #000000;
+
+  --accent-white: #000000;
+  --accent-silver: #4b5563;
+  --accent-gray: #6b7280;
+  --accent-dark-gray: #e5e7eb;
+  --accent-red: #ef4444;
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+
+  --glow-white: 0 0 20px rgba(0, 0, 0, 0.12);
+  --glow-subtle: 0 10px 30px 0 rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] body {
+  background-color: #f2f3f5;
+  color: #0f172a;
+}
+
+[data-theme="light"] .glass-panel {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .form-control {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .modal-container {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: #0f172a !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] .modal-title, 
+[data-theme="light"] .section-title {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .btn-ghost {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
 }
 
 * {
@@ -1182,6 +1245,178 @@ select.form-control {
   background: rgba(255, 255, 255, 0.22);
   border-color: #ffffff;
   font-weight: 700;
+}
+
+/* --- Interactive Polls in Chat --- */
+.chat-poll-card {
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-width: 260px;
+  max-width: 340px;
+}
+
+.is-me .chat-poll-card {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.poll-question {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.poll-option-btn {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  color: inherit;
+  text-align: left;
+}
+
+.is-me .poll-option-btn {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.poll-option-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.poll-option-btn.voted-by-me {
+  border-color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.poll-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+}
+
+.is-me .poll-bar-fill {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.poll-option-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.poll-option-stats {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Deleted Message styling */
+.chat-msg-deleted {
+  font-style: italic;
+  opacity: 0.65;
+  color: var(--text-muted) !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Edited Message Badge */
+.chat-edited-tag {
+  font-size: 9px;
+  opacity: 0.6;
+  margin-left: 4px;
+  font-style: italic;
+}
+
+/* Avatars & Profile Photos */
+.chat-sender-avatar {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #ffffff;
+  color: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.chat-sender-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  color: var(--text-main);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: var(--border-glow);
+  transform: translateY(-1px);
+}
+
+/* Friend Requests & Direct Messages Pill */
+.friend-request-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  transition: background 0.2s;
+}
+
+.friend-request-item:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 

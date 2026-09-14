@@ -85,8 +85,17 @@ class SocialModule {
     this.createGroupForm = document.getElementById('form-create-group');
     this.startDmModal = document.getElementById('modal-start-dm');
     this.aliasModal = document.getElementById('modal-change-alias');
+    this.profileModal = document.getElementById('modal-profile-photo');
     this.postModal = document.getElementById('modal-social-post');
     this.postForm = document.getElementById('form-social-post');
+    this.createPollModal = document.getElementById('modal-create-poll');
+    this.editMessageModal = document.getElementById('modal-edit-message');
+    this.friendsModal = document.getElementById('modal-friend-requests');
+    this.feedbackModal = document.getElementById('modal-feedback-bug');
+
+    // Friend requests state
+    this.friendRequestsList = [];
+    this.unsubscribeFriendRequests = null;
 
     this.init();
   }
@@ -145,6 +154,12 @@ class SocialModule {
       this.btnCancelReply.addEventListener('click', () => this.clearReply());
     }
 
+    // 5d. Poll Creator Button
+    const btnChatPoll = document.getElementById('btn-chat-poll');
+    if (btnChatPoll) {
+      btnChatPoll.addEventListener('click', () => this.openCreatePollModal());
+    }
+
     // 5e. Notifications Toggle
     const btnNotifications = document.getElementById('btn-chat-notifications');
     if (btnNotifications) {
@@ -167,16 +182,16 @@ class SocialModule {
       this.mobileBackBtn.addEventListener('click', () => this.showMobileChannels());
     }
 
-    // 7. Change Alias Modal
+    // 7. Profile Photo & Alias Modal Triggers
     if (this.anonBadge) {
-      this.anonBadge.addEventListener('click', () => this.openAliasModal());
+      this.anonBadge.addEventListener('click', () => this.openProfileModal());
     }
 
     const btnEditChatName = document.getElementById('btn-edit-chat-name');
     if (btnEditChatName) {
       btnEditChatName.addEventListener('click', (e) => {
         e.preventDefault();
-        this.openAliasModal();
+        this.openProfileModal();
       });
     }
 
@@ -188,52 +203,12 @@ class SocialModule {
       });
     }
 
-    if (this.aliasModal) {
-      this.aliasModal.addEventListener('click', (e) => {
-        if (e.target === this.aliasModal) this.closeAliasModal();
-      });
-    }
-
-    document.querySelectorAll('[data-close="modal-change-alias"]').forEach((btn) => {
-      btn.addEventListener('click', () => this.closeAliasModal());
-    });
-
-    const btnSaveAlias = document.getElementById('btn-save-alias');
-    if (btnSaveAlias) {
-      btnSaveAlias.addEventListener('click', () => {
-        const input = document.getElementById('custom-alias-input');
-        const chk = document.getElementById('chk-admin-incognito');
-        if (chk && this.isAdminUser()) {
-          this.setAdminIncognito(chk.checked);
-        }
-        if (input && input.value.trim()) {
-          this.setCustomHandle(input.value.trim());
-        }
-        this.closeAliasModal();
-      });
-    }
-
-    const chkAdminIncognito = document.getElementById('chk-admin-incognito');
-    if (chkAdminIncognito) {
-      chkAdminIncognito.addEventListener('change', (e) => {
-        this.setAdminIncognito(e.target.checked);
-      });
-    }
-
-    const btnAdminIncognito = document.getElementById('btn-admin-incognito');
-    if (btnAdminIncognito) {
-      btnAdminIncognito.addEventListener('click', () => {
-        this.toggleAdminIncognito();
-      });
-    }
-
-    const btnRandomizeAlias = document.getElementById('btn-randomize-alias');
-    if (btnRandomizeAlias) {
-      btnRandomizeAlias.addEventListener('click', () => {
-        const input = document.getElementById('custom-alias-input');
-        if (input) input.value = this.generateRandomAlias();
-      });
-    }
+    // Modal initializers
+    this.initProfileModal();
+    this.initPollHandlers();
+    this.initEditMessageHandlers();
+    this.initFriendRequests();
+    this.initFeedbackBugModal();
 
     // 8. Create Group Triggers
     const btnOpenGroupModal = document.getElementById('btn-open-create-group-modal');
@@ -286,13 +261,14 @@ class SocialModule {
       });
     }
 
-    // Initial setup: start rooms listener, messages listener, & presence system
+    // Initial setup: start rooms listener, messages listener, presence system, & friend requests
     this.seedDefaultRoomsIfEmpty();
     this.startRoomsListener();
     this.startMessagesListener('general_lounge');
     this.startNotesListener();
     this.startSharedSongsListener();
     this.startPresenceSystem();
+    this.startFriendRequestsListener();
   }
 
   // --- Anonymous & Custom Alias Identity System with Admin Protection ---
@@ -346,33 +322,201 @@ class SocialModule {
     return `${adj}${noun}_${num}`;
   }
 
-  openAliasModal() {
-    const input = document.getElementById('custom-alias-input');
-    if (input) input.value = this.getSenderIdentity().name;
+  // --- Profile Photo, Avatar & Identity Customization ---
+  getPresetAvatars() {
+    return [
+      'https://api.iconify.design/fluent-emoji:smiling-face-with-sunglasses.svg',
+      'https://api.iconify.design/fluent-emoji:robot.svg',
+      'https://api.iconify.design/fluent-emoji:alien-monster.svg',
+      'https://api.iconify.design/fluent-emoji:rocket.svg',
+      'https://api.iconify.design/fluent-emoji:fire.svg',
+      'https://api.iconify.design/fluent-emoji:glowing-star.svg',
+      'https://api.iconify.design/fluent-emoji:crown.svg',
+      'https://api.iconify.design/fluent-emoji:gem-stone.svg',
+      'https://api.iconify.design/fluent-emoji:headphone.svg',
+      'https://api.iconify.design/fluent-emoji:cat-face.svg',
+      'https://api.iconify.design/fluent-emoji:sparkles.svg',
+      'https://api.iconify.design/fluent-emoji:dragon-face.svg'
+    ];
+  }
 
-    // Show/hide admin incognito toggle in modal
-    const incognitoWrapper = document.getElementById('admin-incognito-wrapper');
-    const chk = document.getElementById('chk-admin-incognito');
-    if (incognitoWrapper) {
+  initProfileModal() {
+    const fileInput = document.getElementById('profile-photo-file-input');
+    const uploadBtn = document.getElementById('btn-upload-custom-avatar');
+    const removeBtn = document.getElementById('btn-remove-avatar');
+    const saveBtn = document.getElementById('btn-save-profile-modal');
+    const randomBtn = document.getElementById('btn-profile-random-handle');
+    const chk = document.getElementById('chk-profile-admin-incognito');
+
+    if (uploadBtn && fileInput) {
+      uploadBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => this.handleCustomAvatarUpload(e));
+    }
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        this._tempAvatarUrl = '';
+        this.updateProfileModalAvatarPreview('');
+      });
+    }
+
+    if (randomBtn) {
+      randomBtn.addEventListener('click', () => {
+        const input = document.getElementById('profile-custom-handle-input');
+        if (input) input.value = this.generateRandomAlias();
+      });
+    }
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => this.saveProfileCustomization());
+    }
+
+    document.querySelectorAll('[data-close="modal-profile-photo"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeProfileModal());
+    });
+
+    if (this.profileModal) {
+      this.profileModal.addEventListener('click', (e) => {
+        if (e.target === this.profileModal) this.closeProfileModal();
+      });
+    }
+
+    this.renderPresetAvatarsGrid();
+  }
+
+  renderPresetAvatarsGrid() {
+    const grid = document.getElementById('preset-avatars-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const presets = this.getPresetAvatars();
+    presets.forEach((url) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.style.cssText = 'width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid transparent; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;';
+      item.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: contain;">`;
+      item.addEventListener('click', () => {
+        this._tempAvatarUrl = url;
+        this.updateProfileModalAvatarPreview(url);
+        grid.querySelectorAll('button').forEach(b => b.style.borderColor = 'transparent');
+        item.style.borderColor = '#ffffff';
+      });
+      grid.appendChild(item);
+    });
+  }
+
+  openProfileModal() {
+    const identity = this.getSenderIdentity();
+    this._tempAvatarUrl = identity.photoURL || '';
+
+    const handleInput = document.getElementById('profile-custom-handle-input');
+    if (handleInput) handleInput.value = identity.name;
+
+    this.updateProfileModalAvatarPreview(this._tempAvatarUrl);
+
+    // Admin Incognito Toggle
+    const incognitoWrap = document.getElementById('profile-admin-incognito-wrapper');
+    const chk = document.getElementById('chk-profile-admin-incognito');
+    if (incognitoWrap) {
       if (this.isAdminUser()) {
-        incognitoWrapper.style.display = 'block';
+        incognitoWrap.style.display = 'block';
         if (chk) chk.checked = localStorage.getItem('apex_admin_incognito') === 'true';
       } else {
-        incognitoWrapper.style.display = 'none';
+        incognitoWrap.style.display = 'none';
       }
     }
 
-    const modal = this.aliasModal || document.getElementById('modal-change-alias');
-    if (modal) {
-      this.aliasModal = modal;
-      modal.classList.add('active');
-      if (input) setTimeout(() => input.focus(), 60);
+    if (this.profileModal) this.profileModal.classList.add('active');
+  }
+
+  closeProfileModal() {
+    if (this.profileModal) this.profileModal.classList.remove('active');
+  }
+
+  updateProfileModalAvatarPreview(url) {
+    const preview = document.getElementById('profile-modal-avatar-preview');
+    if (!preview) return;
+    if (url) {
+      preview.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    } else {
+      const name = this.getSenderIdentity().name || 'U';
+      preview.innerHTML = `<span style="font-size: 28px; font-weight: 800;">${name.charAt(0).toUpperCase()}</span>`;
     }
   }
 
+  async handleCustomAvatarUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      // Compress avatar to clean base64 / JPEG
+      const compressed = await this.compressImage(file);
+      this._tempAvatarUrl = compressed.dataUrl;
+      this.updateProfileModalAvatarPreview(this._tempAvatarUrl);
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+      alert('Could not process avatar image: ' + err.message);
+    }
+  }
+
+  async saveProfileCustomization() {
+    const handleInput = document.getElementById('profile-custom-handle-input');
+    const newHandle = handleInput ? handleInput.value.trim() : '';
+
+    if (newHandle && this.isReservedAdminName(newHandle) && !this.isAdminUser()) {
+      alert('🔒 Security Notice: The names "Admin", "Ayush", "Ash", "Apex", and "Palak" are reserved.');
+      return;
+    }
+
+    if (newHandle) {
+      localStorage.setItem('apex_chat_handle', newHandle);
+      localStorage.setItem('apex_anon_handle', newHandle);
+    }
+
+    const newAvatar = this._tempAvatarUrl || '';
+    localStorage.setItem('apex_user_avatar', newAvatar);
+
+    // Update admin incognito
+    const chk = document.getElementById('chk-profile-admin-incognito');
+    if (chk && this.isAdminUser()) {
+      this.setAdminIncognito(chk.checked);
+    }
+
+    // Sync with Firebase user profile and Firestore
+    if (this.currentUser) {
+      try {
+        if (newHandle) {
+          await this.currentUser.updateProfile({ displayName: newHandle, photoURL: newAvatar });
+        } else if (newAvatar) {
+          await this.currentUser.updateProfile({ photoURL: newAvatar });
+        }
+        if (window.fbDb) {
+          await window.fbDb.collection('users').doc(this.currentUser.uid).set({
+            displayName: newHandle || this.currentUser.displayName,
+            photoURL: newAvatar,
+            lastActive: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+      } catch (err) {
+        console.warn('Profile cloud sync warning:', err);
+      }
+    }
+
+    this.updateAnonBadge();
+    this.closeProfileModal();
+
+    // Re-render auth UI widget in header & sidebar
+    if (window.authManager && this.currentUser) {
+      window.authManager.renderAuthenticatedUI(this.currentUser);
+    }
+  }
+
+  openAliasModal() {
+    this.openProfileModal();
+  }
+
   closeAliasModal() {
-    const modal = this.aliasModal || document.getElementById('modal-change-alias');
-    if (modal) modal.classList.remove('active');
+    this.closeProfileModal();
   }
 
   toggleAdminIncognito() {
@@ -411,7 +555,7 @@ class SocialModule {
       }
     }
 
-    const chk = document.getElementById('chk-admin-incognito');
+    const chk = document.getElementById('chk-profile-admin-incognito');
     if (chk) chk.checked = isIncognito;
   }
 
@@ -419,9 +563,9 @@ class SocialModule {
     if (!name || !name.trim()) return;
     const cleanName = name.trim();
 
-    // Security check: restrict admin reserved names (Admin, Ayush, Ash, Apex) to verified admin email only
+    // Security check: restrict admin reserved names (Admin, Ayush, Ash, Apex, Palak)
     if (this.isReservedAdminName(cleanName) && !this.isAdminUser()) {
-      alert('🔒 Security Notice: The handles "Admin", "Ayush", "Ash", and "Apex" are protected and reserved exclusively for the system owner.');
+      alert('🔒 Security Notice: The handles "Admin", "Ayush", "Ash", "Apex", and "Palak" are protected.');
       return;
     }
 
@@ -431,7 +575,7 @@ class SocialModule {
   }
 
   promptChangeHandle() {
-    this.openAliasModal();
+    this.openProfileModal();
   }
 
   updateAnonBadge() {
@@ -448,6 +592,7 @@ class SocialModule {
   getSenderIdentity() {
     const savedCustomHandle = localStorage.getItem('apex_chat_handle') || localStorage.getItem('apex_anon_handle');
     const isIncognito = this.isAdminUser() && localStorage.getItem('apex_admin_incognito') === 'true';
+    const savedAvatar = localStorage.getItem('apex_user_avatar') || '';
 
     if (this.currentUser) {
       const defaultName = this.currentUser.displayName || this.currentUser.email.split('@')[0];
@@ -455,6 +600,7 @@ class SocialModule {
         uid: this.currentUser.uid,
         name: savedCustomHandle || defaultName,
         email: isIncognito ? '' : this.currentUser.email,
+        photoURL: isIncognito ? '' : (savedAvatar || this.currentUser.photoURL || ''),
         isAnon: isIncognito ? true : false,
         isIncognito: isIncognito
       };
@@ -465,6 +611,7 @@ class SocialModule {
         uid: anonUid,
         name: anonName,
         email: '',
+        photoURL: savedAvatar || '',
         isAnon: true,
         isIncognito: false
       };
@@ -481,6 +628,7 @@ class SocialModule {
 
     if (this.currentUser) {
       this.fetchRegisteredUsers();
+      this.startFriendRequestsListener();
     }
 
     // Refresh active messages stream to update Pin/Delete admin controls
@@ -1156,6 +1304,21 @@ class SocialModule {
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         },
         {
+          id: 'announcements',
+          name: '📢 Official Announcements',
+          description: 'Official announcements from Admin. Non-admin users can submit suggestions & bug reports.',
+          type: 'group',
+          icon: '📢',
+          createdBy: 'system',
+          createdByName: 'Apex Admin',
+          members: ['all'],
+          memberEmails: ['all'],
+          lastMessage: 'Welcome to the Announcements channel! Submit suggestions or bug reports to Admin anytime.',
+          lastMessageSender: 'Apex System',
+          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        },
+        {
           id: 'study_notes',
           name: '📚 Study & College Notes',
           description: 'Collaborate on subjects, exam tips, and study materials',
@@ -1285,7 +1448,7 @@ class SocialModule {
     }
 
     const lastMsg = room.lastMessage || 'No messages yet';
-    const canDeleteRoom = room.type === 'direct' || (room.id !== 'general_lounge' && (this.isAdminUser() || room.createdBy === myId.uid));
+    const canDeleteRoom = room.type === 'direct' || (room.id !== 'general_lounge' && room.id !== 'announcements' && (this.isAdminUser() || room.createdBy === myId.uid));
 
     div.innerHTML = `
       <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: #ffffff; color: #000000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0;">
@@ -1320,7 +1483,7 @@ class SocialModule {
   }
 
   async deleteRoom(room, roomTitle) {
-    if (!room || !room.id || room.id === 'general_lounge') return;
+    if (!room || !room.id || room.id === 'general_lounge' || room.id === 'announcements') return;
     if (!window.fbDb) {
       alert('Firebase connection not ready.');
       return;
@@ -1411,6 +1574,17 @@ class SocialModule {
 
     if (this.chatEmptyState) this.chatEmptyState.style.display = 'none';
     if (this.chatActiveWindow) this.chatActiveWindow.style.display = 'flex';
+
+    // Announcements Channel: Read-Only for non-admins
+    const isAnnouncements = room.id === 'announcements';
+    const noticeBar = document.getElementById('announcements-notice-bar');
+    if (isAnnouncements && !this.isAdminUser()) {
+      if (this.chatForm) this.chatForm.style.display = 'none';
+      if (noticeBar) noticeBar.style.display = 'flex';
+    } else {
+      if (this.chatForm) this.chatForm.style.display = 'flex';
+      if (noticeBar) noticeBar.style.display = 'none';
+    }
 
     // Start presence status for this direct conversation
     this.listenToRoomPresence(room);
@@ -1742,8 +1916,9 @@ class SocialModule {
   createMessageBubbleElement(msg) {
     const myIdentity = this.getSenderIdentity();
     const isMe = msg.senderId === myIdentity.uid;
-    const canDelete = isMe || this.isAdmin;
-    const canPin = this.isAdminUser();
+    const canDelete = isMe || this.isAdminUser();
+    const canEdit = isMe && !msg.deletedForEveryone && !msg.poll && Boolean(msg.text);
+    const canPin = this.isAdminUser() && !msg.deletedForEveryone;
     const showAdminBadge = !msg.hideAdminBadge && (msg.senderEmail === window.ADMIN_EMAIL);
 
     const timeFormatted = msg.createdAt && msg.createdAt.toDate
@@ -1762,6 +1937,31 @@ class SocialModule {
       ${isMe ? 'margin-left: auto;' : 'margin-right: auto;'}
     `;
 
+    // 1. Deleted Message State (Unsend for Everyone)
+    if (msg.deletedForEveryone) {
+      div.innerHTML = `
+        <div class="chat-bubble-content" style="
+          background: ${isMe ? 'rgba(255,255,255,0.06)' : 'rgba(24, 24, 24, 0.6)'};
+          color: var(--text-muted);
+          padding: 8px 14px;
+          border-radius: 12px;
+          font-size: 12px;
+          border: 1px dashed rgba(255,255,255,0.15);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        ">
+          <span class="chat-msg-deleted">🚫 This message was deleted</span>
+          <span style="font-size: 10px; color: var(--text-dim); margin-left: auto;">${timeFormatted}</span>
+        </div>
+      `;
+      return div;
+    }
+
+    // Sender Avatar setup
+    const senderPhoto = msg.senderPhotoURL || (msg.senderEmail === window.ADMIN_EMAIL && !msg.hideAdminBadge ? 'assets/apex-logo.png' : '');
+    const senderInitial = (msg.senderName || 'F').charAt(0).toUpperCase();
+
     const isSticker = msg.attachment && msg.attachment.type === 'sticker';
 
     if (isSticker) {
@@ -1771,7 +1971,7 @@ class SocialModule {
           <button type="button" class="chat-action-btn btn-trigger-react" title="React with emoji">😀+</button>
           <button type="button" class="chat-action-btn btn-trigger-reply" title="Reply to this message">↩️</button>
           ${canPin ? `<button type="button" class="chat-action-btn btn-pin-chat-msg" title="Pin message">📌</button>` : ''}
-          ${canDelete ? `<button type="button" class="chat-action-btn btn-delete-chat-msg" style="color: #ff4d4d;" title="Delete">🗑️</button>` : ''}
+          ${canDelete ? `<button type="button" class="chat-action-btn btn-delete-chat-msg" style="color: #ff4d4d;" title="Delete for Everyone">🗑️</button>` : ''}
         </div>
 
         <!-- Floating Reaction Dock -->
@@ -1786,6 +1986,9 @@ class SocialModule {
 
         ${!isMe ? `
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
+            <div class="chat-sender-avatar" style="width: 22px; height: 22px; min-width: 22px; font-size: 10px;">
+              ${senderPhoto ? `<img src="${senderPhoto}">` : senderInitial}
+            </div>
             <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
             ${showAdminBadge ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
           </div>
@@ -1820,8 +2023,9 @@ class SocialModule {
         <div class="chat-msg-actions">
           <button type="button" class="chat-action-btn btn-trigger-react" title="React with emoji">😀+</button>
           <button type="button" class="chat-action-btn btn-trigger-reply" title="Reply to this message">↩️</button>
+          ${canEdit ? `<button type="button" class="chat-action-btn btn-edit-chat-msg" title="Edit message">✏️</button>` : ''}
           ${canPin ? `<button type="button" class="chat-action-btn btn-pin-chat-msg" title="Pin message">📌</button>` : ''}
-          ${canDelete ? `<button type="button" class="chat-action-btn btn-delete-chat-msg" style="color: #ff4d4d;" title="Delete">🗑️</button>` : ''}
+          ${canDelete ? `<button type="button" class="chat-action-btn btn-delete-chat-msg" style="color: #ff4d4d;" title="Delete for Everyone">🗑️</button>` : ''}
         </div>
 
         <!-- Floating Reaction Dock -->
@@ -1836,6 +2040,9 @@ class SocialModule {
 
         ${!isMe ? `
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; margin-left: 2px;">
+            <div class="chat-sender-avatar" style="width: 22px; height: 22px; min-width: 22px; font-size: 10px;">
+              ${senderPhoto ? `<img src="${senderPhoto}">` : senderInitial}
+            </div>
             <span style="font-size: 11px; font-weight: 700; color: #fff;">${this.escapeHtml(msg.senderName || 'Friend')}</span>
             ${showAdminBadge ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
           </div>
@@ -1862,6 +2069,9 @@ class SocialModule {
           ` : ''}
 
           ${msg.text ? `<div>${this.formatPostContent(msg.text)}</div>` : ''}
+
+          <!-- Group Poll Component -->
+          ${msg.poll ? this.renderPollHtml(msg, myIdentity.uid) : ''}
 
           <!-- Custom Interactive Audio Player -->
           ${msg.attachment && msg.attachment.type === 'audio' ? `
@@ -1918,8 +2128,9 @@ class SocialModule {
             </div>
           ` : ''}
 
-          <!-- Footer with Timestamp & Read Receipt Checkmarks -->
+          <!-- Footer with Timestamp, Edited Tag & Read Receipt Checkmarks -->
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
+            ${msg.isEdited ? '<span class="chat-edited-tag" title="Edited message">(edited)</span>' : ''}
             <span>${timeFormatted}</span>
             ${isMe ? this.renderReadReceiptHtml(msg) : ''}
           </div>
@@ -1970,6 +2181,24 @@ class SocialModule {
         this.setReplyTarget(msg);
       });
     }
+
+    // ✏️ Edit Message trigger
+    const editBtn = div.querySelector('.btn-edit-chat-msg');
+    if (editBtn && msg.id) {
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openEditMessageModal(msg.id, msg.text || '');
+      });
+    }
+
+    // 📊 Poll Option Vote click handlers
+    div.querySelectorAll('.poll-option-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const optIdx = parseInt(btn.getAttribute('data-opt-idx'), 10);
+        this.votePoll(msg.id, optIdx);
+      });
+    });
 
     // Interactive custom audio player controls
     const playBtn = div.querySelector('.btn-play-pause-audio');
@@ -2071,20 +2300,12 @@ class SocialModule {
       }
     }
 
+    // 🗑️ Delete (Unsend for Everyone)
     const delBtn = div.querySelector('.btn-delete-chat-msg');
-    if (delBtn) {
-      delBtn.addEventListener('click', async () => {
-        if (!confirm('Delete this message?')) return;
-        try {
-          await window.fbDb
-            .collection('chat_rooms')
-            .doc(this.activeRoomId)
-            .collection('messages')
-            .doc(msg.id)
-            .delete();
-        } catch (err) {
-          console.error('Failed to delete message:', err);
-        }
+    if (delBtn && msg.id) {
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        this.deleteMessageForEveryone(msg.id);
       });
     }
 
@@ -2103,6 +2324,650 @@ class SocialModule {
     }
 
     return div;
+  }
+
+  // --- 📊 Interactive Poll Rendering & Voting ---
+  renderPollHtml(msg, myUid) {
+    if (!msg.poll || !Array.isArray(msg.poll.options)) return '';
+    const poll = msg.poll;
+    const totalVotes = poll.options.reduce((sum, opt) => sum + (Array.isArray(opt.votes) ? opt.votes.length : 0), 0);
+
+    const optionsHtml = poll.options.map((opt, idx) => {
+      const votes = Array.isArray(opt.votes) ? opt.votes : [];
+      const count = votes.length;
+      const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+      const hasVoted = votes.includes(myUid);
+
+      return `
+        <button type="button" class="poll-option-btn ${hasVoted ? 'voted-by-me' : ''}" data-msg-id="${msg.id}" data-opt-idx="${idx}">
+          <div class="poll-bar-fill" style="width: ${pct}%;"></div>
+          <div class="poll-option-text">
+            <span>${hasVoted ? '✓' : '○'}</span>
+            <span>${this.escapeHtml(opt.text)}</span>
+          </div>
+          <div class="poll-option-stats">
+            <span>${pct}%</span> (${count})
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    return `
+      <div class="chat-poll-card">
+        <div class="poll-question">
+          <span>📊</span>
+          <span>${this.escapeHtml(poll.question)}</span>
+        </div>
+        <div>
+          ${optionsHtml}
+        </div>
+        <div style="font-size: 10px; opacity: 0.7; margin-top: 6px; text-align: right;">
+          ${totalVotes} total vote${totalVotes === 1 ? '' : 's'}
+        </div>
+      </div>
+    `;
+  }
+
+  initPollHandlers() {
+    const addOptBtn = document.getElementById('btn-add-poll-option');
+    const form = document.getElementById('form-create-poll');
+
+    if (addOptBtn) {
+      addOptBtn.addEventListener('click', () => this.addPollOptionInput());
+    }
+
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.submitCreatePoll();
+      });
+    }
+
+    document.querySelectorAll('[data-close="modal-create-poll"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeCreatePollModal());
+    });
+
+    if (this.createPollModal) {
+      this.createPollModal.addEventListener('click', (e) => {
+        if (e.target === this.createPollModal) this.closeCreatePollModal();
+      });
+    }
+  }
+
+  openCreatePollModal() {
+    if (this.createPollModal) this.createPollModal.classList.add('active');
+    const qInput = document.getElementById('poll-question-input');
+    if (qInput) setTimeout(() => qInput.focus(), 60);
+  }
+
+  closeCreatePollModal() {
+    if (this.createPollModal) {
+      this.createPollModal.classList.remove('active');
+      const form = document.getElementById('form-create-poll');
+      if (form) form.reset();
+      const list = document.getElementById('poll-options-inputs-list');
+      if (list) {
+        list.innerHTML = `
+          <input type="text" class="form-control poll-opt-input" required placeholder="Option 1 (e.g. Python)">
+          <input type="text" class="form-control poll-opt-input" required placeholder="Option 2 (e.g. TypeScript)">
+        `;
+      }
+    }
+  }
+
+  addPollOptionInput() {
+    const list = document.getElementById('poll-options-inputs-list');
+    if (!list) return;
+    const currentCount = list.querySelectorAll('.poll-opt-input').length;
+    if (currentCount >= 5) {
+      alert('Maximum 5 options allowed per poll.');
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control poll-opt-input';
+    input.required = true;
+    input.placeholder = `Option ${currentCount + 1}`;
+    list.appendChild(input);
+  }
+
+  async submitCreatePoll() {
+    const qInput = document.getElementById('poll-question-input');
+    const question = qInput ? qInput.value.trim() : '';
+    if (!question) return;
+
+    const optInputs = document.querySelectorAll('.poll-opt-input');
+    const options = [];
+    optInputs.forEach((inp) => {
+      const val = inp.value.trim();
+      if (val) {
+        options.push({ text: val, votes: [] });
+      }
+    });
+
+    if (options.length < 2) {
+      alert('Please provide at least 2 options for the poll.');
+      return;
+    }
+
+    const sender = this.getSenderIdentity();
+    const isIncognito = Boolean(sender.isIncognito);
+
+    const pollMsg = {
+      text: '',
+      attachment: null,
+      poll: {
+        question: question,
+        options: options,
+        createdBy: sender.uid
+      },
+      senderId: String(sender.uid || 'anon'),
+      senderName: String(sender.name || 'Anonymous'),
+      senderPhotoURL: String(sender.photoURL || ''),
+      senderEmail: isIncognito ? '' : String(sender.email || ''),
+      isAnonymous: isIncognito ? true : Boolean(sender.isAnon),
+      hideAdminBadge: isIncognito,
+      readBy: [String(sender.uid || 'anon')],
+      localTimestamp: Date.now(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .collection('messages')
+        .add(pollMsg);
+
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .set({
+          lastMessage: `📊 Poll: ${question}`,
+          lastMessageSender: sender.name,
+          lastMessageTime: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+      this.closeCreatePollModal();
+      this.scrollChatToBottom();
+    } catch (err) {
+      console.error('Create poll error:', err);
+      alert('Failed to post poll: ' + err.message);
+    }
+  }
+
+  async votePoll(msgId, optionIndex) {
+    if (!msgId || optionIndex === undefined || !this.activeRoomId || !window.fbDb) return;
+    const myUid = this.getSenderIdentity().uid;
+    const msgRef = window.fbDb
+      .collection('chat_rooms')
+      .doc(this.activeRoomId)
+      .collection('messages')
+      .doc(msgId);
+
+    try {
+      const snap = await msgRef.get();
+      if (!snap.exists) return;
+      const data = snap.data() || {};
+      if (!data.poll || !Array.isArray(data.poll.options)) return;
+
+      const poll = { ...data.poll };
+      const options = poll.options.map((opt, idx) => {
+        let votes = Array.isArray(opt.votes) ? [...opt.votes] : [];
+        if (idx === optionIndex) {
+          if (votes.includes(myUid)) {
+            votes = votes.filter(u => u !== myUid); // toggle off
+          } else {
+            votes.push(myUid);
+          }
+        } else {
+          // Single vote mode: remove from other options
+          votes = votes.filter(u => u !== myUid);
+        }
+        return { ...opt, votes };
+      });
+
+      poll.options = options;
+      await msgRef.update({ poll });
+    } catch (err) {
+      console.error('Vote poll error:', err);
+    }
+  }
+
+  // --- ✏️ Edit Message Handlers ---
+  initEditMessageHandlers() {
+    const form = document.getElementById('form-edit-message');
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.saveMessageEdit();
+      });
+    }
+
+    document.querySelectorAll('[data-close="modal-edit-message"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeEditMessageModal());
+    });
+
+    if (this.editMessageModal) {
+      this.editMessageModal.addEventListener('click', (e) => {
+        if (e.target === this.editMessageModal) this.closeEditMessageModal();
+      });
+    }
+  }
+
+  openEditMessageModal(msgId, currentText) {
+    const idInput = document.getElementById('edit-message-id');
+    const textInput = document.getElementById('edit-message-text-input');
+    if (idInput) idInput.value = msgId;
+    if (textInput) textInput.value = currentText;
+
+    if (this.editMessageModal) this.editMessageModal.classList.add('active');
+    if (textInput) setTimeout(() => textInput.focus(), 60);
+  }
+
+  closeEditMessageModal() {
+    if (this.editMessageModal) this.editMessageModal.classList.remove('active');
+  }
+
+  async saveMessageEdit() {
+    const idInput = document.getElementById('edit-message-id');
+    const textInput = document.getElementById('edit-message-text-input');
+    const msgId = idInput ? idInput.value : '';
+    const newText = textInput ? textInput.value.trim() : '';
+
+    if (!msgId || !newText || !this.activeRoomId || !window.fbDb) return;
+
+    try {
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .collection('messages')
+        .doc(msgId)
+        .update({
+          text: newText,
+          isEdited: true,
+          editedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+      this.closeEditMessageModal();
+    } catch (err) {
+      console.error('Save message edit error:', err);
+      alert('Could not edit message: ' + err.message);
+    }
+  }
+
+  // --- 🗑️ Unsend / Delete for Everyone ---
+  async deleteMessageForEveryone(msgId) {
+    if (!msgId || !this.activeRoomId || !window.fbDb) return;
+    const confirmed = confirm('🗑️ Unsend Message for Everyone?\n\nThis will remove the message contents for everyone in this chat.');
+    if (!confirmed) return;
+
+    try {
+      await window.fbDb
+        .collection('chat_rooms')
+        .doc(this.activeRoomId)
+        .collection('messages')
+        .doc(msgId)
+        .update({
+          deletedForEveryone: true,
+          text: '🚫 This message was deleted',
+          attachment: firebase.firestore.FieldValue.delete(),
+          poll: firebase.firestore.FieldValue.delete(),
+          reactions: firebase.firestore.FieldValue.delete()
+        });
+    } catch (err) {
+      console.error('Unsend message error:', err);
+      alert('Could not unsend message: ' + err.message);
+    }
+  }
+
+  // --- 👥 Friend Requests System ---
+  initFriendRequests() {
+    const triggerBtn = document.getElementById('btn-open-friend-requests-modal');
+    if (triggerBtn) {
+      triggerBtn.addEventListener('click', () => this.openFriendRequestsModal());
+    }
+
+    const form = document.getElementById('form-send-friend-request');
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('friend-request-target-input');
+        if (input && input.value.trim()) {
+          this.sendFriendRequest(input.value.trim());
+        }
+      });
+    }
+
+    const tabPending = document.getElementById('tab-friends-pending');
+    const tabAll = document.getElementById('tab-friends-all');
+    const viewPending = document.getElementById('view-friends-pending');
+    const viewAll = document.getElementById('view-friends-all');
+
+    if (tabPending && tabAll && viewPending && viewAll) {
+      tabPending.addEventListener('click', () => {
+        tabPending.style.background = 'rgba(255,255,255,0.14)';
+        tabPending.style.color = '#fff';
+        tabAll.style.background = 'transparent';
+        tabAll.style.color = 'var(--text-muted)';
+        viewPending.style.display = 'block';
+        viewAll.style.display = 'none';
+      });
+
+      tabAll.addEventListener('click', () => {
+        tabAll.style.background = 'rgba(255,255,255,0.14)';
+        tabAll.style.color = '#fff';
+        tabPending.style.background = 'transparent';
+        tabPending.style.color = 'var(--text-muted)';
+        viewPending.style.display = 'none';
+        viewAll.style.display = 'block';
+        this.renderConfirmedFriendsList();
+      });
+    }
+
+    document.querySelectorAll('[data-close="modal-friend-requests"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeFriendRequestsModal());
+    });
+
+    if (this.friendsModal) {
+      this.friendsModal.addEventListener('click', (e) => {
+        if (e.target === this.friendsModal) this.closeFriendRequestsModal();
+      });
+    }
+  }
+
+  openFriendRequestsModal() {
+    if (this.friendsModal) this.friendsModal.classList.add('active');
+    this.renderFriendRequestsUI();
+  }
+
+  closeFriendRequestsModal() {
+    if (this.friendsModal) this.friendsModal.classList.remove('active');
+  }
+
+  startFriendRequestsListener() {
+    if (!window.fbDb) return;
+    if (this.unsubscribeFriendRequests) this.unsubscribeFriendRequests();
+
+    const myId = this.getSenderIdentity();
+    const myEmail = (myId.email || '').toLowerCase();
+    const myUid = myId.uid;
+
+    this.unsubscribeFriendRequests = window.fbDb
+      .collection('friend_requests')
+      .onSnapshot((snap) => {
+        this.friendRequestsList = [];
+        snap.forEach((doc) => {
+          this.friendRequestsList.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Filter pending incoming requests directed to current user
+        const incoming = this.friendRequestsList.filter(r => 
+          r.status === 'pending' &&
+          (r.toUid === myUid || (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail))
+        );
+
+        // Update badge count
+        const badge = document.getElementById('friend-requests-badge');
+        const tabBadge = document.getElementById('tab-pending-count-badge');
+        const count = incoming.length;
+
+        if (badge) {
+          badge.innerText = count;
+          badge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+        if (tabBadge) {
+          tabBadge.innerText = count;
+          tabBadge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+
+        this.renderFriendRequestsUI();
+      }, err => console.warn('Friend requests listen error:', err));
+  }
+
+  renderFriendRequestsUI() {
+    const container = document.getElementById('friends-pending-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const myId = this.getSenderIdentity();
+    const myEmail = (myId.email || '').toLowerCase();
+    const myUid = myId.uid;
+
+    const incoming = this.friendRequestsList.filter(r => 
+      r.status === 'pending' &&
+      (r.toUid === myUid || (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail))
+    );
+
+    if (incoming.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
+          <div style="font-size: 28px; margin-bottom: 6px;">📩</div>
+          <p style="font-size: 13px; color: #fff;">No pending friend requests</p>
+          <p style="font-size: 11px; margin-top: 4px;">Send a request above using your friend's email or handle!</p>
+        </div>
+      `;
+      return;
+    }
+
+    incoming.forEach((req) => {
+      const item = document.createElement('div');
+      item.className = 'friend-request-item';
+      item.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; overflow: hidden;">
+            ${req.fromPhoto ? `<img src="${req.fromPhoto}" style="width:100%;height:100%;object-fit:cover;">` : (req.fromName || 'U').charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">${this.escapeHtml(req.fromName || 'Friend')}</div>
+            <div style="font-size: 10px; color: var(--text-dim);">${this.escapeHtml(req.fromEmail || 'Member')}</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn-primary btn-accept-req" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">✓ Accept</button>
+          <button type="button" class="btn-ghost btn-decline-req" style="padding: 5px 10px; font-size: 11px; border-radius: 8px; color: var(--accent-red); border: 1px solid rgba(255,80,80,0.3);">✕</button>
+        </div>
+      `;
+
+      item.querySelector('.btn-accept-req').addEventListener('click', () => this.acceptFriendRequest(req));
+      item.querySelector('.btn-decline-req').addEventListener('click', () => this.declineFriendRequest(req.id));
+      container.appendChild(item);
+    });
+  }
+
+  async sendFriendRequest(target) {
+    if (!target || !window.fbDb) return;
+    const alertEl = document.getElementById('friend-request-alert');
+    const sender = this.getSenderIdentity();
+
+    try {
+      if (alertEl) {
+        alertEl.style.display = 'block';
+        alertEl.style.color = '#c0c0c0';
+        alertEl.innerText = 'Searching user and sending request...';
+      }
+
+      // Check if target is user's own email/handle
+      if (sender.email && target.toLowerCase() === sender.email.toLowerCase()) {
+        if (alertEl) {
+          alertEl.style.color = '#ff4d4d';
+          alertEl.innerText = 'You cannot send a friend request to yourself.';
+        }
+        return;
+      }
+
+      // Create friend request doc
+      await window.fbDb.collection('friend_requests').add({
+        fromUid: sender.uid,
+        fromName: sender.name,
+        fromEmail: sender.email || '',
+        fromPhoto: sender.photoURL || '',
+        toEmail: target.toLowerCase(),
+        toHandle: target,
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      const input = document.getElementById('friend-request-target-input');
+      if (input) input.value = '';
+
+      if (alertEl) {
+        alertEl.style.color = '#34c759';
+        alertEl.innerText = `✓ Friend request sent to "${target}"!`;
+        setTimeout(() => { if (alertEl) alertEl.style.display = 'none'; }, 4000);
+      }
+    } catch (err) {
+      console.error('Send friend request error:', err);
+      if (alertEl) {
+        alertEl.style.color = '#ff4d4d';
+        alertEl.innerText = 'Could not send request: ' + err.message;
+      }
+    }
+  }
+
+  async acceptFriendRequest(req) {
+    if (!req || !req.id || !window.fbDb) return;
+    const sender = this.getSenderIdentity();
+
+    try {
+      // 1. Mark request accepted
+      await window.fbDb.collection('friend_requests').doc(req.id).update({
+        status: 'accepted',
+        acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // 2. Automatically create/open a direct conversation
+      const otherFriend = {
+        uid: req.fromUid,
+        displayName: req.fromName,
+        email: req.fromEmail
+      };
+      await this.startDirectChatWithFriend(otherFriend);
+      this.closeFriendRequestsModal();
+    } catch (err) {
+      console.error('Accept friend request error:', err);
+      alert('Could not accept friend request: ' + err.message);
+    }
+  }
+
+  async declineFriendRequest(reqId) {
+    if (!reqId || !window.fbDb) return;
+    try {
+      await window.fbDb.collection('friend_requests').doc(reqId).delete();
+    } catch (err) {
+      console.error('Decline friend request error:', err);
+    }
+  }
+
+  renderConfirmedFriendsList() {
+    const container = document.getElementById('friends-all-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!this.friendsList || this.friendsList.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
+          <div style="font-size: 28px; margin-bottom: 6px;">👥</div>
+          <p style="font-size: 13px; color: #fff;">No confirmed friends yet</p>
+          <p style="font-size: 11px; margin-top: 4px;">Accept friend requests to add friends to your direct list.</p>
+        </div>
+      `;
+      return;
+    }
+
+    this.friendsList.forEach(friend => {
+      const name = this.getCleanDisplayName(friend.displayName || (friend.email ? friend.email.split('@')[0] : 'Friend'));
+      const item = document.createElement('div');
+      item.className = 'friend-request-item';
+      item.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; overflow: hidden;">
+            ${friend.photoURL ? `<img src="${friend.photoURL}" style="width:100%;height:100%;object-fit:cover;">` : name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">${this.escapeHtml(name)}</div>
+            <div style="font-size: 10px; color: var(--text-dim);">${friend.role === 'admin' ? '👑 Admin' : '👤 Member'}</div>
+          </div>
+        </div>
+        <button type="button" class="btn-primary" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">Chat 💬</button>
+      `;
+
+      item.querySelector('button').addEventListener('click', () => {
+        this.startDirectChatWithFriend(friend);
+        this.closeFriendRequestsModal();
+      });
+      container.appendChild(item);
+    });
+  }
+
+  // --- 💡 Direct Feedback & 🐞 Bug Reports System ---
+  initFeedbackBugModal() {
+    const triggerBtn = document.getElementById('btn-open-feedback-from-announcements');
+    if (triggerBtn) {
+      triggerBtn.addEventListener('click', () => this.openFeedbackModal());
+    }
+
+    const form = document.getElementById('form-feedback-bug');
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.submitFeedbackBug();
+      });
+    }
+
+    document.querySelectorAll('[data-close="modal-feedback-bug"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeFeedbackModal());
+    });
+
+    if (this.feedbackModal) {
+      this.feedbackModal.addEventListener('click', (e) => {
+        if (e.target === this.feedbackModal) this.closeFeedbackModal();
+      });
+    }
+  }
+
+  openFeedbackModal() {
+    if (this.feedbackModal) this.feedbackModal.classList.add('active');
+    const titleInput = document.getElementById('feedback-title-input');
+    if (titleInput) setTimeout(() => titleInput.focus(), 60);
+  }
+
+  closeFeedbackModal() {
+    if (this.feedbackModal) {
+      this.feedbackModal.classList.remove('active');
+      const form = document.getElementById('form-feedback-bug');
+      if (form) form.reset();
+    }
+  }
+
+  async submitFeedbackBug() {
+    const typeRadio = document.querySelector('input[name="feedback-type"]:checked');
+    const type = typeRadio ? typeRadio.value : 'suggestion';
+    const title = document.getElementById('feedback-title-input') ? document.getElementById('feedback-title-input').value.trim() : '';
+    const desc = document.getElementById('feedback-desc-input') ? document.getElementById('feedback-desc-input').value.trim() : '';
+
+    if (!title || !desc || !window.fbDb) return;
+
+    const sender = this.getSenderIdentity();
+
+    try {
+      await window.fbDb.collection('feedback_reports').add({
+        type: type, // 'suggestion' | 'bug'
+        title: title,
+        description: desc,
+        senderId: sender.uid,
+        senderName: sender.name,
+        senderEmail: sender.email || '',
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      alert(`✅ Thank you, ${sender.name}!\n\nYour ${type === 'bug' ? 'bug report' : 'suggestion'} has been transmitted directly to the Administrator (${window.ADMIN_EMAIL}).`);
+      this.closeFeedbackModal();
+    } catch (err) {
+      console.error('Submit feedback error:', err);
+      alert('Could not submit report: ' + err.message);
+    }
   }
 
   // 👁️ Read Receipts: Mark Active Room Messages as Read
@@ -2888,24 +3753,79 @@ class SocialModule {
   // --- Admin Moderation & Users Directory ---
   async renderAdminUsersList() {
     if (!this.adminUsersView || !this.isAdmin) return;
-    this.adminUsersView.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-muted);">Loading registered users...</p>';
+    this.adminUsersView.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--text-muted);">Loading admin dashboard...</p>';
 
     try {
-      const snap = await window.fbDb.collection('users').get();
+      const usersSnap = await window.fbDb.collection('users').get();
+      let feedbackSnap = { docs: [] };
+      try {
+        feedbackSnap = await window.fbDb.collection('feedback_reports').orderBy('createdAt', 'desc').limit(50).get();
+      } catch (_) {
+        try {
+          feedbackSnap = await window.fbDb.collection('feedback_reports').get();
+        } catch (fErr) {
+          console.warn('Could not fetch feedback reports:', fErr);
+        }
+      }
+
       this.adminUsersView.innerHTML = `
+        <!-- 💡 Direct Feedback & Bug Reports Section -->
         <div class="glass-panel" style="margin-bottom: 24px;">
-          <h3 style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">👑 Administrator Directory (${snap.size} Registered Users)</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="font-size: 18px; font-weight: 700; color: #ffffff;">💡 Suggestions & 🐞 Bug Reports (${feedbackSnap.docs.length})</h3>
+            <span class="badge badge-personal">Direct User Feedback</span>
+          </div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Reports submitted by community members from the Announcements channel and Help modal.</p>
+          
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${feedbackSnap.docs.length === 0 ? `
+              <div style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 13px;">No suggestions or bug reports yet.</div>
+            ` : feedbackSnap.docs.map((doc) => {
+              const rep = doc.data();
+              const isBug = rep.type === 'bug';
+              const isResolved = rep.status === 'resolved';
+              return `
+                <div class="glass-card" style="padding: 14px 16px; border-left: 4px solid ${isBug ? '#ef4444' : '#3b82f6'};">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px;">
+                    <div>
+                      <span class="badge ${isBug ? 'badge-college' : 'badge-project'}" style="margin-right: 6px;">${isBug ? '🐞 BUG' : '💡 SUGGESTION'}</span>
+                      <strong style="color: #fff; font-size: 14px;">${this.escapeHtml(rep.title || 'Untitled')}</strong>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="badge ${isResolved ? 'badge-success' : 'badge-personal'}">${isResolved ? '✓ Resolved' : '⏳ Pending'}</span>
+                      <button type="button" class="btn-ghost btn-admin-toggle-report" data-report-id="${doc.id}" data-current-status="${rep.status || 'pending'}" style="font-size: 11px; padding: 4px 8px;" title="Toggle Resolved Status">
+                        ${isResolved ? 'Reopen' : 'Mark Resolved'}
+                      </button>
+                      <button type="button" class="btn-ghost btn-admin-del-report" data-report-id="${doc.id}" style="font-size: 11px; padding: 4px 8px; color: #ef4444;" title="Delete report">
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                  <p style="font-size: 13px; color: rgba(255,255,255,0.85); margin: 6px 0 10px 0; white-space: pre-wrap; line-height: 1.5;">${this.escapeHtml(rep.description || '')}</p>
+                  <div style="font-size: 11px; color: var(--text-dim); display: flex; gap: 12px;">
+                    <span>👤 ${this.escapeHtml(rep.senderName || 'Anonymous')} (${this.escapeHtml(rep.senderEmail || 'no email')})</span>
+                    <span>🕒 ${rep.createdAt && rep.createdAt.toDate ? rep.createdAt.toDate().toLocaleString() : 'Recently'}</span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- 👥 Administrator Directory -->
+        <div class="glass-panel" style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">👑 Administrator Directory (${usersSnap.size} Registered Users)</h3>
           <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">As Administrator (${window.ADMIN_EMAIL}), you have full moderation privileges across all group channels, direct chats, and social feeds.</p>
           
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            ${snap.docs.map((doc) => {
+            ${usersSnap.docs.map((doc) => {
               const u = doc.data();
               const isTargetAdmin = u.role === 'admin' || (u.email || '').toLowerCase() === window.ADMIN_EMAIL.toLowerCase();
               return `
                 <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;">
                   <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
-                      ${(u.displayName || u.email || 'U').charAt(0).toUpperCase()}
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; overflow: hidden;">
+                      ${u.photoURL ? `<img src="${u.photoURL}" style="width: 100%; height: 100%; object-fit: cover;">` : (u.displayName || u.email || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div style="font-size: 14px; font-weight: 600; color: #fff;">${this.escapeHtml(u.displayName || 'Unnamed User')}</div>
@@ -2921,6 +3841,34 @@ class SocialModule {
           </div>
         </div>
       `;
+
+      // Attach admin feedback action handlers
+      this.adminUsersView.querySelectorAll('.btn-admin-toggle-report').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const reportId = btn.getAttribute('data-report-id');
+          const currentStatus = btn.getAttribute('data-current-status');
+          const newStatus = currentStatus === 'resolved' ? 'pending' : 'resolved';
+          try {
+            await window.fbDb.collection('feedback_reports').doc(reportId).update({ status: newStatus });
+            this.renderAdminUsersList();
+          } catch (err) {
+            alert('Failed to update status: ' + err.message);
+          }
+        });
+      });
+
+      this.adminUsersView.querySelectorAll('.btn-admin-del-report').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this report?')) return;
+          const reportId = btn.getAttribute('data-report-id');
+          try {
+            await window.fbDb.collection('feedback_reports').doc(reportId).delete();
+            this.renderAdminUsersList();
+          } catch (err) {
+            alert('Failed to delete report: ' + err.message);
+          }
+        });
+      });
     } catch (err) {
       console.error('Error rendering admin users list:', err);
     }
