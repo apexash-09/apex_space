@@ -20,7 +20,9 @@ class NotesModule {
     this.readerMeta = document.getElementById('note-reader-meta');
     this.readerPlaceholder = document.getElementById('note-reader-placeholder');
     this.fullscreenBtn = document.getElementById('btn-fullscreen-note');
+    this.fullscreenIcon = document.getElementById('fullscreen-btn-icon');
     this.fullscreenText = document.getElementById('fullscreen-btn-text');
+    this.closeReaderBtn = document.getElementById('btn-close-note-reader');
 
     this.titleInput = document.getElementById('note-title');
     this.subjectInput = document.getElementById('note-subject');
@@ -56,10 +58,18 @@ class NotesModule {
       this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
     }
 
-    // Escape Key Listener to exit full screen
+    if (this.closeReaderBtn) {
+      this.closeReaderBtn.addEventListener('click', () => this.closeReader());
+    }
+
+    // Escape Key Listener to exit full screen or close reader
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.isFullscreen) {
-        this.toggleFullscreen(false);
+      if (e.key === 'Escape') {
+        if (this.isFullscreen) {
+          this.toggleFullscreen(false);
+        } else if (this.activeNoteId) {
+          this.closeReader();
+        }
       }
     });
 
@@ -84,17 +94,46 @@ class NotesModule {
   }
 
   toggleFullscreen(forceState) {
-    const readerCard = this.readerViewer.closest('.glass-panel');
+    const readerCard = this.readerViewer ? this.readerViewer.closest('.glass-panel') : null;
     if (!readerCard) return;
 
     this.isFullscreen = typeof forceState === 'boolean' ? forceState : !this.isFullscreen;
 
     if (this.isFullscreen) {
       readerCard.classList.add('note-reader-fullscreen');
-      if (this.fullscreenText) this.fullscreenText.innerText = 'Exit Full Screen';
+      if (this.fullscreenText) this.fullscreenText.innerText = 'Shrink Screen';
+      if (this.fullscreenIcon) this.fullscreenIcon.innerText = '🗗';
     } else {
       readerCard.classList.remove('note-reader-fullscreen');
       if (this.fullscreenText) this.fullscreenText.innerText = 'Full Screen';
+      if (this.fullscreenIcon) this.fullscreenIcon.innerText = '⛶';
+    }
+  }
+
+  closeReader() {
+    this.activeNoteId = null;
+    if (this.activeBlobUrl) {
+      URL.revokeObjectURL(this.activeBlobUrl);
+      this.activeBlobUrl = null;
+    }
+    if (this.isFullscreen) {
+      this.toggleFullscreen(false);
+    }
+    if (this.readerViewer) {
+      this.readerViewer.style.display = 'none';
+      this.readerViewer.innerHTML = '';
+    }
+    if (this.readerPlaceholder) {
+      this.readerPlaceholder.style.display = 'flex';
+    }
+    if (this.readerTitle) {
+      this.readerTitle.innerText = 'Select a Note to Read';
+    }
+    if (this.readerMeta) {
+      this.readerMeta.innerText = 'Click any note from your college library on the left';
+    }
+    if (this.closeReaderBtn) {
+      this.closeReaderBtn.style.display = 'none';
     }
   }
 
@@ -159,6 +198,7 @@ class NotesModule {
       this.readerPlaceholder.style.display = 'none';
       this.readerViewer.style.display = 'block';
       this.readerViewer.innerHTML = '';
+      if (this.closeReaderBtn) this.closeReaderBtn.style.display = 'inline-flex';
 
       if (note.fileBlob) {
         this.activeBlobUrl = URL.createObjectURL(note.fileBlob);

@@ -1419,5 +1419,26 @@ select.form-control {
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* College Notes Fullscreen / Expand Reader */
+.note-reader-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  border-radius: 0 !important;
+  background: rgba(10, 10, 14, 0.98) !important;
+  backdrop-filter: blur(30px) !important;
+  -webkit-backdrop-filter: blur(30px) !important;
+  padding: 20px 30px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+.note-reader-fullscreen #note-reader-viewer {
+  height: calc(100vh - 110px) !important;
+}
+
 
 

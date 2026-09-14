@@ -363,20 +363,21 @@ class SocialModule {
 
   // --- Profile Photo, Avatar & Identity Customization ---
   getPresetAvatars() {
-    return [
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%236366f1"/><stop offset="100%" stop-color="%23a855f7"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g1)"/><text x="50" y="65" font-size="50" text-anchor="middle">🤖</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23ec4899"/><stop offset="100%" stop-color="%23f43f5e"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g2)"/><text x="50" y="65" font-size="50" text-anchor="middle">🚀</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2306b6d4"/><stop offset="100%" stop-color="%233b82f6"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g3)"/><text x="50" y="65" font-size="50" text-anchor="middle">🕶️</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23eab308"/><stop offset="100%" stop-color="%23f59e0b"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g4)"/><text x="50" y="65" font-size="50" text-anchor="middle">👑</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23f97316"/><stop offset="100%" stop-color="%23ef4444"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g5)"/><text x="50" y="65" font-size="50" text-anchor="middle">🔥</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g6" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2338bdf8"/><stop offset="100%" stop-color="%23818cf8"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g6)"/><text x="50" y="65" font-size="50" text-anchor="middle">💎</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g7" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23d946ef"/><stop offset="100%" stop-color="%238b5cf6"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g7)"/><text x="50" y="65" font-size="50" text-anchor="middle">🐱</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g8" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2310b981"/><stop offset="100%" stop-color="%23059669"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g8)"/><text x="50" y="65" font-size="50" text-anchor="middle">🎧</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g9" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23a855f7"/><stop offset="100%" stop-color="%236366f1"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g9)"/><text x="50" y="65" font-size="50" text-anchor="middle">✨</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g10" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2314b8a6"/><stop offset="100%" stop-color="%230284c7"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g10)"/><text x="50" y="65" font-size="50" text-anchor="middle">👾</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g11" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23facc15"/><stop offset="100%" stop-color="%23ea580c"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g11)"/><text x="50" y="65" font-size="50" text-anchor="middle">⚡</text></svg>',
-      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g12" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23ef4444"/><stop offset="100%" stop-color="%237c3aed"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(%23g12)"/><text x="50" y="65" font-size="50" text-anchor="middle">🐉</text></svg>'
+    const rawSvgs = [
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#a855f7"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g1)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">🤖</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ec4899"/><stop offset="100%" stop-color="#f43f5e"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g2)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">🚀</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g3)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">🕶️</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#eab308"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g4)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">👑</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f97316"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g5)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">🔥</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g6" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#818cf8"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g6)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">💎</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g7" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#d946ef"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g7)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">🐱</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g8" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g8)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">🎧</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g9" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#a855f7"/><stop offset="100%" stop-color="#6366f1"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g9)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">✨</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g10" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#14b8a6"/><stop offset="100%" stop-color="#0284c7"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g10)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">👾</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g11" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#facc15"/><stop offset="100%" stop-color="#ea580c"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g11)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">⚡</text></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g12" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ef4444"/><stop offset="100%" stop-color="#7c3aed"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g12)"/><text x="50" y="66" font-size="52" text-anchor="middle" dominant-baseline="central">🐉</text></svg>'
     ];
+    return rawSvgs.map(s => `data:image/svg+xml;utf8,${encodeURIComponent(s)}`);
   }
 
   initProfileModal() {
@@ -449,7 +450,10 @@ class SocialModule {
       const item = document.createElement('button');
       item.type = 'button';
       item.style.cssText = 'width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid transparent; padding: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; overflow: hidden;';
-      item.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+      const img = document.createElement('img');
+      img.src = url;
+      img.style.cssText = 'width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; pointer-events: none;';
+      item.appendChild(img);
       item.addEventListener('click', () => {
         this._tempAvatarUrl = url;
         this.updateProfileModalAvatarPreview(url);
@@ -491,8 +495,12 @@ class SocialModule {
   updateProfileModalAvatarPreview(url) {
     const preview = document.getElementById('profile-modal-avatar-preview');
     if (!preview) return;
+    preview.innerHTML = '';
     if (url) {
-      preview.innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+      const img = document.createElement('img');
+      img.src = url;
+      img.style.cssText = 'width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;';
+      preview.appendChild(img);
     } else {
       const name = this.getSenderIdentity().name || 'U';
       preview.innerHTML = `<span style="font-size: 28px; font-weight: 800;">${name.charAt(0).toUpperCase()}</span>`;
@@ -3818,8 +3826,8 @@ class SocialModule {
       card.style.marginBottom = '16px';
       card.style.padding = '18px';
 
-      const isAuthor = note.authorId === myId.uid;
-      const canDelete = isAuthor || this.isAdmin;
+      const isAuthor = (note.authorId && note.authorId === myId.uid) || (myId.email && note.authorEmail && note.authorEmail.toLowerCase() === myId.email.toLowerCase());
+      const canDelete = isAuthor || this.isAdminUser() || this.isAdmin;
       const dateFormatted = note.createdAt && note.createdAt.toDate
         ? note.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
         : 'Recently';
@@ -4085,6 +4093,9 @@ class SocialModule {
   }
 
   async createSharedPost() {
+    if (this._isSubmittingPost) return;
+    this._isSubmittingPost = true;
+
     const title = document.getElementById('social-post-title') ? document.getElementById('social-post-title').value.trim() : '';
     const content = document.getElementById('social-post-content') ? document.getElementById('social-post-content').value.trim() : '';
     const fileInput = document.getElementById('social-post-file');
@@ -4092,6 +4103,7 @@ class SocialModule {
 
     if (!content && !file && !title) {
       alert('Please enter some text or attach an image to post.');
+      this._isSubmittingPost = false;
       return;
     }
 
@@ -4163,6 +4175,7 @@ class SocialModule {
       console.error('Failed to post:', err);
       alert('Could not publish post: ' + err.message);
     } finally {
+      this._isSubmittingPost = false;
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = origBtnText;
