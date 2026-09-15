@@ -1750,13 +1750,17 @@ class SocialModule {
         // 👁️ Automatically mark unread messages as read
         this.markActiveRoomMessagesAsRead(docs);
 
-        // 🔔 Push / Sound notification for new incoming message
-        if (this._initialMessagesLoaded && docs.length > 0) {
-          const latestMsg = docs[docs.length - 1];
-          const myId = this.getSenderIdentity();
-          if (latestMsg.senderId !== myId.uid) {
-            this.notifyNewMessage(latestMsg);
-          }
+        // 🔔 Push / Sound notification for newly added incoming messages ONLY
+        if (this._initialMessagesLoaded) {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+              const msgData = { id: change.doc.id, ...change.doc.data() };
+              const myId = this.getSenderIdentity();
+              if (msgData.senderId && msgData.senderId !== myId.uid) {
+                this.notifyNewMessage(msgData);
+              }
+            }
+          });
         }
         this._initialMessagesLoaded = true;
 
@@ -3518,61 +3522,66 @@ class SocialModule {
 
   // 🔔 Push & Sound Notifications
   toggleNotifications() {
-    if (!('Notification' in window)) {
-      alert('Desktop notifications are not supported in this browser.');
-      return;
-    }
+    const isGranted = ('Notification' in window) && Notification.permission === 'granted';
 
-    if (Notification.permission === 'granted') {
-      const current = localStorage.getItem('apex_chat_notifications') !== 'false';
-      const newState = !current;
-      localStorage.setItem('apex_chat_notifications', newState ? 'true' : 'false');
-      this.updateNotificationsUI();
-      if (newState) {
-        this.playNotificationSound();
-      }
-    } else {
+    // If permission not yet requested, ask browser permission
+    if (!isGranted && ('Notification' in window) && Notification.permission !== 'denied') {
       Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
           localStorage.setItem('apex_chat_notifications', 'true');
           this.updateNotificationsUI();
           this.playNotificationSound();
-          new Notification('🔔 Apex Notifications Enabled', {
-            body: 'You will now receive realtime alerts when new messages and DMs arrive.',
-            icon: 'assets/apex-logo.png'
-          });
+          try {
+            new Notification('🔔 Apex Notifications Enabled', {
+              body: 'You will receive sound and desktop alerts for new messages.',
+              icon: 'assets/apex-logo.png'
+            });
+          } catch (_) {}
         } else {
           localStorage.setItem('apex_chat_notifications', 'false');
           this.updateNotificationsUI();
-          alert('Notification permission was denied. Please allow notifications in your browser site settings.');
+          alert('Notification permission was blocked in browser settings. You can click the Notifications button anytime to Mute/Unmute in-app audio.');
         }
       });
+      return;
+    }
+
+    // Toggle mute/unmute state in localStorage
+    const current = localStorage.getItem('apex_chat_notifications') !== 'false';
+    const newState = !current;
+    localStorage.setItem('apex_chat_notifications', newState ? 'true' : 'false');
+    this.updateNotificationsUI();
+
+    if (newState) {
+      this.playNotificationSound();
     }
   }
 
   updateNotificationsUI() {
     const btn = document.getElementById('btn-chat-notifications');
     if (!btn) return;
-    const isGranted = ('Notification' in window) && Notification.permission === 'granted';
-    const isEnabled = isGranted && localStorage.getItem('apex_chat_notifications') !== 'false';
+    const isEnabled = localStorage.getItem('apex_chat_notifications') !== 'false';
 
     if (isEnabled) {
       btn.style.background = 'rgba(52, 199, 89, 0.15)';
       btn.style.borderColor = 'rgba(52, 199, 89, 0.45)';
       btn.style.color = '#34c759';
       btn.innerHTML = '🔔 Notifications: <strong>ON</strong>';
-      btn.title = 'Desktop and sound notifications are enabled';
+      btn.title = 'Sound & alerts active. Click to MUTE / Turn OFF';
     } else {
-      btn.style.background = 'transparent';
+      btn.style.background = 'rgba(255, 255, 255, 0.05)';
       btn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
       btn.style.color = 'var(--text-muted)';
-      btn.innerHTML = '🔔 Notifications: <strong>OFF</strong>';
-      btn.title = 'Click to enable desktop and sound notifications';
+      btn.innerHTML = '🔕 Sound: <strong>MUTED</strong>';
+      btn.title = 'Sound & alerts muted. Click to UNMUTE / Turn ON';
     }
   }
 
   playNotificationSound() {
     try {
+      const isMuted = localStorage.getItem('apex_chat_notifications') === 'false';
+      if (isMuted) return;
+
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
@@ -3607,30 +3616,36 @@ class SocialModule {
   }
 
   notifyNewMessage(msg) {
+    if (!msg) return;
+    const msgId = msg.id || (msg.localTimestamp ? String(msg.localTimestamp) : null);
+    if (msgId) {
+      if (this._lastNotifiedMsgId === msgId) return;
+      this._lastNotifiedMsgId = msgId;
+    }
+
     const myUid = this.getSenderIdentity().uid;
     if (msg.senderId === myUid) return;
 
+    const isEnabled = localStorage.getItem('apex_chat_notifications') !== 'false';
+    if (!isEnabled) return;
+
+    this.playNotificationSound();
+
     const isGranted = ('Notification' in window) && Notification.permission === 'granted';
-    const isEnabled = isGranted && localStorage.getItem('apex_chat_notifications') !== 'false';
-
-    if (isEnabled) {
-      this.playNotificationSound();
-
-      if (document.hidden) {
-        const title = msg.senderName ? `${msg.senderName}` : 'New Message';
-        const body = msg.text || (msg.attachment ? `[${msg.attachment.type}]` : 'Sent an attachment');
-        try {
-          const n = new Notification(title, {
-            body: body,
-            icon: 'assets/apex-logo.png',
-            tag: msg.id || 'apex_chat_msg'
-          });
-          n.onclick = () => {
-            window.focus();
-            n.close();
-          };
-        } catch (_) {}
-      }
+    if (isGranted && document.hidden) {
+      const title = msg.senderName ? `${msg.senderName}` : 'New Message';
+      const body = msg.text || (msg.attachment ? `[${msg.attachment.type}]` : 'Sent an attachment');
+      try {
+        const n = new Notification(title, {
+          body: body,
+          icon: 'assets/apex-logo.png',
+          tag: msg.id || 'apex_chat_msg'
+        });
+        n.onclick = () => {
+          window.focus();
+          n.close();
+        };
+      } catch (_) {}
     }
   }
 
