@@ -3520,7 +3520,7 @@ class SocialModule {
     return `${days}d ago`;
   }
 
-  // 🔔 Push & Sound Notifications
+  // 🔔 Push & Sound Notifications (Mute / Unmute Toggle)
   toggleNotifications() {
     const isGranted = ('Notification' in window) && Notification.permission === 'granted';
 
@@ -3537,10 +3537,11 @@ class SocialModule {
               icon: 'assets/apex-logo.png'
             });
           } catch (_) {}
+          alert('🔔 Sound & Notifications enabled!');
         } else {
           localStorage.setItem('apex_chat_notifications', 'false');
           this.updateNotificationsUI();
-          alert('Notification permission was blocked in browser settings. You can click the Notifications button anytime to Mute/Unmute in-app audio.');
+          alert('🔕 Sound & Notifications muted (Permission denied in browser settings).');
         }
       });
       return;
@@ -3554,6 +3555,9 @@ class SocialModule {
 
     if (newState) {
       this.playNotificationSound();
+      alert('🔊 Sound & Notifications turned ON!');
+    } else {
+      alert('🔕 Sound & Notifications MUTED! You will no longer hear any chat beeps.');
     }
   }
 
@@ -3566,14 +3570,14 @@ class SocialModule {
       btn.style.background = 'rgba(52, 199, 89, 0.15)';
       btn.style.borderColor = 'rgba(52, 199, 89, 0.45)';
       btn.style.color = '#34c759';
-      btn.innerHTML = '🔔 Notifications: <strong>ON</strong>';
-      btn.title = 'Sound & alerts active. Click to MUTE / Turn OFF';
+      btn.innerHTML = '🔊 Sound: <strong style="color: #34c759;">ON</strong> <span style="font-size: 10px; opacity: 0.8; margin-left: 2px;">(Click to Mute)</span>';
+      btn.title = 'Sound and alerts are active. Click to MUTE all chat sounds.';
     } else {
-      btn.style.background = 'rgba(255, 255, 255, 0.05)';
-      btn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-      btn.style.color = 'var(--text-muted)';
-      btn.innerHTML = '🔕 Sound: <strong>MUTED</strong>';
-      btn.title = 'Sound & alerts muted. Click to UNMUTE / Turn ON';
+      btn.style.background = 'rgba(239, 68, 68, 0.15)';
+      btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      btn.style.color = '#ef4444';
+      btn.innerHTML = '🔕 Sound: <strong style="color: #ef4444;">MUTED</strong> <span style="font-size: 10px; opacity: 0.8; margin-left: 2px;">(Click to Unmute)</span>';
+      btn.title = 'Sound and alerts are muted. Click to UNMUTE chat sounds.';
     }
   }
 
