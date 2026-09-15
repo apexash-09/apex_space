@@ -306,14 +306,6 @@ class SocialModule {
     }
 
     let savedHandle = localStorage.getItem('apex_chat_handle') || localStorage.getItem('apex_anon_handle');
-    
-    // Security check: if not admin, ensure saved handle is not spoofing admin names
-    if (savedHandle && this.isReservedAdminName(savedHandle) && !this.isAdminUser()) {
-      savedHandle = this.generateRandomAlias();
-      localStorage.setItem('apex_chat_handle', savedHandle);
-      localStorage.setItem('apex_anon_handle', savedHandle);
-    }
-
     if (!savedHandle) {
       savedHandle = this.generateRandomAlias();
       localStorage.setItem('apex_chat_handle', savedHandle);
@@ -480,7 +472,9 @@ class SocialModule {
     this._tempAvatarUrl = identity.photoURL || '';
 
     const handleInput = document.getElementById('profile-custom-handle-input');
-    if (handleInput) handleInput.value = identity.name;
+    if (handleInput) {
+      handleInput.value = localStorage.getItem('apex_chat_handle') || identity.name || '';
+    }
 
     this.updateProfileModalAvatarPreview(this._tempAvatarUrl);
 
@@ -706,6 +700,15 @@ class SocialModule {
   }
 
   handleAuthUpdate() {
+    if (this.currentUser) {
+      const savedHandle = localStorage.getItem('apex_chat_handle');
+      if (this.currentUser.displayName && !savedHandle) {
+        localStorage.setItem('apex_chat_handle', this.currentUser.displayName);
+      } else if (savedHandle && this.currentUser.displayName !== savedHandle) {
+        this.currentUser.updateProfile({ displayName: savedHandle }).catch(() => {});
+      }
+    }
+
     this.updateAnonBadge();
     this.updateAdminIncognitoUI();
 
@@ -1757,12 +1760,10 @@ class SocialModule {
         this._lastLoadedMessages = docs;
 
         docs.forEach((msg) => {
+          if (msg.deletedForEveryone || msg.text === '🚫 This message was deleted') return;
           const msgEl = this.createMessageBubbleElement(msg);
-          this.chatMessagesContainer.appendChild(msgEl);
+          if (msgEl) this.chatMessagesContainer.appendChild(msgEl);
         });
-
-        // 👁️ Automatically mark unread messages as read
-        this.markActiveRoomMessagesAsRead(docs);
 
         // 🔔 Push / Sound notification for newly added incoming messages ONLY
         if (this._initialMessagesLoaded) {
@@ -1968,31 +1969,19 @@ class SocialModule {
   }
 
   renderReadReceiptHtml(msg) {
-    const isDirect = this.activeRoomData && this.activeRoomData.type === 'direct';
-    const myUid = this.getSenderIdentity().uid;
-    const readBy = msg.readBy || [];
-
-    if (isDirect) {
-      const isSeenByOther = readBy.some(id => id && id !== myUid);
-      if (isSeenByOther) {
-        return `<span style="color: #007aff; font-size: 11px; font-weight: 800; letter-spacing: -1px;" title="Read / Seen">✓✓</span>`;
-      }
-      return `<span style="color: rgba(0,0,0,0.35); font-size: 11px; font-weight: 700;" title="Delivered">✓</span>`;
-    } else {
-      const isReadByOthers = readBy.filter(id => id && id !== myUid).length > 0;
-      if (isReadByOthers) {
-        return `<span style="color: #34c759; font-size: 11px; font-weight: 800; letter-spacing: -1px;" title="Seen by members">✓✓</span>`;
-      }
-      return `<span style="color: rgba(0,0,0,0.35); font-size: 11px; font-weight: 700;" title="Sent">✓</span>`;
-    }
+    return '';
   }
 
   createMessageBubbleElement(msg) {
+    if (!msg || msg.deletedForEveryone || msg.text === '🚫 This message was deleted') {
+      return null;
+    }
+
     const myIdentity = this.getSenderIdentity();
     const isMe = msg.senderId === myIdentity.uid;
     const canDelete = isMe || this.isAdminUser();
-    const canEdit = isMe && !msg.deletedForEveryone && !msg.poll && Boolean(msg.text);
-    const canPin = this.isAdminUser() && !msg.deletedForEveryone;
+    const canEdit = isMe && !msg.poll && Boolean(msg.text);
+    const canPin = this.isAdminUser();
     const showAdminBadge = !msg.hideAdminBadge && (msg.senderEmail === window.ADMIN_EMAIL);
 
     const timeFormatted = msg.createdAt && msg.createdAt.toDate
@@ -2010,27 +1999,6 @@ class SocialModule {
       max-width: 86%;
       ${isMe ? 'margin-left: auto;' : 'margin-right: auto;'}
     `;
-
-    // 1. Deleted Message State (Unsend for Everyone)
-    if (msg.deletedForEveryone) {
-      div.innerHTML = `
-        <div class="chat-bubble-content" style="
-          background: ${isMe ? 'rgba(255,255,255,0.06)' : 'rgba(24, 24, 24, 0.6)'};
-          color: var(--text-muted);
-          padding: 8px 14px;
-          border-radius: 12px;
-          font-size: 12px;
-          border: 1px dashed rgba(255,255,255,0.15);
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        ">
-          <span class="chat-msg-deleted">🚫 This message was deleted</span>
-          <span style="font-size: 10px; color: var(--text-dim); margin-left: auto;">${timeFormatted}</span>
-        </div>
-      `;
-      return div;
-    }
 
     // Sender Avatar setup
     const senderPhoto = msg.senderPhotoURL || (msg.senderEmail === window.ADMIN_EMAIL && !msg.hideAdminBadge ? 'assets/apex-logo.png' : '');
@@ -2080,7 +2048,6 @@ class SocialModule {
           <img src="${msg.attachment.dataUrl}" style="width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.55)); display: block;" alt="Sticker">
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: var(--text-dim);">
             <span>${timeFormatted}</span>
-            ${isMe ? this.renderReadReceiptHtml(msg) : ''}
           </div>
         </div>
 
@@ -2202,11 +2169,10 @@ class SocialModule {
             </div>
           ` : ''}
 
-          <!-- Footer with Timestamp, Edited Tag & Read Receipt Checkmarks -->
+          <!-- Footer with Timestamp, Edited Tag -->
           <div style="display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 10px; color: ${isMe ? 'rgba(0,0,0,0.6)' : 'var(--text-dim)'};">
             ${msg.isEdited ? '<span class="chat-edited-tag" title="Edited message">(edited)</span>' : ''}
             <span>${timeFormatted}</span>
-            ${isMe ? this.renderReadReceiptHtml(msg) : ''}
           </div>
         </div>
 
@@ -2670,10 +2636,10 @@ class SocialModule {
     }
   }
 
-  // --- 🗑️ Unsend / Delete for Everyone ---
+  // --- 🗑️ Delete for Everyone ---
   async deleteMessageForEveryone(msgId) {
     if (!msgId || !this.activeRoomId || !window.fbDb) return;
-    const confirmed = confirm('🗑️ Unsend Message for Everyone?\n\nThis will remove the message contents for everyone in this chat.');
+    const confirmed = confirm('🗑️ Delete Message?\n\nThis will permanently remove this message for everyone in this chat.');
     if (!confirmed) return;
 
     try {
@@ -2682,16 +2648,10 @@ class SocialModule {
         .doc(this.activeRoomId)
         .collection('messages')
         .doc(msgId)
-        .update({
-          deletedForEveryone: true,
-          text: '🚫 This message was deleted',
-          attachment: firebase.firestore.FieldValue.delete(),
-          poll: firebase.firestore.FieldValue.delete(),
-          reactions: firebase.firestore.FieldValue.delete()
-        });
+        .delete();
     } catch (err) {
-      console.error('Unsend message error:', err);
-      alert('Could not unsend message: ' + err.message);
+      console.error('Delete message error:', err);
+      alert('Could not delete message: ' + err.message);
     }
   }
 
