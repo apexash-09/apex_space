@@ -3522,42 +3522,20 @@ class SocialModule {
 
   // 🔔 Push & Sound Notifications (Mute / Unmute Toggle)
   toggleNotifications() {
-    const isGranted = ('Notification' in window) && Notification.permission === 'granted';
+    if (this._isTogglingNotifications) return;
+    this._isTogglingNotifications = true;
+    setTimeout(() => { this._isTogglingNotifications = false; }, 300);
 
-    // If permission not yet requested, ask browser permission
-    if (!isGranted && ('Notification' in window) && Notification.permission !== 'denied') {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          localStorage.setItem('apex_chat_notifications', 'true');
-          this.updateNotificationsUI();
-          this.playNotificationSound();
-          try {
-            new Notification('🔔 Apex Notifications Enabled', {
-              body: 'You will receive sound and desktop alerts for new messages.',
-              icon: 'assets/apex-logo.png'
-            });
-          } catch (_) {}
-          alert('🔔 Sound & Notifications enabled!');
-        } else {
-          localStorage.setItem('apex_chat_notifications', 'false');
-          this.updateNotificationsUI();
-          alert('🔕 Sound & Notifications muted (Permission denied in browser settings).');
-        }
-      });
-      return;
-    }
-
-    // Toggle mute/unmute state in localStorage
-    const current = localStorage.getItem('apex_chat_notifications') !== 'false';
-    const newState = !current;
+    const isEnabled = localStorage.getItem('apex_chat_notifications') !== 'false';
+    const newState = !isEnabled;
     localStorage.setItem('apex_chat_notifications', newState ? 'true' : 'false');
     this.updateNotificationsUI();
 
     if (newState) {
+      if (('Notification' in window) && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
       this.playNotificationSound();
-      alert('🔊 Sound & Notifications turned ON!');
-    } else {
-      alert('🔕 Sound & Notifications MUTED! You will no longer hear any chat beeps.');
     }
   }
 
@@ -3571,13 +3549,13 @@ class SocialModule {
       btn.style.borderColor = 'rgba(52, 199, 89, 0.45)';
       btn.style.color = '#34c759';
       btn.innerHTML = '🔊 Sound: <strong style="color: #34c759;">ON</strong> <span style="font-size: 10px; opacity: 0.8; margin-left: 2px;">(Click to Mute)</span>';
-      btn.title = 'Sound and alerts are active. Click to MUTE all chat sounds.';
+      btn.title = 'Sound is active. Click to MUTE all chat sounds.';
     } else {
       btn.style.background = 'rgba(239, 68, 68, 0.15)';
       btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
       btn.style.color = '#ef4444';
       btn.innerHTML = '🔕 Sound: <strong style="color: #ef4444;">MUTED</strong> <span style="font-size: 10px; opacity: 0.8; margin-left: 2px;">(Click to Unmute)</span>';
-      btn.title = 'Sound and alerts are muted. Click to UNMUTE chat sounds.';
+      btn.title = 'Sound is muted. Click to UNMUTE chat sounds.';
     }
   }
 
