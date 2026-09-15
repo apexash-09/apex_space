@@ -99,21 +99,31 @@ class NotesModule {
   }
 
   toggleFullscreen(forceState) {
-    const readerCard = this.readerViewer ? this.readerViewer.closest('.glass-panel') : null;
+    const readerCard = document.getElementById('note-reader-card') || (this.readerViewer ? this.readerViewer.closest('.glass-panel') : null);
     if (!readerCard) return;
 
     this.isFullscreen = typeof forceState === 'boolean' ? forceState : !this.isFullscreen;
 
     if (this.isFullscreen) {
       readerCard.classList.add('note-reader-fullscreen');
-      if (this.fullscreenText) this.fullscreenText.innerText = 'Shrink Screen';
+      if (this.fullscreenText) this.fullscreenText.innerText = '🗗 Minimize';
       if (this.fullscreenIcon) this.fullscreenIcon.innerText = '🗗';
-      if (this.shrinkBtn) { this.shrinkBtn.style.display = 'flex'; }
+      if (this.fullscreenBtn) {
+        this.fullscreenBtn.style.background = 'rgba(139,92,246,0.45)';
+        this.fullscreenBtn.style.borderColor = '#a78bfa';
+        this.fullscreenBtn.style.color = '#ffffff';
+        this.fullscreenBtn.title = 'Minimize / Exit Full Screen Mode';
+      }
     } else {
       readerCard.classList.remove('note-reader-fullscreen');
       if (this.fullscreenText) this.fullscreenText.innerText = 'Full Screen';
       if (this.fullscreenIcon) this.fullscreenIcon.innerText = '⛶';
-      if (this.shrinkBtn) { this.shrinkBtn.style.display = 'none'; }
+      if (this.fullscreenBtn) {
+        this.fullscreenBtn.style.background = 'rgba(139,92,246,0.22)';
+        this.fullscreenBtn.style.borderColor = 'rgba(139,92,246,0.6)';
+        this.fullscreenBtn.style.color = '#c4b5fd';
+        this.fullscreenBtn.title = 'Toggle Full Screen View';
+      }
     }
   }
 

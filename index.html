@@ -230,24 +230,38 @@
             </div>
 
             <!-- Main Document Reader Screen -->
-            <div class="glass-panel" style="display: flex; flex-direction: column; height: 100%; position: relative;">
+            <div id="note-reader-card" class="glass-panel" style="display: flex; flex-direction: column; height: 100%; position: relative;">
 
-              <!-- Floating Shrink Button — only visible during fullscreen mode -->
-              <button id="btn-shrink-fullscreen" title="Exit Full Screen" style="display:none; position:absolute; top:16px; right:16px; z-index:10001; padding: 8px 18px; font-size: 13px; font-weight: 600; background: rgba(30,20,60,0.92); border: 1px solid rgba(139,92,246,0.7); color: #c4b5fd; border-radius: 8px; cursor: pointer; backdrop-filter: blur(8px); box-shadow: 0 4px 24px rgba(0,0,0,0.55); align-items: center; gap: 6px; flex-shrink:0;">
-                🗗 Shrink Screen
-              </button>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
-                <div>
-                  <h3 id="note-reader-title" style="font-size: 18px; font-weight: 700;">Select a Note to Read</h3>
-                  <p id="note-reader-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Click any note from your college library on the left</p>
+              <!-- Header Bar with Title, Meta, and Persistent Floating Action Toolbar -->
+              <div class="note-reader-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; gap: 12px; flex-wrap: wrap;">
+                <div style="min-width: 0; flex: 1;">
+                  <h3 id="note-reader-title" style="font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Select a Note to Read</h3>
+                  <p id="note-reader-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Click any note from your college library on the left</p>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <button id="btn-fullscreen-note" class="btn-ghost" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;" title="Toggle Full Screen View">
+                
+                <!-- Quick Navigation & Reader Control Toolbar -->
+                <div id="note-reader-controls" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; z-index: 10005;">
+                  <!-- Quick Tab Jumpers (Active when reading note or in fullscreen) -->
+                  <div class="reader-quick-tabs" style="display: flex; align-items: center; gap: 6px;">
+                    <button type="button" class="btn-ghost" onclick="if(window.appRouter) { if(window.notesModule && window.notesModule.isFullscreen) window.notesModule.toggleFullscreen(false); window.appRouter.switchTab('social'); }" style="padding: 6px 12px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Go to Social Hub">
+                      💬 Social Hub
+                    </button>
+                    <button type="button" class="btn-ghost" onclick="if(window.appRouter) { if(window.notesModule && window.notesModule.isFullscreen) window.notesModule.toggleFullscreen(false); window.appRouter.switchTab('diary'); }" style="padding: 6px 12px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Go to Personal Diary">
+                      📖 Diary
+                    </button>
+                    <button type="button" class="btn-ghost" onclick="if(window.appRouter) { if(window.notesModule && window.notesModule.isFullscreen) window.notesModule.toggleFullscreen(false); window.appRouter.switchTab('timetable'); }" style="padding: 6px 12px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Go to Timetable">
+                      📅 Timetable
+                    </button>
+                  </div>
+
+                  <!-- Fullscreen / Minimize Toggle Button -->
+                  <button id="btn-fullscreen-note" class="btn-ghost" style="padding: 6px 14px; font-size: 12px; font-weight: 700; background: rgba(139,92,246,0.22); border: 1px solid rgba(139,92,246,0.6); color: #c4b5fd; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" title="Toggle Full Screen / Normal View">
                     <span id="fullscreen-btn-icon">⛶</span>
                     <span id="fullscreen-btn-text">Full Screen</span>
                   </button>
-                  <button id="btn-close-note-reader" class="btn-ghost" style="display: none; padding: 6px 12px; font-size: 12px; border: 1px solid rgba(255,80,80,0.4); color: #ff6b6b; border-radius: var(--radius-md);" title="Close PDF/Note & Return to Library">
+
+                  <!-- Close Document Button -->
+                  <button id="btn-close-note-reader" class="btn-ghost" style="display: none; padding: 6px 14px; font-size: 12px; font-weight: 700; border: 1px solid rgba(255,80,80,0.5); background: rgba(239,68,68,0.2); color: #ff6b6b; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Close PDF/Note & Return to Library">
                     <span>✕ Close Note</span>
                   </button>
                 </div>

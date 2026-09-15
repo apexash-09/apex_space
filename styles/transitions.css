@@ -64,18 +64,7 @@
   }
 }
 
-/* College Notes Reader Fullscreen Mode */
-.note-reader-fullscreen {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 500 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  border-radius: 0 !important;
-  background: #060606 !important;
-  padding: 24px 32px !important;
-  box-shadow: none !important;
-}
+/* College Notes Reader Fullscreen Mode handled in main.css */
 
 /* Markdown Render Styling */
 .markdown-body {
