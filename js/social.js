@@ -187,6 +187,9 @@ class SocialModule {
       document.querySelectorAll('.chat-reaction-dock.active').forEach((dock) => {
         dock.classList.remove('active');
       });
+      document.querySelectorAll('.chat-msg-wrapper.reacting').forEach((w) => {
+        w.classList.remove('reacting');
+      });
     });
 
     // 6. Mobile Back to Channels
@@ -1982,6 +1985,8 @@ class SocialModule {
     const canDelete = isMe || this.isAdminUser();
     const canEdit = isMe && !msg.poll && Boolean(msg.text);
     const canPin = this.isAdminUser();
+    const isAnnouncements = this.activeRoomId === 'announcements';
+    const canReply = !(isAnnouncements && !this.isAdminUser());
     const showAdminBadge = !msg.hideAdminBadge && (msg.senderEmail === window.ADMIN_EMAIL);
 
     const timeFormatted = msg.createdAt && msg.createdAt.toDate
@@ -2011,7 +2016,7 @@ class SocialModule {
         <!-- Floating Hover Action Bar -->
         <div class="chat-msg-actions">
           <button type="button" class="chat-action-btn btn-trigger-react" title="React with emoji">😀+</button>
-          <button type="button" class="chat-action-btn btn-trigger-reply" title="Reply to this message">↩️</button>
+          ${canReply ? `<button type="button" class="chat-action-btn btn-trigger-reply" title="Reply to this message">↩️</button>` : ''}
           ${canPin ? `<button type="button" class="chat-action-btn btn-pin-chat-msg" title="Pin message">📌</button>` : ''}
           ${canDelete ? `<button type="button" class="chat-action-btn btn-delete-chat-msg" style="color: #ff4d4d;" title="Delete for Everyone">🗑️</button>` : ''}
         </div>
@@ -2063,7 +2068,7 @@ class SocialModule {
         <!-- Floating Hover Action Bar -->
         <div class="chat-msg-actions">
           <button type="button" class="chat-action-btn btn-trigger-react" title="React with emoji">😀+</button>
-          <button type="button" class="chat-action-btn btn-trigger-reply" title="Reply to this message">↩️</button>
+          ${canReply ? `<button type="button" class="chat-action-btn btn-trigger-reply" title="Reply to this message">↩️</button>` : ''}
           ${canEdit ? `<button type="button" class="chat-action-btn btn-edit-chat-msg" title="Edit message">✏️</button>` : ''}
           ${canPin ? `<button type="button" class="chat-action-btn btn-pin-chat-msg" title="Pin message">📌</button>` : ''}
           ${canDelete ? `<button type="button" class="chat-action-btn btn-delete-chat-msg" style="color: #ff4d4d;" title="Delete for Everyone">🗑️</button>` : ''}
@@ -2197,10 +2202,15 @@ class SocialModule {
     if (reactTrigger && reactionDock) {
       reactTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
+        const willBeActive = !reactionDock.classList.contains('active');
         document.querySelectorAll('.chat-reaction-dock.active').forEach(d => {
           if (d !== reactionDock) d.classList.remove('active');
         });
-        reactionDock.classList.toggle('active');
+        document.querySelectorAll('.chat-msg-wrapper.reacting').forEach(w => {
+          if (w !== div) w.classList.remove('reacting');
+        });
+        reactionDock.classList.toggle('active', willBeActive);
+        div.classList.toggle('reacting', willBeActive);
       });
 
       reactionDock.querySelectorAll('.reaction-emoji-btn').forEach(btn => {
@@ -2209,6 +2219,7 @@ class SocialModule {
           const emoji = btn.getAttribute('data-emoji');
           this.toggleReaction(msg.id, emoji);
           reactionDock.classList.remove('active');
+          div.classList.remove('reacting');
         });
       });
     }
