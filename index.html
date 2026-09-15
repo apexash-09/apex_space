@@ -233,14 +233,14 @@
             <div id="note-reader-card" class="glass-panel" style="display: flex; flex-direction: column; height: 100%; position: relative;">
 
               <!-- Header Bar with Title, Meta, and Persistent Floating Action Toolbar -->
-              <div class="note-reader-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; gap: 12px; flex-wrap: wrap;">
+              <div class="note-reader-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; gap: 12px; flex-wrap: wrap; position: relative; z-index: 100010; pointer-events: all;">
                 <div style="min-width: 0; flex: 1;">
                   <h3 id="note-reader-title" style="font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Select a Note to Read</h3>
                   <p id="note-reader-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Click any note from your college library on the left</p>
                 </div>
                 
                 <!-- Quick Navigation & Reader Control Toolbar -->
-                <div id="note-reader-controls" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; z-index: 10005;">
+                <div id="note-reader-controls" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; position: relative; z-index: 100011; pointer-events: all;">
                   <!-- Quick Tab Jumpers (Active when reading note or in fullscreen) -->
                   <div class="reader-quick-tabs" style="display: flex; align-items: center; gap: 6px;">
                     <button type="button" class="btn-ghost" onclick="if(window.appRouter) { if(window.notesModule && window.notesModule.isFullscreen) window.notesModule.toggleFullscreen(false); window.appRouter.switchTab('social'); }" style="padding: 6px 12px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Go to Social Hub">

@@ -1438,16 +1438,42 @@ select.form-control {
   margin: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  isolation: isolate !important;
 }
 
+/* Header MUST sit above iframe — give it its own stacking context */
 .note-reader-fullscreen .note-reader-header {
+  position: relative !important;
+  z-index: 100010 !important;
+  pointer-events: all !important;
+  flex-shrink: 0 !important;
   margin-bottom: 12px !important;
 }
 
+/* Every button / child inside the header is also interactive */
+.note-reader-fullscreen .note-reader-header * {
+  pointer-events: all !important;
+}
+
+/* Controls toolbar explicit layer */
+.note-reader-fullscreen #note-reader-controls {
+  position: relative !important;
+  z-index: 100011 !important;
+  pointer-events: all !important;
+}
+
+.note-reader-fullscreen #note-reader-controls * {
+  pointer-events: all !important;
+}
+
+/* Viewer (iframe wrapper) sits BELOW the header */
 .note-reader-fullscreen #note-reader-viewer {
+  position: relative !important;
+  z-index: 1 !important;
   flex: 1 !important;
-  height: calc(100vh - 85px) !important;
+  height: calc(100vh - 90px) !important;
   min-height: 0 !important;
+  pointer-events: auto !important;
 }
 
 
