@@ -93,9 +93,11 @@ class SocialModule {
     this.friendsModal = document.getElementById('modal-friend-requests');
     this.feedbackModal = document.getElementById('modal-feedback-bug');
 
-    // Friend requests state
+    // Friend requests & Blocked users state
     this.friendRequestsList = [];
     this.unsubscribeFriendRequests = null;
+    this.blockedUsersList = [];
+    this.unsubscribeBlockedUsers = null;
 
     this.init();
   }
@@ -269,6 +271,7 @@ class SocialModule {
     this.startSharedSongsListener();
     this.startPresenceSystem();
     this.startFriendRequestsListener();
+    this.startBlockedUsersListener();
   }
 
   // --- Anonymous & Custom Alias Identity System with Admin Protection ---
@@ -282,8 +285,6 @@ class SocialModule {
   isAdminUser() {
     if (this.isAdmin) return true;
     if (this.currentUser && this.currentUser.email && this.currentUser.email.toLowerCase() === window.ADMIN_EMAIL.toLowerCase()) return true;
-    const storedEmail = localStorage.getItem('apex_user_email');
-    if (storedEmail && storedEmail.toLowerCase() === window.ADMIN_EMAIL.toLowerCase()) return true;
     return false;
   }
 
@@ -701,6 +702,7 @@ class SocialModule {
     if (this.currentUser) {
       this.fetchRegisteredUsers();
       this.startFriendRequestsListener();
+      this.startBlockedUsersListener();
     }
 
     // Refresh active messages stream to update Pin/Delete admin controls
@@ -2752,6 +2754,131 @@ class SocialModule {
     if (this.friendsModal) this.friendsModal.classList.remove('active');
   }
 
+  startBlockedUsersListener() {
+    if (!window.fbDb) return;
+    if (this.unsubscribeBlockedUsers) this.unsubscribeBlockedUsers();
+
+    const myId = this.getSenderIdentity();
+
+    this.unsubscribeBlockedUsers = window.fbDb
+      .collection('blocked_users')
+      .onSnapshot((snap) => {
+        this.blockedUsersList = [];
+        snap.forEach((doc) => {
+          this.blockedUsersList.push({ id: doc.id, ...doc.data() });
+        });
+        this.renderConfirmedFriendsList();
+        this.renderDiscoverUsersList();
+      }, err => console.warn('Blocked users listen error:', err));
+  }
+
+  isUserBlocked(targetUid) {
+    const myUid = this.getSenderIdentity().uid;
+    return this.blockedUsersList.some(b => b.blockerUid === myUid && b.blockedUid === targetUid);
+  }
+
+  hasUserBlockedMe(targetUid) {
+    const myUid = this.getSenderIdentity().uid;
+    return this.blockedUsersList.some(b => b.blockerUid === targetUid && b.blockedUid === myUid);
+  }
+
+  async blockUser(targetUser) {
+    if (!targetUser || !window.fbDb) return;
+    const targetUid = targetUser.id || targetUser.uid;
+    const myId = this.getSenderIdentity();
+    
+    if (targetUid === myId.uid) {
+      alert("You cannot block yourself.");
+      return;
+    }
+
+    const targetEmail = (targetUser.email || '').toLowerCase();
+    if (targetEmail === window.ADMIN_EMAIL.toLowerCase()) {
+      alert("System Administrator cannot be blocked.");
+      return;
+    }
+
+    const confirmed = confirm(`🚫 Block ${targetUser.displayName || targetUser.name || 'this user'}?\n\nThey will not be able to send you friend requests or DMs.`);
+    if (!confirmed) return;
+
+    try {
+      await window.fbDb.collection('blocked_users').add({
+        blockerUid: myId.uid,
+        blockerEmail: (myId.email || '').toLowerCase(),
+        blockedUid: targetUid,
+        blockedEmail: targetEmail,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Remove any friend requests between the users
+      const relatedReqs = this.friendRequestsList.filter(r => 
+        (r.fromUid === myId.uid && r.toUid === targetUid) ||
+        (r.fromUid === targetUid && r.toUid === myId.uid) ||
+        (r.fromEmail && r.fromEmail.toLowerCase() === targetEmail && r.toUid === myId.uid) ||
+        (r.toEmail && r.toEmail.toLowerCase() === targetEmail && r.fromUid === myId.uid)
+      );
+      for (const req of relatedReqs) {
+        await window.fbDb.collection('friend_requests').doc(req.id).delete();
+      }
+
+      alert(`✓ User blocked.`);
+      this.renderDiscoverUsersList();
+      this.renderConfirmedFriendsList();
+    } catch (err) {
+      console.error('Block user error:', err);
+      alert('Could not block user: ' + err.message);
+    }
+  }
+
+  async unblockUser(targetUid) {
+    if (!targetUid || !window.fbDb) return;
+    const myUid = this.getSenderIdentity().uid;
+
+    const blockDoc = this.blockedUsersList.find(b => b.blockerUid === myUid && b.blockedUid === targetUid);
+    if (!blockDoc) return;
+
+    try {
+      await window.fbDb.collection('blocked_users').doc(blockDoc.id).delete();
+      alert('✓ User unblocked.');
+      this.renderDiscoverUsersList();
+      this.renderConfirmedFriendsList();
+    } catch (err) {
+      console.error('Unblock user error:', err);
+      alert('Could not unblock user: ' + err.message);
+    }
+  }
+
+  async removeFriend(friendUser) {
+    if (!friendUser || !window.fbDb) return;
+    const targetUid = friendUser.id || friendUser.uid;
+    const targetEmail = (friendUser.email || '').toLowerCase();
+    const myId = this.getSenderIdentity();
+
+    const confirmed = confirm(`❌ Remove ${friendUser.displayName || friendUser.name || 'friend'} from your friends list?`);
+    if (!confirmed) return;
+
+    try {
+      const reqDoc = this.friendRequestsList.find(r => 
+        r.status === 'accepted' && (
+          (r.fromUid === myId.uid && (r.toUid === targetUid || (targetEmail && r.toEmail === targetEmail))) ||
+          (r.toUid === myId.uid && (r.fromUid === targetUid || (targetEmail && r.fromEmail === targetEmail))) ||
+          (myId.email && r.fromEmail && r.fromEmail.toLowerCase() === myId.email.toLowerCase() && r.toUid === targetUid) ||
+          (myId.email && r.toEmail && r.toEmail.toLowerCase() === myId.email.toLowerCase() && r.fromUid === targetUid)
+        )
+      );
+
+      if (reqDoc) {
+        await window.fbDb.collection('friend_requests').doc(reqDoc.id).delete();
+      }
+      alert('✓ Friend removed.');
+      this.renderConfirmedFriendsList();
+      this.renderDiscoverUsersList();
+    } catch (err) {
+      console.error('Remove friend error:', err);
+      alert('Could not remove friend: ' + err.message);
+    }
+  }
+
   async renderDiscoverUsersList(filterQuery = '') {
     const container = document.getElementById('discover-users-list');
     if (!container || !window.fbDb) return;
@@ -2762,18 +2889,19 @@ class SocialModule {
       const myUid = myId.uid;
       const myEmail = (myId.email || '').toLowerCase();
 
-      // Find my sent requests
+      // Find my sent pending requests
       const mySentReqs = this.friendRequestsList.filter(r => r.fromUid === myUid && r.status === 'pending');
-      // Find my received requests
+      // Find my received pending requests
       const myRecvReqs = this.friendRequestsList.filter(r => 
         r.status === 'pending' &&
         (r.toUid === myUid || (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail))
       );
+      // Find accepted friendships
+      const acceptedReqs = this.friendRequestsList.filter(r => r.status === 'accepted');
 
       const allUsers = [];
       snap.forEach(doc => {
         const u = { id: doc.id, ...doc.data() };
-        // Exclude current user
         if (u.id !== myUid && (!myEmail || (u.email || '').toLowerCase() !== myEmail)) {
           allUsers.push(u);
         }
@@ -2802,19 +2930,28 @@ class SocialModule {
       filteredUsers.forEach(u => {
         const name = this.getCleanDisplayName(u.displayName || (u.email ? u.email.split('@')[0] : 'Member'));
         const uEmail = (u.email || '').toLowerCase();
+        const uUid = u.id || u.uid;
         
-        // Check if already in confirmed friends list
-        const isAlreadyFriend = (this.friendsList || []).some(f => f.uid === u.id || (uEmail && f.email && f.email.toLowerCase() === uEmail));
+        // Check if I blocked them
+        const isBlocked = this.isUserBlocked(uUid);
         
-        // Check if I sent a request
-        const isSent = mySentReqs.some(r => r.toUid === u.id || (uEmail && r.toEmail && r.toEmail.toLowerCase() === uEmail));
+        // Check if accepted friend
+        const isFriend = acceptedReqs.some(r => 
+          (r.fromUid === myUid && (r.toUid === uUid || r.toEmail === uEmail)) ||
+          (r.toUid === myUid && (r.fromUid === uUid || r.fromEmail === uEmail)) ||
+          (myEmail && r.fromEmail === myEmail && (r.toUid === uUid || r.toEmail === uEmail)) ||
+          (myEmail && r.toEmail === myEmail && (r.fromUid === uUid || r.fromEmail === uEmail))
+        );
         
-        // Check if they sent me a request
-        const incomingReq = myRecvReqs.find(r => r.fromUid === u.id || (r.fromEmail && r.fromEmail.toLowerCase() === uEmail));
+        // Check if request sent
+        const isSent = mySentReqs.some(r => r.toUid === uUid || (uEmail && r.toEmail && r.toEmail.toLowerCase() === uEmail));
+        
+        // Check if request incoming
+        const incomingReq = myRecvReqs.find(r => r.fromUid === uUid || (r.fromEmail && r.fromEmail.toLowerCase() === uEmail));
 
         const item = document.createElement('div');
         item.className = 'glass-card';
-        item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;';
+        item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-subtle);';
 
         item.innerHTML = `
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -2829,18 +2966,28 @@ class SocialModule {
               <div style="font-size: 11px; color: var(--text-dim);">${this.escapeHtml(u.email || 'Apex Member')}</div>
             </div>
           </div>
-          <div>
-            ${isAlreadyFriend ? `
-              <button type="button" class="btn-primary btn-dm-friend-direct" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">💬 Chat</button>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            ${isBlocked ? `
+              <button type="button" class="btn-ghost btn-unblock-user" style="padding: 5px 10px; font-size: 11px; color: #f87171; border: 1px solid rgba(248,113,113,0.3); border-radius: 6px;">🚫 Blocked (Unblock)</button>
+            ` : isFriend ? `
+              <button type="button" class="btn-primary btn-dm-friend-direct" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 6px;">💬 Chat</button>
+              <button type="button" class="btn-ghost btn-remove-friend-action" title="Remove Friend" style="padding: 5px 8px; font-size: 11px; color: var(--text-muted); border-radius: 6px;">✕</button>
             ` : isSent ? `
               <span class="badge badge-personal" style="padding: 5px 10px; font-size: 11px;">⏳ Sent</span>
+              <button type="button" class="btn-ghost btn-block-user-action" title="Block User" style="padding: 5px 8px; font-size: 11px; color: #ef4444; border-radius: 6px;">🚫</button>
             ` : incomingReq ? `
-              <button type="button" class="btn-primary btn-accept-direct" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">✓ Accept</button>
+              <button type="button" class="btn-primary btn-accept-direct" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 6px;">✓ Accept</button>
             ` : `
-              <button type="button" class="btn-primary btn-add-friend-action" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">➕ Add Friend</button>
+              <button type="button" class="btn-primary btn-add-friend-action" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 6px;">➕ Add Friend</button>
+              <button type="button" class="btn-ghost btn-block-user-action" title="Block User" style="padding: 5px 8px; font-size: 11px; color: #ef4444; border-radius: 6px;">🚫</button>
             `}
           </div>
         `;
+
+        const unblockBtn = item.querySelector('.btn-unblock-user');
+        if (unblockBtn) {
+          unblockBtn.addEventListener('click', () => this.unblockUser(uUid));
+        }
 
         const dmBtn = item.querySelector('.btn-dm-friend-direct');
         if (dmBtn) {
@@ -2850,11 +2997,14 @@ class SocialModule {
           });
         }
 
+        const rmBtn = item.querySelector('.btn-remove-friend-action');
+        if (rmBtn) {
+          rmBtn.addEventListener('click', () => this.removeFriend(u));
+        }
+
         const acceptBtn = item.querySelector('.btn-accept-direct');
         if (acceptBtn && incomingReq) {
-          acceptBtn.addEventListener('click', () => {
-            this.acceptFriendRequest(incomingReq);
-          });
+          acceptBtn.addEventListener('click', () => this.acceptFriendRequest(incomingReq));
         }
 
         const addBtn = item.querySelector('.btn-add-friend-action');
@@ -2865,6 +3015,11 @@ class SocialModule {
             await this.sendFriendRequestToUser(u);
             this.renderDiscoverUsersList(filterQuery);
           });
+        }
+
+        const blockBtn = item.querySelector('.btn-block-user-action');
+        if (blockBtn) {
+          blockBtn.addEventListener('click', () => this.blockUser(u));
         }
 
         container.appendChild(item);
@@ -2878,15 +3033,22 @@ class SocialModule {
   async sendFriendRequestToUser(targetUser) {
     if (!targetUser || !window.fbDb) return;
     const sender = this.getSenderIdentity();
+    const targetUid = targetUser.id || targetUser.uid;
+
+    if (this.isUserBlocked(targetUid) || this.hasUserBlockedMe(targetUid)) {
+      alert("Cannot send friend request to this user.");
+      return;
+    }
+
     const alertEl = document.getElementById('discover-users-alert');
 
     try {
       await window.fbDb.collection('friend_requests').add({
         fromUid: sender.uid,
         fromName: sender.name,
-        fromEmail: sender.email || '',
+        fromEmail: (sender.email || '').toLowerCase(),
         fromPhoto: sender.photoURL || '',
-        toUid: targetUser.id || targetUser.uid || '',
+        toUid: targetUid,
         toEmail: (targetUser.email || '').toLowerCase(),
         toHandle: targetUser.displayName || targetUser.name || '',
         status: 'pending',
@@ -2932,7 +3094,8 @@ class SocialModule {
         // Filter pending incoming requests directed to current user
         const incoming = this.friendRequestsList.filter(r => 
           r.status === 'pending' &&
-          (r.toUid === myUid || (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail))
+          (r.toUid === myUid || (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail)) &&
+          !this.isUserBlocked(r.fromUid)
         );
 
         // Update badge count
@@ -2950,6 +3113,7 @@ class SocialModule {
         }
 
         this.renderFriendRequestsUI();
+        this.renderConfirmedFriendsList();
       }, err => console.warn('Friend requests listen error:', err));
   }
 
@@ -2964,7 +3128,8 @@ class SocialModule {
 
     const incoming = this.friendRequestsList.filter(r => 
       r.status === 'pending' &&
-      (r.toUid === myUid || (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail))
+      (r.toUid === myUid || (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail)) &&
+      !this.isUserBlocked(r.fromUid)
     );
 
     if (incoming.length === 0) {
@@ -2981,6 +3146,7 @@ class SocialModule {
     incoming.forEach((req) => {
       const item = document.createElement('div');
       item.className = 'friend-request-item';
+      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-subtle);';
       item.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
           <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; overflow: hidden;">
@@ -3008,7 +3174,6 @@ class SocialModule {
     const sender = this.getSenderIdentity();
 
     try {
-      // Check if target is user's own email/handle
       if (sender.email && target.toLowerCase() === sender.email.toLowerCase()) {
         alert('You cannot send a friend request to yourself.');
         return;
@@ -3017,7 +3182,7 @@ class SocialModule {
       await window.fbDb.collection('friend_requests').add({
         fromUid: sender.uid,
         fromName: sender.name,
-        fromEmail: sender.email || '',
+        fromEmail: (sender.email || '').toLowerCase(),
         fromPhoto: sender.photoURL || '',
         toEmail: target.toLowerCase(),
         toHandle: target,
@@ -3036,21 +3201,16 @@ class SocialModule {
     if (!req || !req.id || !window.fbDb) return;
 
     try {
-      // 1. Mark request accepted
+      // Mark request accepted (adds friend to Friends list; does NOT auto-open DM)
       await window.fbDb.collection('friend_requests').doc(req.id).update({
         status: 'accepted',
         acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // 2. Automatically create/open a direct conversation
-      const otherFriend = {
-        uid: req.fromUid,
-        id: req.fromUid,
-        displayName: req.fromName,
-        email: req.fromEmail
-      };
-      await this.startDirectChatWithFriend(otherFriend);
-      this.closeFriendRequestsModal();
+      alert(`✓ Friend request accepted! ${req.fromName || 'User'} is now in your Friends list. You can chat or block them anytime from the "My Friends" tab.`);
+      this.renderFriendRequestsUI();
+      this.renderConfirmedFriendsList();
+      this.renderDiscoverUsersList();
     } catch (err) {
       console.error('Accept friend request error:', err);
       alert('Could not accept friend request: ' + err.message);
@@ -3071,38 +3231,83 @@ class SocialModule {
     if (!container) return;
     container.innerHTML = '';
 
-    if (!this.friendsList || this.friendsList.length === 0) {
+    const myId = this.getSenderIdentity();
+    const myUid = myId.uid;
+    const myEmail = (myId.email || '').toLowerCase();
+
+    // Get accepted friend requests involving current user
+    const accepted = (this.friendRequestsList || []).filter(r => 
+      r.status === 'accepted' && (
+        r.fromUid === myUid || 
+        r.toUid === myUid || 
+        (myEmail && r.fromEmail && r.fromEmail.toLowerCase() === myEmail) ||
+        (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail)
+      )
+    );
+
+    if (accepted.length === 0) {
       container.innerHTML = `
         <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
           <div style="font-size: 28px; margin-bottom: 6px;">👥</div>
           <p style="font-size: 13px; color: #fff;">No confirmed friends yet</p>
-          <p style="font-size: 11px; margin-top: 4px;">Accept friend requests to add friends to your direct list.</p>
+          <p style="font-size: 11px; margin-top: 4px;">Accept friend requests in the Requests tab or add friends in Discover Members.</p>
         </div>
       `;
       return;
     }
 
-    this.friendsList.forEach(friend => {
-      const name = this.getCleanDisplayName(friend.displayName || (friend.email ? friend.email.split('@')[0] : 'Friend'));
+    accepted.forEach(req => {
+      const isSender = req.fromUid === myUid || (myEmail && req.fromEmail && req.fromEmail.toLowerCase() === myEmail);
+      const friendUid = isSender ? req.toUid : req.fromUid;
+      const friendEmail = isSender ? req.toEmail : req.fromEmail;
+      const friendNameRaw = isSender ? (req.toHandle || 'Friend') : (req.fromName || 'Friend');
+      const friendPhoto = isSender ? '' : (req.fromPhoto || '');
+
+      // Lookup in registered users list for photo/role if available
+      const registeredFriend = (this.friendsList || []).find(u => u.id === friendUid || (friendEmail && (u.email || '').toLowerCase() === (friendEmail || '').toLowerCase()));
+      const displayName = this.getCleanDisplayName(registeredFriend ? (registeredFriend.displayName || registeredFriend.name) : friendNameRaw);
+      const photoURL = registeredFriend ? registeredFriend.photoURL : friendPhoto;
+      const role = registeredFriend ? registeredFriend.role : 'member';
+
+      const friendObj = registeredFriend || { uid: friendUid, id: friendUid, displayName: displayName, email: friendEmail, photoURL: photoURL };
+
       const item = document.createElement('div');
-      item.className = 'friend-request-item';
+      item.className = 'glass-card';
+      item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-subtle);';
+
       item.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 32px; height: 32px; min-width: 32px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; overflow: hidden;">
-            ${friend.photoURL ? `<img src="${friend.photoURL}" style="width:100%;height:100%;object-fit:cover;">` : name.charAt(0).toUpperCase()}
+          <div style="width: 34px; height: 34px; min-width: 34px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; overflow: hidden;">
+            ${photoURL ? `<img src="${photoURL}" style="width:100%;height:100%;object-fit:cover;">` : displayName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <div style="font-size: 13px; font-weight: 700; color: #fff;">${this.escapeHtml(name)}</div>
-            <div style="font-size: 10px; color: var(--text-dim);">${friend.role === 'admin' ? '👑 Admin' : '👤 Member'}</div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+              <span>${this.escapeHtml(displayName)}</span>
+              ${role === 'admin' ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 4px;">ADMIN</span>' : ''}
+            </div>
+            <div style="font-size: 10px; color: var(--text-dim);">${this.escapeHtml(friendEmail || 'Friend')}</div>
           </div>
         </div>
-        <button type="button" class="btn-primary" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 8px;">Chat 💬</button>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button type="button" class="btn-primary btn-chat-friend" style="width: auto; padding: 5px 12px; font-size: 11px; border-radius: 6px;">💬 Chat</button>
+          <button type="button" class="btn-ghost btn-block-friend" title="Block User" style="padding: 5px 8px; font-size: 11px; color: #f87171; border-radius: 6px;">🚫</button>
+          <button type="button" class="btn-ghost btn-remove-friend" title="Remove Friend (Unfriend)" style="padding: 5px 8px; font-size: 11px; color: var(--text-muted); border-radius: 6px;">✕</button>
+        </div>
       `;
 
-      item.querySelector('button').addEventListener('click', () => {
-        this.startDirectChatWithFriend(friend);
+      item.querySelector('.btn-chat-friend').addEventListener('click', () => {
+        this.startDirectChatWithFriend(friendObj);
         this.closeFriendRequestsModal();
       });
+
+      item.querySelector('.btn-block-friend').addEventListener('click', () => {
+        this.blockUser(friendObj);
+      });
+
+      item.querySelector('.btn-remove-friend').addEventListener('click', () => {
+        this.removeFriend(friendObj);
+      });
+
       container.appendChild(item);
     });
   }
@@ -3649,33 +3854,58 @@ class SocialModule {
     const container = document.getElementById('dm-friends-picker-list');
     if (!container) return;
 
-    if (!this.friendsList || this.friendsList.length === 0) {
-      container.innerHTML = '<p style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 0;">Loading registered friends...</p>';
-      try {
-        await this.fetchRegisteredUsers();
-      } catch (err) {
-        console.error('Error loading DM friends:', err);
-      }
-    }
+    const myId = this.getSenderIdentity();
+    const myUid = myId.uid;
+    const myEmail = (myId.email || '').toLowerCase();
+
+    // Get list of accepted friends
+    const acceptedReqs = (this.friendRequestsList || []).filter(r => 
+      r.status === 'accepted' && (
+        r.fromUid === myUid || 
+        r.toUid === myUid || 
+        (myEmail && r.fromEmail && r.fromEmail.toLowerCase() === myEmail) ||
+        (myEmail && r.toEmail && r.toEmail.toLowerCase() === myEmail)
+      )
+    );
+
+    const confirmedFriends = [];
+    acceptedReqs.forEach(req => {
+      const isSender = req.fromUid === myUid || (myEmail && req.fromEmail && req.fromEmail.toLowerCase() === myEmail);
+      const friendUid = isSender ? req.toUid : req.fromUid;
+      const friendEmail = isSender ? req.toEmail : req.fromEmail;
+      const friendNameRaw = isSender ? (req.toHandle || 'Friend') : (req.fromName || 'Friend');
+
+      if (this.isUserBlocked(friendUid) || this.hasUserBlockedMe(friendUid)) return;
+
+      const registered = (this.friendsList || []).find(u => u.id === friendUid || (friendEmail && (u.email || '').toLowerCase() === (friendEmail || '').toLowerCase()));
+      confirmedFriends.push(registered || {
+        uid: friendUid,
+        id: friendUid,
+        displayName: friendNameRaw,
+        email: friendEmail,
+        photoURL: ''
+      });
+    });
 
     container.innerHTML = '';
 
-    if (!this.friendsList || this.friendsList.length === 0) {
+    if (confirmedFriends.length === 0) {
       container.innerHTML = `
         <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
           <div style="font-size: 28px; margin-bottom: 6px;">👥</div>
-          <p style="font-size: 13px; color: #fff;">No other users found online yet.</p>
-          <p style="font-size: 11px; margin-top: 4px;">Share your app link with friends so they can join!</p>
+          <p style="font-size: 13px; color: #fff;">No confirmed friends to DM yet.</p>
+          <p style="font-size: 11px; margin-top: 4px;">Send or accept friend requests in the Friends modal to start chatting!</p>
         </div>
       `;
       return;
     }
 
-    // Filter by search query (name / handle / alias)
+    // Filter by search query (name / handle / email)
     const query = (searchQuery || '').toLowerCase().trim();
-    const filtered = this.friendsList.filter((friend) => {
+    const filtered = confirmedFriends.filter((friend) => {
       const name = (friend.displayName || (friend.email ? friend.email.split('@')[0] : 'friend')).toLowerCase();
-      return name.includes(query);
+      const email = (friend.email || '').toLowerCase();
+      return name.includes(query) || email.includes(query);
     });
 
     if (filtered.length === 0) {
@@ -3683,7 +3913,6 @@ class SocialModule {
         <div style="text-align: center; padding: 24px 0; color: var(--text-muted);">
           <div style="font-size: 24px; margin-bottom: 6px;">🔍</div>
           <p style="font-size: 13px; color: #fff;">No friends found matching "<strong>${this.escapeHtml(searchQuery)}</strong>"</p>
-          <p style="font-size: 11px; margin-top: 4px;">Try searching by another name or nickname.</p>
         </div>
       `;
       return;
@@ -3700,8 +3929,8 @@ class SocialModule {
       
       item.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="width: 34px; height: 34px; min-width: 34px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0;">
-            ${friendName.charAt(0).toUpperCase()}
+          <div style="width: 34px; height: 34px; min-width: 34px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; overflow: hidden;">
+            ${friend.photoURL ? `<img src="${friend.photoURL}" style="width:100%;height:100%;object-fit:cover;">` : friendName.charAt(0).toUpperCase()}
           </div>
           <div>
             <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
@@ -3709,7 +3938,7 @@ class SocialModule {
               ${isFriendAdmin ? '<span class="badge badge-project" style="font-size: 8px; padding: 1px 5px; background: #fff; color: #000; font-weight: 800;">ADMIN</span>' : ''}
             </div>
             <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
-              ${isFriendAdmin ? '👑 Verified Admin' : '👤 Apex Member • Active'}
+              ${isFriendAdmin ? '👑 Verified Admin' : '👤 Confirmed Friend'}
             </div>
           </div>
         </div>
@@ -3723,13 +3952,40 @@ class SocialModule {
 
   async startDirectChatWithFriend(friend) {
     const sender = this.getSenderIdentity();
+    const friendUid = friend.id || friend.uid;
+    const friendEmail = (friend.email || '').toLowerCase();
+
+    // 1. Block Check
+    if (this.isUserBlocked(friendUid)) {
+      alert("You have blocked this user. Unblock them first to start a chat.");
+      return;
+    }
+    if (this.hasUserBlockedMe(friendUid)) {
+      alert("Unable to start chat with this user.");
+      return;
+    }
+
+    // 2. Strict Friendship Check (Must be an accepted friend)
+    const isAcceptedFriend = (this.friendRequestsList || []).some(r => 
+      r.status === 'accepted' && (
+        (r.fromUid === sender.uid && (r.toUid === friendUid || (friendEmail && r.toEmail === friendEmail))) ||
+        (r.toUid === sender.uid && (r.fromUid === friendUid || (friendEmail && r.fromEmail === friendEmail))) ||
+        (sender.email && r.fromEmail && r.fromEmail.toLowerCase() === sender.email.toLowerCase() && (r.toUid === friendUid || r.toEmail === friendEmail)) ||
+        (sender.email && r.toEmail && r.toEmail.toLowerCase() === sender.email.toLowerCase() && (r.fromUid === friendUid || r.fromEmail === friendEmail))
+      )
+    );
+
+    if (!isAcceptedFriend) {
+      alert("🔒 Private messaging is restricted to accepted friends only. Send a friend request first!");
+      return;
+    }
 
     try {
       const existing = this.roomsList.find(r => 
         r.type === 'direct' && 
         r.members && 
         r.members.includes(sender.uid) && 
-        r.members.includes(friend.uid)
+        (r.members.includes(friendUid) || (friendEmail && r.memberEmails && r.memberEmails.includes(friendEmail)))
       );
 
       if (existing) {
@@ -3749,8 +4005,8 @@ class SocialModule {
         icon: friendName.charAt(0).toUpperCase(),
         createdBy: sender.uid,
         createdByName: sender.name,
-        members: [sender.uid, friend.uid],
-        memberEmails: [sender.email.toLowerCase(), (friend.email || '').toLowerCase()],
+        members: [sender.uid, friendUid],
+        memberEmails: [(sender.email || '').toLowerCase(), friendEmail],
         memberNames: [sender.name, friendName],
         lastMessage: 'Private conversation started',
         lastMessageSender: sender.name,

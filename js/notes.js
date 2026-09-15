@@ -23,6 +23,7 @@ class NotesModule {
     this.fullscreenIcon = document.getElementById('fullscreen-btn-icon');
     this.fullscreenText = document.getElementById('fullscreen-btn-text');
     this.closeReaderBtn = document.getElementById('btn-close-note-reader');
+    this.shrinkBtn = document.getElementById('btn-shrink-fullscreen');
 
     this.titleInput = document.getElementById('note-title');
     this.subjectInput = document.getElementById('note-subject');
@@ -60,6 +61,10 @@ class NotesModule {
 
     if (this.closeReaderBtn) {
       this.closeReaderBtn.addEventListener('click', () => this.closeReader());
+    }
+
+    if (this.shrinkBtn) {
+      this.shrinkBtn.addEventListener('click', () => this.toggleFullscreen(false));
     }
 
     // Escape Key Listener to exit full screen or close reader
@@ -103,10 +108,12 @@ class NotesModule {
       readerCard.classList.add('note-reader-fullscreen');
       if (this.fullscreenText) this.fullscreenText.innerText = 'Shrink Screen';
       if (this.fullscreenIcon) this.fullscreenIcon.innerText = '🗗';
+      if (this.shrinkBtn) { this.shrinkBtn.style.display = 'flex'; }
     } else {
       readerCard.classList.remove('note-reader-fullscreen');
       if (this.fullscreenText) this.fullscreenText.innerText = 'Full Screen';
       if (this.fullscreenIcon) this.fullscreenIcon.innerText = '⛶';
+      if (this.shrinkBtn) { this.shrinkBtn.style.display = 'none'; }
     }
   }
 
