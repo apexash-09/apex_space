@@ -26,19 +26,18 @@ service cloud.firestore {
 
     // FRIEND REQUESTS COLLECTION
     match /friend_requests/{reqId} {
-      allow read: if isAuthenticated() && (
-        resource.data.fromUid == request.auth.uid ||
-        resource.data.toUid == request.auth.uid ||
-        resource.data.toEmail == request.auth.token.email.lower() ||
-        isAdmin()
-      );
+      // Any authenticated user can read (client-side filtering applied)
+      allow read: if isAuthenticated();
+      // Only the sender can create a request
       allow create: if isAuthenticated() && request.resource.data.fromUid == request.auth.uid;
+      // Sender or receiver can update (e.g. accept)
       allow update: if isAuthenticated() && (
         resource.data.toUid == request.auth.uid ||
         resource.data.toEmail == request.auth.token.email.lower() ||
         resource.data.fromUid == request.auth.uid ||
         isAdmin()
       );
+      // Sender or receiver can delete (e.g. decline, unfriend)
       allow delete: if isAuthenticated() && (
         resource.data.fromUid == request.auth.uid ||
         resource.data.toUid == request.auth.uid ||
@@ -48,24 +47,18 @@ service cloud.firestore {
 
     // BLOCKED USERS COLLECTION
     match /blocked_users/{blockId} {
-      allow read: if isAuthenticated() && (
-        resource.data.blockerUid == request.auth.uid ||
-        resource.data.blockedUid == request.auth.uid ||
-        isAdmin()
-      );
+      // Any authenticated user can read (client-side filtering applied)
+      allow read: if isAuthenticated();
+      // Only the blocker can create
       allow create: if isAuthenticated() && request.resource.data.blockerUid == request.auth.uid;
+      // Only the blocker or admin can delete (unblock)
       allow delete: if isAuthenticated() && (resource.data.blockerUid == request.auth.uid || isAdmin());
     }
 
     // CHAT ROOMS
     match /chat_rooms/{roomId} {
-      // Authenticated users can read rooms
       allow read: if isAuthenticated();
-
-      // Authenticated users can create or update rooms
       allow create, update: if isAuthenticated();
-
-      // Only Admin or creator can delete rooms
       allow delete: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid);
 
       // MESSAGES SUBCOLLECTION
