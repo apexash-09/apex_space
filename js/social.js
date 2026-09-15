@@ -172,7 +172,17 @@ class SocialModule {
       });
     }
 
-    // 5f. Close reaction docks on outer click
+    // 5f. Admin Incognito Toggle
+    const btnAdminIncognito = document.getElementById('btn-admin-incognito');
+    if (btnAdminIncognito) {
+      this.updateAdminIncognitoUI();
+      btnAdminIncognito.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.toggleAdminIncognito();
+      });
+    }
+
+    // 5g. Close reaction docks on outer click
     document.addEventListener('click', () => {
       document.querySelectorAll('.chat-reaction-dock.active').forEach((dock) => {
         dock.classList.remove('active');
@@ -594,6 +604,10 @@ class SocialModule {
 
   toggleAdminIncognito() {
     if (!this.isAdminUser()) return;
+    if (this._isTogglingIncognito) return;
+    this._isTogglingIncognito = true;
+    setTimeout(() => { this._isTogglingIncognito = false; }, 300);
+
     const currentState = localStorage.getItem('apex_admin_incognito') === 'true';
     this.setAdminIncognito(!currentState);
   }
@@ -611,16 +625,16 @@ class SocialModule {
       if (this.isAdminUser()) {
         btn.style.display = 'inline-flex';
         if (isIncognito) {
-          btn.style.background = 'rgba(52, 199, 89, 0.2)';
-          btn.style.borderColor = '#34c759';
+          btn.style.background = 'rgba(52, 199, 89, 0.15)';
+          btn.style.borderColor = 'rgba(52, 199, 89, 0.45)';
           btn.style.color = '#34c759';
-          btn.innerHTML = '🎭 Incognito: <strong>ON</strong>';
-          btn.title = 'Incognito Mode Active: messages you send will NOT show the ADMIN badge';
+          btn.innerHTML = '🎭 Incognito: <strong style="color: #34c759;">ON</strong> <span style="font-size: 10px; opacity: 0.8; margin-left: 2px;">(Click to Turn OFF)</span>';
+          btn.title = 'Incognito Mode ACTIVE: messages you send will NOT show the ADMIN badge';
         } else {
-          btn.style.background = 'transparent';
-          btn.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+          btn.style.background = 'rgba(255, 255, 255, 0.05)';
+          btn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
           btn.style.color = 'var(--text-muted)';
-          btn.innerHTML = '🎭 Incognito: <strong>OFF</strong>';
+          btn.innerHTML = '🎭 Incognito: <strong>OFF</strong> <span style="font-size: 10px; opacity: 0.8; margin-left: 2px;">(Click to Turn ON)</span>';
           btn.title = 'Incognito Mode OFF: your messages will display the ADMIN badge';
         }
       } else {
