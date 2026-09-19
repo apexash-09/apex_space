@@ -493,6 +493,10 @@ class SocialModule {
       }
     }
 
+    if (window.authManager && window.authManager.updateCollegeEmailBoxUI) {
+      window.authManager.updateCollegeEmailBoxUI();
+    }
+
     if (this.profileModal) this.profileModal.classList.add('active');
   }
 

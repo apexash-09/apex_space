@@ -154,6 +154,7 @@ class AuthManager {
       alert(`🎉 Verification Successful!\n\nYour account is now verified with ${cleanEmail}. Your Verified Student Badge (@${collegeDomain}) and College Leaderboards are active!`);
 
       this.renderAuthenticatedUI(this.currentUser);
+      this.updateCollegeEmailBoxUI();
       if (window.competitionModule && window.competitionModule.loadLeaderboard) {
         window.competitionModule.loadLeaderboard();
       }
@@ -166,6 +167,66 @@ class AuthManager {
         errorEl.style.display = 'block';
       }
     }
+  }
+
+  updateCollegeEmailBoxUI() {
+    const box = document.getElementById('profile-college-email-box');
+    if (!box) return;
+
+    const storedEmail = localStorage.getItem('apex_college_email');
+    const storedDomain = localStorage.getItem('apex_college_domain');
+    
+    const authProfile = this.userProfile;
+    const isVerified = storedEmail || (authProfile && (authProfile.isVerifiedEdu || authProfile.collegeEmail));
+    const activeEmail = storedEmail || (authProfile && authProfile.collegeEmail) || '';
+    const activeDomain = storedDomain || (authProfile && authProfile.collegeDomain) || (activeEmail.includes('@') ? activeEmail.split('@')[1] : '');
+
+    if (isVerified && activeEmail) {
+      box.style.background = 'rgba(0, 230, 118, 0.12)';
+      box.style.border = '1px solid rgba(0, 230, 118, 0.4)';
+      box.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 11px; font-weight: 700; color: #00e676; text-transform: uppercase; letter-spacing: 0.5px;">🎓 Verified College Account</span>
+          <span style="font-size: 10px; padding: 3px 8px; border-radius: 10px; background: rgba(0,230,118,0.25); color: #00e676; border: 1px solid rgba(0,230,118,0.5); font-weight: 800;">✅ VERIFIED</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">${this.escapeHtml(activeEmail)}</div>
+            <div style="font-size: 11px; color: #a5d6a7; margin-top: 3px;">Badge: <strong>🎓 Verified Student (@${this.escapeHtml(activeDomain)})</strong></div>
+          </div>
+          <button type="button" id="btn-change-college-email" class="btn-ghost" style="padding: 4px 10px; font-size: 10px; opacity: 0.8; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; white-space: nowrap;">Change Email</button>
+        </div>
+      `;
+
+      const changeBtn = box.querySelector('#btn-change-college-email');
+      if (changeBtn) {
+        changeBtn.addEventListener('click', () => {
+          this.renderDefaultCollegeEmailBox(box, activeEmail);
+        });
+      }
+    } else {
+      this.renderDefaultCollegeEmailBox(box, activeEmail);
+    }
+  }
+
+  renderDefaultCollegeEmailBox(box, currentEmail) {
+    box.style.background = 'rgba(0, 230, 118, 0.08)';
+    box.style.border = '1px solid rgba(0, 230, 118, 0.25)';
+    box.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span style="font-size: 11px; font-weight: 700; color: #00e676; text-transform: uppercase; letter-spacing: 0.5px;">🎓 Verify College Email</span>
+        <span id="profile-current-email-badge" style="font-size: 10px; padding: 2px 6px; border-radius: 10px; background: rgba(255,255,255,0.1); color: #fff;">Account Email</span>
+      </div>
+      <div style="font-size: 12px; color: var(--text-main); line-height: 1.4; margin-bottom: 10px;">
+        Signed in with personal Gmail? Enter your official college address (<code>.edu.in</code>, <code>.edu</code>, or <code>.ac.in</code>) and click <strong>Send OTP</strong> to verify your account & activate your <strong>Verified Student Badge</strong>!
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <input type="email" id="input-switch-college-email" class="form-control" placeholder="e.g. student@college.edu.in" value="${this.escapeHtml(currentEmail || '')}" style="flex: 1; font-size: 12px; padding: 8px 12px;">
+        <button type="button" id="btn-switch-college-email" class="btn-primary" style="width: auto; padding: 8px 16px; font-size: 11px; white-space: nowrap; border-radius: var(--radius-pill);">
+          <span>🎓 Send OTP</span>
+        </button>
+      </div>
+    `;
   }
 
   isEduEmail(email) {
@@ -541,6 +602,8 @@ class AuthManager {
         });
       }
     }
+
+    this.updateCollegeEmailBoxUI();
   }
 
   renderUnauthenticatedUI() {
