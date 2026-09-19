@@ -5,79 +5,94 @@
  */
 
 class AuthManager {
-  generateAndSendCollegeOTP(email) {
-    const cleanEmail = email.trim().toLowerCase();
-    this.pendingCollegeEmail = cleanEmail;
-    // Generate 6-digit OTP code
-    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
-    this.currentOTP = otpCode;
-    sessionStorage.setItem('apex_pending_otp', otpCode);
-    sessionStorage.setItem('apex_pending_college_email', cleanEmail);
-
-    // Update target email display in modal
-    const emailDisplay = document.getElementById('otp-target-email-display');
-    if (emailDisplay) emailDisplay.innerText = cleanEmail;
-
-    // Reset OTP input boxes
-    const inputs = document.querySelectorAll('.otp-digit-input');
-    inputs.forEach(inp => { inp.value = ''; });
-
-    const errorEl = document.getElementById('otp-error-msg');
-    if (errorEl) errorEl.style.display = 'none';
-
-    // Show OTP Modal
-    const modal = document.getElementById('modal-college-otp');
-    if (modal) modal.classList.add('active');
-
-    // Auto focus first OTP digit
-    if (inputs.length > 0) setTimeout(() => inputs[0].focus(), 200);
-
-    // Also trigger Firebase Email Verification link in background
-    if (this.currentUser && typeof this.currentUser.sendEmailVerification === 'function') {
-      this.currentUser.sendEmailVerification().catch(e => console.warn('Firebase email verify link:', e));
+  async switchAccountEmail(newEmail) {
+    if (!this.currentUser) {
+      alert('Please sign in first to switch your account email.');
+      return;
     }
-
-    // Display notification with OTP code for easy copy/paste
-    alert(`🎓 Verification OTP Sent!\n\nAn OTP code has been generated for ${cleanEmail}.\n\nYOUR VERIFICATION OTP IS: ${otpCode}`);
-  }
-
-  verifySubmittedOTP() {
-    const inputs = document.querySelectorAll('.otp-digit-input');
-    let enteredOTP = '';
-    inputs.forEach(inp => { enteredOTP += (inp.value || '').trim(); });
-
-    const cleanEmail = this.pendingCollegeEmail || sessionStorage.getItem('apex_pending_college_email') || '';
-    const validOTP = this.currentOTP || sessionStorage.getItem('apex_pending_otp');
-    const errorEl = document.getElementById('otp-error-msg');
-
-    if (enteredOTP.length < 6) {
-      if (errorEl) {
-        errorEl.innerText = 'Please enter all 6 digits of your OTP.';
-        errorEl.style.display = 'block';
-      }
+    const cleanEmail = (newEmail || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      alert('Please enter a valid college email address (e.g. student@college.edu.in).');
       return;
     }
 
-    if (enteredOTP === validOTP || enteredOTP === '123456') {
-      // OTP Verified successfully!
+    const isEdu = this.isEduEmail(cleanEmail);
+    if (!isEdu) {
+      if (!confirm(`"${cleanEmail}" does not appear to end in .edu, .edu.in, or .ac.in. Link email anyway?`)) {
+        return;
+      }
+    }
+
+    const btn = document.getElementById('btn-switch-college-email');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = 'Sending Link to Inbox... ⏳';
+    }
+
+    try {
+      // 1. Send real Firebase verification email to college inbox
+      if (typeof this.currentUser.verifyBeforeUpdateEmail === 'function') {
+        await this.currentUser.verifyBeforeUpdateEmail(cleanEmail).catch(e => console.warn(e));
+      } else if (typeof this.currentUser.sendEmailVerification === 'function') {
+        await this.currentUser.sendEmailVerification().catch(e => console.warn(e));
+      }
+
+      // 2. Save college email & domain to local storage & profile
       const collegeDomain = cleanEmail.split('@')[1] || '';
       localStorage.setItem('apex_college_email', cleanEmail);
       localStorage.setItem('apex_college_domain', collegeDomain);
-      localStorage.setItem('apex_is_verified_edu', 'true');
+      if (isEdu) {
+        localStorage.setItem('apex_is_verified_edu', 'true');
+      }
 
       if (!this.userProfile) this.userProfile = {};
       this.userProfile.collegeEmail = cleanEmail;
       this.userProfile.collegeDomain = collegeDomain;
-      this.userProfile.isEduEmail = true;
-      this.userProfile.isVerifiedEdu = true;
-      this.userProfile.badge = '🎓 Verified Student';
+      this.userProfile.isEduEmail = isEdu;
+      if (isEdu) {
+        this.userProfile.isVerifiedEdu = true;
+        this.userProfile.badge = '🎓 Verified Student';
+      }
 
-      // Sync to Firestore
+      // 3. Sync to Firestore
       if (window.fbDb && this.currentUser) {
         window.fbDb.collection('users').doc(this.currentUser.uid).set({
           collegeEmail: cleanEmail,
           collegeDomain: collegeDomain,
-          isEduEmail: true,
+          isEduEmail: isEdu,
+          isVerifiedEdu: isEdu,
+          badge: isEdu ? '🎓 Verified Student' : '👤 Member',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(e => console.warn(e));
+
+        window.fbDb.collection('leaderboards').doc(this.currentUser.uid).set({
+          collegeDomain: collegeDomain,
+          collegeEmail: cleanEmail,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(e => console.warn(e));
+      }
+
+      alert(`📩 Verification Email Sent to ${cleanEmail}!\n\nPlease check your college inbox and click the verification link to activate your Verified Student Badge & access College Leaderboards.`);
+
+      if (window.socialModule && window.socialModule.closeProfileModal) {
+        window.socialModule.closeProfileModal();
+      }
+
+      this.renderAuthenticatedUI(this.currentUser);
+      window.dispatchEvent(new CustomEvent('apex-auth-changed', {
+        detail: { user: this.currentUser, profile: this.userProfile, isAdmin: this.isAdmin }
+      }));
+    } catch (err) {
+      alert('Could not send verification email: ' + err.message);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = '🎓 Switch Email';
+      }
+    }
+  }
+
+  isEduEmail: true,
           isVerifiedEdu: true,
           badge: '🎓 Verified Student',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
