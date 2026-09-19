@@ -314,6 +314,17 @@ class CompetitionModule {
       return true;
     });
 
+    let collegeBannerHtml = '';
+    if (this.currentFilter === 'college') {
+      const domainDisplay = myDomain ? `@${myDomain}` : 'All Educational Domains';
+      collegeBannerHtml = `
+        <div style="padding: 10px 16px; background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.3); border-radius: 14px; margin-bottom: 14px; font-size: 13px; color: #a5d6a7; display: flex; align-items: center; justify-content: space-between;">
+          <span>🎓 Filtered College Leaderboard: <strong>${domainDisplay}</strong></span>
+          <span style="font-size: 11px; opacity: 0.8;">(${list.length} verified student${list.length === 1 ? '' : 's'})</span>
+        </div>
+      `;
+    }
+
     if (list.length === 0) {
       container.innerHTML = `
         <div style="text-align:center; padding:50px 20px; color:var(--text-muted); background:rgba(255,255,255,0.02); border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
@@ -326,7 +337,7 @@ class CompetitionModule {
       return;
     }
 
-    container.innerHTML = list.map((item, index) => {
+    container.innerHTML = collegeBannerHtml + list.map((item, index) => {
       const rank = index + 1;
       let badge = `#${rank}`;
       if (rank === 1) badge = '🥇 1st';
