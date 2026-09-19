@@ -58,7 +58,7 @@ class AuthManager {
       window.fbAuth.sendSignInLinkToEmail(cleanEmail, actionCodeSettings).catch(e => console.warn('Firebase link send note:', e));
     }
 
-    // Send direct OTP email via FormSubmit AJAX API
+    // Send OTP email via FormSubmit AJAX (delivers to college inbox / junk)
     const formSubmitEndpoint = 'https://formsubmit.co/ajax/305e89f8fb2693441fbadbd7c6258c08';
     fetch(formSubmitEndpoint, {
       method: 'POST',
@@ -66,7 +66,7 @@ class AuthManager {
       body: JSON.stringify({
         _email: cleanEmail,
         _subject: `⚡ Apex Space Verification Code: ${this.currentOTP}`,
-        message: `Hello Student (${cleanEmail}),\n\nYour 6-digit verification code for Apex Space is: ${this.currentOTP}\n\nEnter this code in the app to activate your Verified Student Badge (@${cleanEmail.split('@')[1] || ''}) and unlock your College Leaderboard.\n\nThank you,\nApex Space Team`
+        message: `Hello Student (${cleanEmail}),\n\nYour 6-digit verification code for Apex Space is: ${this.currentOTP}\n\nEnter this code in the app to activate your Verified Student Badge and unlock your College Leaderboard.\n\nNote: This email may land in your Junk/Spam folder — check there if you don't see it.\n\nThank you,\nApex Space Team`
       })
     }).catch(e => console.warn('FormSubmit dispatch note:', e));
 
