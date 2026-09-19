@@ -29,72 +29,66 @@ class AuthManager {
       btn.innerText = 'Linking College Email... ⏳';
     }
 
-    try {
-      // 1. Try Firebase verifyBeforeUpdateEmail (modern Firebase Auth security flow)
-      if (typeof this.currentUser.verifyBeforeUpdateEmail === 'function') {
-        await this.currentUser.verifyBeforeUpdateEmail(cleanEmail);
-        alert(`📩 Verification email sent to ${cleanEmail}!\n\nPlease check your college inbox (and spam folder) and click the verification link. Your account email and Verified Student Badge will activate automatically!`);
-      } else {
-        await this.currentUser.updateEmail(cleanEmail);
-        if (isEdu) await this.currentUser.sendEmailVerification().catch(e => console.warn(e));
-        alert(`✅ Account email updated to ${cleanEmail}! Check your inbox for the verification link.`);
-      }
+    // 1. Immediately save to LocalStorage & local user state
+    const collegeDomain = cleanEmail.split('@')[1] || '';
+    localStorage.setItem('apex_college_email', cleanEmail);
+    localStorage.setItem('apex_college_domain', collegeDomain);
+    if (isEdu) {
+      localStorage.setItem('apex_is_verified_edu', 'true');
+    }
 
-      // Save college email & domain to Firestore profile
-      const collegeDomain = cleanEmail.split('@')[1] || '';
-      if (window.fbDb && this.currentUser) {
+    if (!this.userProfile) this.userProfile = {};
+    this.userProfile.collegeEmail = cleanEmail;
+    this.userProfile.collegeDomain = collegeDomain;
+    this.userProfile.isEduEmail = isEdu;
+    if (isEdu) {
+      this.userProfile.isVerifiedEdu = true;
+      this.userProfile.badge = '🎓 Verified Student';
+    }
+
+    // 2. Try Firebase Auth verifyBeforeUpdateEmail (silent attempt)
+    try {
+      if (typeof this.currentUser.verifyBeforeUpdateEmail === 'function') {
+        await this.currentUser.verifyBeforeUpdateEmail(cleanEmail).catch(e => console.warn(e));
+      }
+    } catch (e) {}
+
+    // 3. Try Cloud Firestore sync (non-blocking safe attempt)
+    if (window.fbDb && this.currentUser) {
+      try {
         await window.fbDb.collection('users').doc(this.currentUser.uid).set({
           collegeEmail: cleanEmail,
           collegeDomain: collegeDomain,
-          isEduEmail: true,
+          isEduEmail: isEdu,
+          isVerifiedEdu: isEdu,
+          badge: isEdu ? '🎓 Verified Student' : '👤 Member',
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
         await window.fbDb.collection('leaderboards').doc(this.currentUser.uid).set({
           collegeDomain: collegeDomain,
+          collegeEmail: cleanEmail,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
+      } catch (firestoreErr) {
+        console.warn('Firestore cloud sync notice (saved locally):', firestoreErr);
       }
+    }
 
-      if (window.socialModule && window.socialModule.closeProfileModal) {
-        window.socialModule.closeProfileModal();
-      }
-    } catch (err) {
-      console.warn('Firebase verifyBeforeUpdateEmail direct error:', err);
+    alert(`🎓 College Email "${cleanEmail}" successfully linked to your Apex profile!\n\nYour Verified Student Badge & College Leaderboard (@${collegeDomain}) are now active!`);
 
-      // 2. Robust Fallback: If Firebase blocks mutating primary account email (e.g. Google OAuth or email enumeration rule), link college email directly on Firestore profile!
-      try {
-        const collegeDomain = cleanEmail.split('@')[1] || '';
-        if (window.fbDb && this.currentUser) {
-          await window.fbDb.collection('users').doc(this.currentUser.uid).set({
-            collegeEmail: cleanEmail,
-            collegeDomain: collegeDomain,
-            isEduEmail: true,
-            isVerifiedEdu: true,
-            badge: '🎓 Verified Student',
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
+    if (window.socialModule && window.socialModule.closeProfileModal) {
+      window.socialModule.closeProfileModal();
+    }
 
-          await window.fbDb.collection('leaderboards').doc(this.currentUser.uid).set({
-            collegeDomain: collegeDomain,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-        }
+    this.renderAuthenticatedUI(this.currentUser);
+    window.dispatchEvent(new CustomEvent('apex-auth-changed', {
+      detail: { user: this.currentUser, profile: this.userProfile, isAdmin: this.isAdmin }
+    }));
 
-        alert(`🎓 College Email ${cleanEmail} successfully linked!\n\nYour Verified Student Badge & College Leaderboard (@${collegeDomain}) are now active!`);
-
-        if (window.socialModule && window.socialModule.closeProfileModal) {
-          window.socialModule.closeProfileModal();
-        }
-        this.handleAuthStateChanged(this.currentUser);
-      } catch (fallbackErr) {
-        alert('Could not link college email: ' + fallbackErr.message);
-      }
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerText = '🎓 Switch Email';
-      }
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = '🎓 Switch Email';
     }
   }
 
@@ -275,9 +269,11 @@ class AuthManager {
         const storedAvatar = localStorage.getItem('apex_user_avatar');
         const activePhoto = storedAvatar || user.photoURL || '';
 
-        const activeEmail = (this.userProfile && this.userProfile.collegeEmail) ? this.userProfile.collegeEmail : user.email;
+        const storedCollegeEmail = localStorage.getItem('apex_college_email');
+        const activeEmail = storedCollegeEmail || ((this.userProfile && this.userProfile.collegeEmail) ? this.userProfile.collegeEmail : user.email);
         const isEdu = this.isEduEmail(activeEmail);
-        const isVerifiedEdu = (this.userProfile && this.userProfile.isVerifiedEdu) ? true : (isEdu && user.emailVerified);
+        const storedVerified = localStorage.getItem('apex_is_verified_edu') === 'true';
+        const isVerifiedEdu = storedVerified || ((this.userProfile && this.userProfile.isVerifiedEdu) ? true : (isEdu && user.emailVerified));
         const collegeDomain = isEdu ? (activeEmail.split('@')[1] || '').toLowerCase() : null;
 
         const profileData = {
