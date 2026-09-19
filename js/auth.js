@@ -100,63 +100,6 @@ class AuthManager {
     }
   }
 
-  isEduEmail: true,
-          isVerifiedEdu: true,
-          badge: '🎓 Verified Student',
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).catch(e => console.warn(e));
-
-        window.fbDb.collection('leaderboards').doc(this.currentUser.uid).set({
-          collegeDomain: collegeDomain,
-          collegeEmail: cleanEmail,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).catch(e => console.warn(e));
-      }
-
-      // Close OTP modal
-      const modal = document.getElementById('modal-college-otp');
-      if (modal) modal.classList.remove('active');
-
-      if (window.socialModule && window.socialModule.closeProfileModal) {
-        window.socialModule.closeProfileModal();
-      }
-
-      alert(`🎉 OTP Verified Successfully!\n\nYour account is now verified with ${cleanEmail}. Your Verified Student Badge (@${collegeDomain}) is active!`);
-
-      this.renderAuthenticatedUI(this.currentUser);
-      window.dispatchEvent(new CustomEvent('apex-auth-changed', {
-        detail: { user: this.currentUser, profile: this.userProfile, isAdmin: this.isAdmin }
-      }));
-    } else {
-      if (errorEl) {
-        errorEl.innerText = '❌ Invalid OTP code. Please check your code and try again.';
-        errorEl.style.display = 'block';
-      }
-    }
-  }
-
-  async switchAccountEmail(newEmail) {
-    if (!this.currentUser) {
-      alert('Please sign in first to switch your account email.');
-      return;
-    }
-    const cleanEmail = (newEmail || '').trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      alert('Please enter a valid college email address (e.g. student@college.edu.in).');
-      return;
-    }
-
-    const isEdu = this.isEduEmail(cleanEmail);
-    if (!isEdu) {
-      if (!confirm(`"${cleanEmail}" does not appear to end in .edu, .edu.in, or .ac.in. Send OTP anyway?`)) {
-        return;
-      }
-    }
-
-    // Trigger 6-Digit OTP Verification Flow
-    this.generateAndSendCollegeOTP(cleanEmail);
-  }
-
   isEduEmail(email) {
     if (!email) return false;
     const domain = (email.split('@')[1] || '').toLowerCase();

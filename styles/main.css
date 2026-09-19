@@ -481,6 +481,29 @@ html, body {
   gap: 16px;
 }
 
+#header-user-profile {
+  display: flex;
+  align-items: center;
+}
+
+#header-user-profile .btn-primary {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+#header-user-profile .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4) !important;
+}
+
+.user-header-pill {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.user-header-pill:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
 .streak-badge-mini {
   display: flex;
   align-items: center;
