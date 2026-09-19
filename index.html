@@ -78,6 +78,16 @@
           <span>Social Hub</span>
         </div>
 
+        <div class="nav-item" data-tab="courses">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+          <span>Courses</span>
+        </div>
+
+        <div class="nav-item" data-tab="library">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          <span>Library</span>
+        </div>
+
         <div class="nav-item" data-tab="worklog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
           <span>Work Log</span>
@@ -728,6 +738,34 @@
 
           <!-- Leaderboard Container -->
           <div id="competition-leaderboard-list">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+      <!-- COURSES VIEW -->
+        <section id="view-courses" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Courses & Skill Tracks</h2>
+              <p class="section-desc">Free & recommended course tracks to build engineering skills. Save any course directly to your Buy List!</p>
+            </div>
+          </div>
+
+          <div id="courses-grid-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- DIGITAL LIBRARY VIEW -->
+        <section id="view-library" class="view-panel">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Digital Library & Textbooks</h2>
+              <p class="section-desc">Open access academic textbooks, research papers, & computer science references.</p>
+            </div>
+          </div>
+
+          <div id="library-books-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;">
             <!-- Dynamically populated -->
           </div>
         </section>
@@ -1408,6 +1446,8 @@
   </div>
 
   <script src="js/competition.js"></script>
+  <script src="js/courses.js"></script>
+  <script src="js/library.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
