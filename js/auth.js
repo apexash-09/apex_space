@@ -182,6 +182,9 @@ class AuthManager {
   }
 
   init() {
+    // Render default unauthenticated UI immediately to prevent invisible header gap on page load
+    this.renderUnauthenticatedUI();
+
     // 1. Listen for Firebase Auth State Changes
     if (window.fbAuth) {
       window.fbAuth.onAuthStateChanged((user) => this.handleAuthStateChanged(user));
