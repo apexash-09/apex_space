@@ -40,6 +40,12 @@ class AuthManager {
     // Generate 6-digit random OTP
     this.currentOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
+    const btn = document.getElementById('btn-switch-college-email');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = 'Sending OTP... ⏳';
+    }
+
     localStorage.setItem('apex_pending_college_email', cleanEmail);
     localStorage.setItem('apex_pending_otp_hash', btoa(this.currentOTP));
 
@@ -61,6 +67,11 @@ class AuthManager {
         message: `Hello Student,\n\nYour 6-digit verification code for Apex Space is: ${this.currentOTP}\n\nEnter this code in the app to activate your Verified Student Badge (@${cleanEmail.split('@')[1] || ''}) and unlock your College Leaderboard.\n\nThank you,\nApex Space Team`
       })
     }).catch(e => console.warn('FormSubmit dispatch note:', e));
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = '🎓 Send OTP';
+    }
 
     // Open 6-Digit OTP Modal
     const modal = document.getElementById('modal-college-otp');
