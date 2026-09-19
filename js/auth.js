@@ -5,6 +5,14 @@
  */
 
 class AuthManager {
+  get headerContainer() {
+    return document.getElementById('header-user-profile') || this.headerUserContainer;
+  }
+
+  get sidebarContainer() {
+    return document.getElementById('sidebar-user-card') || this.sidebarUserContainer;
+  }
+
   async switchAccountEmail(newEmail) {
     if (!this.currentUser) {
       alert('Please sign in first to switch your account email.');
@@ -449,8 +457,8 @@ class AuthManager {
     }
 
     // Top Header User Widget (Clean, rounded, non-stretched pill)
-    if (this.headerUserContainer) {
-      this.headerUserContainer.innerHTML = `
+    if (headerContainer) {
+      headerContainer.innerHTML = `
         <div class="user-header-pill" style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); border-radius: 20px; cursor: pointer;" title="Click to customize profile avatar & handle">
           <div style="width: 26px; height: 26px; min-width: 26px; border-radius: 50%; background: #ffffff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; overflow: hidden; flex-shrink: 0;">
             ${photoURL ? `<img src="${photoURL}" style="width: 100%; height: 100%; object-fit: cover;">` : initial}
@@ -461,7 +469,7 @@ class AuthManager {
         </div>
       `;
 
-      const pill = this.headerUserContainer.querySelector('.user-header-pill');
+      const pill = headerContainer.querySelector('.user-header-pill');
       if (pill) {
         pill.addEventListener('click', (e) => {
           if (e.target.id === 'btn-header-signout') return;
@@ -469,7 +477,7 @@ class AuthManager {
         });
       }
 
-      const signOutBtn = this.headerUserContainer.querySelector('#btn-header-signout');
+      const signOutBtn = headerContainer.querySelector('#btn-header-signout');
       if (signOutBtn) {
         signOutBtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -479,8 +487,8 @@ class AuthManager {
     }
 
     // Sidebar footer user card
-    if (this.sidebarUserContainer) {
-      this.sidebarUserContainer.innerHTML = `
+    if (sidebarContainer) {
+      sidebarContainer.innerHTML = `
         <div style="padding: 10px 12px; border-radius: var(--radius-md); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;" title="Customize Profile">
           <div class="sidebar-user-click-target" style="display: flex; align-items: center; gap: 10px; overflow: hidden; flex: 1;">
             <div style="width: 28px; height: 28px; min-width: 28px; border-radius: 50%; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; overflow: hidden; flex-shrink: 0;">
@@ -495,14 +503,14 @@ class AuthManager {
         </div>
       `;
 
-      const target = this.sidebarUserContainer.querySelector('.sidebar-user-click-target');
+      const target = sidebarContainer.querySelector('.sidebar-user-click-target');
       if (target) {
         target.addEventListener('click', () => {
           if (window.socialModule) window.socialModule.openProfileModal();
         });
       }
 
-      const sidebarSignOut = this.sidebarUserContainer.querySelector('#btn-sidebar-signout');
+      const sidebarSignOut = sidebarContainer.querySelector('#btn-sidebar-signout');
       if (sidebarSignOut) {
         sidebarSignOut.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -513,22 +521,38 @@ class AuthManager {
   }
 
   renderUnauthenticatedUI() {
-    if (this.headerUserContainer) {
-      this.headerUserContainer.innerHTML = `
-        <button id="btn-open-auth-modal" class="btn-primary" style="width: auto; padding: 6px 14px; font-size: 13px;">
+    const headerContainer = this.headerContainer;
+    if (headerContainer) {
+      headerContainer.innerHTML = `
+        <button id="btn-open-auth-modal" class="btn-primary" style="width: auto; padding: 6px 16px; font-size: 13px; border-radius: 20px; background: #ffffff; color: #000000; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(255,255,255,0.25);" title="Connect Cloud / Sign In">
           <span>☁️ Connect Cloud</span>
         </button>
       `;
+      const btnHeader = headerContainer.querySelector('#btn-open-auth-modal');
+      if (btnHeader) {
+        btnHeader.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.openAuthModal();
+        });
+      }
     }
 
-    if (this.sidebarUserContainer) {
-      this.sidebarUserContainer.innerHTML = `
-        <button id="btn-open-auth-sidebar" class="btn-ghost" style="width: 100%; font-size: 12px;">
+    const sidebarContainer = this.sidebarContainer;
+    if (sidebarContainer) {
+      sidebarContainer.innerHTML = `
+        <button id="btn-open-auth-sidebar" class="btn-ghost" style="width: 100%; font-size: 12px; border-radius: 14px; cursor: pointer; padding: 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: #fff;">
           <span>☁️ Sign In / Join Cloud</span>
         </button>
       `;
-      const btn = this.sidebarUserContainer.querySelector('#btn-open-auth-sidebar');
-      if (btn) btn.addEventListener('click', () => this.openAuthModal());
+      const btnSidebar = sidebarContainer.querySelector('#btn-open-auth-sidebar');
+      if (btnSidebar) {
+        btnSidebar.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.openAuthModal();
+        });
+      }
     }
   }
 
