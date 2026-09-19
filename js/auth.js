@@ -240,11 +240,17 @@ class AuthManager {
       btn.addEventListener('click', async () => {
         try {
           const provider = new firebase.auth.GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: 'select_account' });
           await window.fbAuth.signInWithPopup(provider);
           this.closeAuthModal();
         } catch (err) {
           console.error('Google Sign-In error:', err);
-          alert(this.formatAuthError(err.message));
+          if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            await window.fbAuth.signInWithRedirect(provider).catch(e => alert(this.formatAuthError(e.message)));
+          } else if (err.code !== 'auth/popup-closed-by-user') {
+            alert(this.formatAuthError(err.message));
+          }
         }
       });
     });
@@ -307,48 +313,52 @@ class AuthManager {
     });
   }
 
-  async handleAuthStateChanged(user) {
+  handleAuthStateChanged(user) {
     this.currentUser = user;
 
     if (user) {
       const emailLower = (user.email || '').toLowerCase();
       this.isAdmin = emailLower === window.ADMIN_EMAIL.toLowerCase();
 
-      // Sync user profile to Firestore
-      try {
-        const userRef = window.fbDb.collection('users').doc(user.uid);
-        const storedAvatar = localStorage.getItem('apex_user_avatar');
-        const activePhoto = storedAvatar || user.photoURL || '';
+      const storedAvatar = localStorage.getItem('apex_user_avatar');
+      const activePhoto = storedAvatar || user.photoURL || '';
 
-        const storedCollegeEmail = localStorage.getItem('apex_college_email');
-        const activeEmail = storedCollegeEmail || ((this.userProfile && this.userProfile.collegeEmail) ? this.userProfile.collegeEmail : user.email);
-        const isEdu = this.isEduEmail(activeEmail);
-        const storedVerified = localStorage.getItem('apex_is_verified_edu') === 'true';
-        const isVerifiedEdu = storedVerified || ((this.userProfile && this.userProfile.isVerifiedEdu) ? true : (isEdu && user.emailVerified));
-        const collegeDomain = isEdu ? (activeEmail.split('@')[1] || '').toLowerCase() : null;
+      const storedCollegeEmail = localStorage.getItem('apex_college_email');
+      const activeEmail = storedCollegeEmail || ((this.userProfile && this.userProfile.collegeEmail) ? this.userProfile.collegeEmail : user.email);
+      const isEdu = this.isEduEmail(activeEmail);
+      const storedVerified = localStorage.getItem('apex_is_verified_edu') === 'true';
+      const isVerifiedEdu = storedVerified || ((this.userProfile && this.userProfile.isVerifiedEdu) ? true : (isEdu && user.emailVerified));
+      const collegeDomain = isEdu ? (activeEmail.split('@')[1] || '').toLowerCase() : null;
 
-        const profileData = {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || user.email.split('@')[0],
-          photoURL: activePhoto,
-          role: this.isAdmin ? 'admin' : 'member',
-          isAdmin: this.isAdmin,
-          isEduEmail: isEdu,
-          emailVerified: !!user.emailVerified,
-          isVerifiedEdu: isVerifiedEdu,
-          collegeDomain: collegeDomain,
-          badge: isVerifiedEdu ? '🎓 Verified Student' : (this.isAdmin ? '👑 Admin' : '👤 Member'),
-          lastActive: firebase.firestore.FieldValue.serverTimestamp()
-        };
+      const profileData = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || user.email.split('@')[0],
+        photoURL: activePhoto,
+        role: this.isAdmin ? 'admin' : 'member',
+        isAdmin: this.isAdmin,
+        isEduEmail: isEdu,
+        emailVerified: !!user.emailVerified,
+        isVerifiedEdu: isVerifiedEdu,
+        collegeDomain: collegeDomain,
+        badge: isVerifiedEdu ? '🎓 Verified Student' : (this.isAdmin ? '👑 Admin' : '👤 Member')
+      };
 
-        await userRef.set(profileData, { merge: true });
-        this.userProfile = profileData;
-      } catch (err) {
-        console.warn('Could not sync user profile to Firestore:', err);
-      }
+      this.userProfile = profileData;
 
+      // 1. Immediately render authenticated UI & close auth modal
       this.renderAuthenticatedUI(user);
+      this.closeAuthModal();
+
+      // 2. Non-blocking Firestore user profile sync in background
+      if (window.fbDb) {
+        window.fbDb.collection('users').doc(user.uid).set({
+          ...profileData,
+          lastActive: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(err => {
+          console.warn('Non-blocking Firestore user sync note:', err);
+        });
+      }
     } else {
       this.userProfile = null;
       this.isAdmin = false;
