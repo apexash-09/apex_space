@@ -2,7 +2,7 @@
  * Apex Personal Dashboard - Competition Hub & Leaderboard Module
  * Allows students to link GitHub, LeetCode, and CodeChef profiles,
  * fetches public statistics, calculates Apex Score, and renders
- * Global vs College-Only Leaderboards via Firestore & LocalStorage.
+ * Global vs College-Only Leaderboards strictly with REAL registered users.
  */
 
 class CompetitionModule {
@@ -122,7 +122,6 @@ class CompetitionModule {
 
     let lcSolved = 0;
     let ghRepos = 0;
-    let ccRating = 0;
 
     // 1. Fetch LeetCode stats
     if (leetcode) {
@@ -158,7 +157,7 @@ class CompetitionModule {
       streakDays = window.streakModule.currentStreak;
     }
 
-    // Calculate Apex Score: (LeetCode Solved * 10) + (GitHub Repos * 15) + (Streak * 20)
+    // Calculate Apex Score
     const totalScore = (lcSolved * 10) + (ghRepos * 15) + (streakDays * 20);
 
     const profileData = {
@@ -178,7 +177,7 @@ class CompetitionModule {
     const currentUser = window.fbAuth ? window.fbAuth.currentUser : null;
     const userHandle = localStorage.getItem('apex_chat_handle') || (currentUser ? currentUser.displayName : 'Anonymous Student');
     const userEmail = currentUser ? currentUser.email : '';
-    const userDomain = userEmail.includes('@') ? userEmail.split('@')[1] : 'apex.edu';
+    const userDomain = userEmail.includes('@') ? userEmail.split('@')[1] : '';
 
     if (window.fbDb && currentUser) {
       try {
@@ -225,59 +224,44 @@ class CompetitionModule {
         snapshot.forEach(doc => items.push(doc.data()));
         this.leaderboardData = items;
       } catch (err) {
-        console.warn('Firestore leaderboard load error, using local data:', err);
-        this.leaderboardData = this.getFallbackData();
+        console.warn('Firestore leaderboard query error:', err);
+        this.leaderboardData = this.getRealLocalUserOnly();
       }
     } else {
-      this.leaderboardData = this.getFallbackData();
+      this.leaderboardData = this.getRealLocalUserOnly();
+    }
+
+    // If Firestore is empty, include local user profile if linked
+    if (this.leaderboardData.length === 0 && (this.userProfiles.github || this.userProfiles.leetcode)) {
+      this.leaderboardData = this.getRealLocalUserOnly();
     }
 
     this.renderLeaderboard();
   }
 
-  getFallbackData() {
-    const currentUser = window.fbAuth ? window.fbAuth.currentUser : null;
-    const userHandle = localStorage.getItem('apex_chat_handle') || 'You (Active User)';
+  getRealLocalUserOnly() {
     const myProfile = this.userProfiles;
+    if (!myProfile.github && !myProfile.leetcode && !myProfile.score) return [];
+
+    const currentUser = window.fbAuth ? window.fbAuth.currentUser : null;
+    const userHandle = localStorage.getItem('apex_chat_handle') || (currentUser ? currentUser.displayName : 'You');
+    const userEmail = currentUser ? currentUser.email : '';
+    const userDomain = userEmail.includes('@') ? userEmail.split('@')[1] : '';
 
     return [
       {
-        uid: 'user_me',
+        uid: currentUser ? currentUser.uid : 'user_me',
         displayName: userHandle,
-        email: currentUser ? currentUser.email : 'user@mit.edu',
-        collegeDomain: 'mit.edu',
-        solvedCount: myProfile.solvedCount || 42,
-        repos: myProfile.repos || 8,
-        streakDays: myProfile.streakDays || 7,
-        score: myProfile.score || 680,
+        email: userEmail,
+        collegeDomain: userDomain,
+        solvedCount: myProfile.solvedCount || 0,
+        repos: myProfile.repos || 0,
+        streakDays: myProfile.streakDays || 0,
+        score: myProfile.score || 0,
         github: myProfile.github,
         leetcode: myProfile.leetcode
-      },
-      {
-        uid: 'user_2',
-        displayName: 'Aarav Sharma',
-        email: 'aarav@stanford.edu',
-        collegeDomain: 'stanford.edu',
-        solvedCount: 185,
-        repos: 14,
-        streakDays: 14,
-        score: 2340,
-        github: 'aaravcode',
-        leetcode: 'aarav_sharma'
-      },
-      {
-        uid: 'user_3',
-        displayName: 'Priya Patel',
-        email: 'priya@mit.edu',
-        collegeDomain: 'mit.edu',
-        solvedCount: 120,
-        repos: 11,
-        streakDays: 10,
-        score: 1565,
-        github: 'priyapatel',
-        leetcode: 'priya_p'
       }
-    ].sort((a, b) => b.score - a.score);
+    ];
   }
 
   renderLeaderboard() {
@@ -285,7 +269,7 @@ class CompetitionModule {
     if (!container) return;
 
     const currentUser = window.fbAuth ? window.fbAuth.currentUser : null;
-    const myEmail = currentUser ? currentUser.email : 'user@mit.edu';
+    const myEmail = currentUser ? currentUser.email : '';
     const myDomain = myEmail.includes('@') ? myEmail.split('@')[1] : '';
 
     const list = this.leaderboardData.filter(item => {
@@ -297,7 +281,14 @@ class CompetitionModule {
     });
 
     if (list.length === 0) {
-      container.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-muted);">No members ranked in this view yet. Click "Link Profiles" to rank!</div>`;
+      container.innerHTML = `
+        <div style="text-align:center; padding:50px 20px; color:var(--text-muted); background:rgba(255,255,255,0.02); border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
+          <div style="font-size:36px; margin-bottom:10px;">🏆</div>
+          <h4 style="font-size:16px; font-weight:700; color:#fff; margin-bottom:6px;">No Ranked Profiles Yet</h4>
+          <p style="font-size:13px; max-width:400px; margin:0 auto 16px auto; line-height:1.5;">Be the first to join the Leaderboard! Click <strong>"Link Profiles"</strong> above to sync your GitHub and LeetCode stats.</p>
+          <button class="btn-primary" onclick="window.competitionModule.openProfileModal()" style="width:auto; display:inline-block; padding:8px 20px;">🔗 Link Your Profiles</button>
+        </div>
+      `;
       return;
     }
 
@@ -309,7 +300,7 @@ class CompetitionModule {
       if (rank === 3) badge = '🥉 3rd';
 
       const initial = (item.displayName || 'U').charAt(0).toUpperCase();
-      const domain = item.collegeDomain || 'college.edu';
+      const domain = item.collegeDomain || '';
       const isEdu = domain.includes('.edu') || domain.includes('.ac.');
 
       return `
