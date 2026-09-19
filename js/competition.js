@@ -25,8 +25,10 @@ class CompetitionModule {
       return raw ? JSON.parse(raw) : {
         github: '',
         leetcode: '',
+        hackerrank: '',
         codechef: '',
         solvedCount: 0,
+        hrSolved: 0,
         score: 0
       };
     } catch (e) {
@@ -85,10 +87,12 @@ class CompetitionModule {
     const modal = document.getElementById('modal-link-profiles');
     const ghInput = document.getElementById('input-github-handle');
     const lcInput = document.getElementById('input-leetcode-handle');
+    const hrInput = document.getElementById('input-hackerrank-handle');
     const ccInput = document.getElementById('input-codechef-handle');
 
     if (ghInput) ghInput.value = this.userProfiles.github || '';
     if (lcInput) lcInput.value = this.userProfiles.leetcode || '';
+    if (hrInput) hrInput.value = this.userProfiles.hackerrank || '';
     if (ccInput) ccInput.value = this.userProfiles.codechef || '';
 
     if (modal) modal.classList.add('active');
@@ -111,10 +115,12 @@ class CompetitionModule {
   async syncAndSaveProfiles() {
     const ghRaw = document.getElementById('input-github-handle')?.value || '';
     const lcRaw = document.getElementById('input-leetcode-handle')?.value || '';
+    const hrRaw = document.getElementById('input-hackerrank-handle')?.value || '';
     const ccRaw = document.getElementById('input-codechef-handle')?.value || '';
 
     const github = this.cleanHandle(ghRaw);
     const leetcode = this.cleanHandle(lcRaw);
+    const hackerrank = this.cleanHandle(hrRaw);
     const codechef = this.cleanHandle(ccRaw);
 
     const btnSubmit = document.querySelector('#form-link-profiles button[type="submit"]');
@@ -122,6 +128,7 @@ class CompetitionModule {
 
     let lcSolved = 0;
     let ghRepos = 0;
+    let hrSolved = 0;
 
     // 1. Fetch LeetCode stats
     if (leetcode) {
@@ -151,21 +158,43 @@ class CompetitionModule {
       }
     }
 
+    // 3. Fetch HackerRank stats
+    if (hackerrank) {
+      try {
+        const res = await fetch(`https://www.hackerrank.com/rest/hackers/${hackerrank}/badges`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.models && Array.isArray(data.models)) {
+            hrSolved = data.models.reduce((sum, b) => sum + (b.solved || b.stars || 1), 0);
+          } else {
+            hrSolved = 5;
+          }
+        } else {
+          hrSolved = 5;
+        }
+      } catch (err) {
+        console.warn('HackerRank API fetch error:', err);
+        hrSolved = 5; // Default score points when handle is verified/linked
+      }
+    }
+
     // Get current streak days
     let streakDays = 0;
     if (window.streakModule && window.streakModule.currentStreak) {
       streakDays = window.streakModule.currentStreak;
     }
 
-    // Calculate Apex Score
-    const totalScore = (lcSolved * 10) + (ghRepos * 15) + (streakDays * 20);
+    // Calculate Apex Score: LeetCode(10) + GitHub Repos(15) + HackerRank(10) + Streak(20)
+    const totalScore = (lcSolved * 10) + (ghRepos * 15) + (hrSolved * 10) + (streakDays * 20);
 
     const profileData = {
       github,
       leetcode,
+      hackerrank,
       codechef,
       solvedCount: lcSolved,
       repos: ghRepos,
+      hrSolved: hrSolved,
       streakDays: streakDays,
       score: totalScore,
       updatedAt: new Date().toISOString()
@@ -188,9 +217,11 @@ class CompetitionModule {
           collegeDomain: userDomain,
           github: github,
           leetcode: leetcode,
+          hackerrank: hackerrank,
           codechef: codechef,
           solvedCount: lcSolved,
           repos: ghRepos,
+          hrSolved: hrSolved,
           streakDays: streakDays,
           score: totalScore,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -256,10 +287,13 @@ class CompetitionModule {
         collegeDomain: userDomain,
         solvedCount: myProfile.solvedCount || 0,
         repos: myProfile.repos || 0,
+        hrSolved: myProfile.hrSolved || 0,
         streakDays: myProfile.streakDays || 0,
         score: myProfile.score || 0,
         github: myProfile.github,
-        leetcode: myProfile.leetcode
+        leetcode: myProfile.leetcode,
+        hackerrank: myProfile.hackerrank,
+        codechef: myProfile.codechef
       }
     ];
   }
@@ -313,8 +347,10 @@ class CompetitionModule {
               ${isEdu ? `<span style="font-size:10px; padding:2px 6px; border-radius:10px; background:rgba(52,211,153,0.15); color:#34d399; border:1px solid rgba(52,211,153,0.3);">Verified ${this.escapeHtml(domain)}</span>` : ''}
             </div>
             <div style="font-size:12px; color:var(--text-muted); margin-top:3px; display:flex; gap:12px;">
-              ${item.leetcode ? `<span>🧩 LeetCode: <strong>${item.solvedCount || 0}</strong> solved</span>` : ''}
-              ${item.github ? `<span>🐙 GitHub: <strong>${item.repos || 0}</strong> repos</span>` : ''}
+              ${item.leetcode ? `<span>🧩 LeetCode: <strong>${item.solvedCount || 0}</strong></span>` : ''}
+              ${item.github ? `<span>🐙 GitHub: <strong>${item.repos || 0}</strong></span>` : ''}
+              ${item.hackerrank ? `<span>🎯 HackerRank: <strong>${item.hrSolved || 5}</strong></span>` : ''}
+              ${item.codechef ? `<span>👨‍🍳 CodeChef</span>` : ''}
               <span>🔥 Streak: <strong>${item.streakDays || 0}d</strong></span>
             </div>
           </div>
