@@ -5,6 +5,74 @@
  */
 
 class AuthManager {
+  async switchAccountEmail(newEmail) {
+    if (!this.currentUser) {
+      alert('Please sign in first to switch your account email.');
+      return;
+    }
+    const cleanEmail = (newEmail || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+
+    const isEdu = this.isEduEmail(cleanEmail);
+    if (!isEdu) {
+      if (!confirm(`"${cleanEmail}" does not appear to end in .edu, .edu.in, or .ac.in. Switch account email anyway?`)) {
+        return;
+      }
+    }
+
+    const btn = document.getElementById('btn-switch-college-email');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = 'Updating Email... ⏳';
+    }
+
+    try {
+      await this.currentUser.updateEmail(cleanEmail);
+      if (isEdu) {
+        await this.currentUser.sendEmailVerification().catch(err => console.warn('Verification email error:', err));
+        alert(`✅ Account email updated to ${cleanEmail}!\n\nA verification link was sent to your college inbox. Please verify your email to activate your Verified Student Badge & College Leaderboards.`);
+      } else {
+        alert(`✅ Account email successfully updated to ${cleanEmail}!`);
+      }
+      this.closeAuthModal();
+      if (window.socialModule && window.socialModule.closeProfileModal) {
+        window.socialModule.closeProfileModal();
+      }
+      this.handleAuthStateChanged(this.currentUser);
+    } catch (err) {
+      console.error('Switch email error:', err);
+      if (err.code === 'auth/requires-recent-login') {
+        const pass = prompt('For security, please enter your account password to confirm switching email:');
+        if (pass) {
+          try {
+            const cred = firebase.auth.EmailAuthProvider.credential(this.currentUser.email, pass);
+            await this.currentUser.reauthenticateWithCredential(cred);
+            await this.currentUser.updateEmail(cleanEmail);
+            if (isEdu) {
+              await this.currentUser.sendEmailVerification().catch(e => console.warn(e));
+              alert(`✅ Account email updated to ${cleanEmail}! A verification link was sent to your inbox.`);
+            } else {
+              alert(`✅ Account email updated to ${cleanEmail}!`);
+            }
+            this.handleAuthStateChanged(this.currentUser);
+          } catch (reAuthErr) {
+            alert('Password re-authentication failed: ' + reAuthErr.message);
+          }
+        }
+      } else {
+        alert('Could not update email: ' + err.message);
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = '🎓 Switch Email';
+      }
+    }
+  }
+
   isEduEmail(email) {
     if (!email) return false;
     const domain = (email.split('@')[1] || '').toLowerCase();
@@ -156,10 +224,15 @@ class AuthManager {
       btn.addEventListener('click', () => this.closeAuthModal());
     });
 
-    // 7. Open Auth Modal Triggers
+    // 7. Open Auth Modal & Switch Email Triggers
     document.addEventListener('click', (e) => {
       if (e.target && e.target.closest('#btn-open-auth-modal')) {
         this.openAuthModal();
+      }
+      if (e.target && e.target.closest('#btn-switch-college-email')) {
+        const input = document.getElementById('input-switch-college-email');
+        const email = input ? input.value : '';
+        this.switchAccountEmail(email);
       }
     });
   }

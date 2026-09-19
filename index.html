@@ -1185,11 +1185,20 @@
         <div id="preset-avatars-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;"></div>
       </div>
 
-      <!-- College Email Verification Notice -->
-      <div id="profile-college-email-box" style="margin-bottom: 16px; padding: 12px; background: rgba(0, 230, 118, 0.08); border: 1px solid rgba(0, 230, 118, 0.25); border-radius: var(--radius-md);">
-        <div style="font-size: 11px; font-weight: 700; color: #00e676; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">🎓 College Email Verification</div>
-        <div style="font-size: 12px; color: var(--text-main); line-height: 1.4;">
-          Register with a <strong>.edu.in</strong>, <strong>.edu</strong>, or <strong>.ac.in</strong> email during Sign-Up to automatically receive your <strong>Verified Student Badge</strong> & access College Leaderboards.
+      <!-- College Email Verification & Switcher Box -->
+      <div id="profile-college-email-box" style="margin-bottom: 16px; padding: 14px; background: rgba(0, 230, 118, 0.08); border: 1px solid rgba(0, 230, 118, 0.25); border-radius: var(--radius-md);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 11px; font-weight: 700; color: #00e676; text-transform: uppercase; letter-spacing: 0.5px;">🎓 Switch to College Email</span>
+          <span id="profile-current-email-badge" style="font-size: 10px; padding: 2px 6px; border-radius: 10px; background: rgba(255,255,255,0.1); color: #fff;">Account Email</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-main); line-height: 1.4; margin-bottom: 10px;">
+          Signed in with personal Gmail? Switch your account email to your official college address (<code>.edu.in</code>, <code>.edu</code>, or <code>.ac.in</code>) to receive a verification link & activate your <strong>Verified Student Badge</strong>!
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="email" id="input-switch-college-email" class="form-control" placeholder="e.g. student@college.edu.in" style="flex: 1; font-size: 12px; padding: 8px 12px;">
+          <button type="button" id="btn-switch-college-email" class="btn-primary" style="width: auto; padding: 8px 16px; font-size: 11px; white-space: nowrap; border-radius: var(--radius-pill);">
+            <span>🎓 Switch Email</span>
+          </button>
         </div>
       </div>
 
