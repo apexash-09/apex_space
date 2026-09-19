@@ -58,22 +58,22 @@ class CoursesModule {
     container.innerHTML = this.courses.map(course => {
       const isSaved = this.savedItems.has(course.id);
       return `
-        <div class="glass-panel" style="padding: 18px; border-radius: var(--radius-card); display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border-subtle);">
+        <div class="glass-panel" style="padding: 22px; border-radius: var(--radius-card); display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border-subtle); transition: var(--transition-smooth);">
           <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-size: 11px; padding: 3px 8px; border-radius: 12px; background: rgba(255,255,255,0.08); color: var(--text-muted); font-weight: 600;">${course.tag}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 11px; padding: 4px 12px; border-radius: 20px; background: rgba(255,255,255,0.08); color: var(--text-muted); font-weight: 600;">${course.tag}</span>
               <span style="font-size: 13px; font-weight: 800; color: ${course.price === 0 ? '#34d399' : '#ffffff'};">${course.priceLabel}</span>
             </div>
             <h3 style="font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 6px; line-height: 1.4;">${course.title}</h3>
-            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px; display: flex; gap: 12px;">
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px; display: flex; gap: 12px;">
               <span>🏛️ ${course.provider}</span>
               <span>⭐ ${course.rating}</span>
               <span>⏱️ ${course.duration}</span>
             </div>
           </div>
-          <div style="display: flex; gap: 8px; margin-top: 12px;">
-            <a href="${course.url}" target="_blank" class="btn-ghost" style="flex: 1; text-align: center; text-decoration: none; padding: 8px; font-size: 12px; font-weight: 600;">Explore</a>
-            <button onclick="window.coursesModule.saveToBuyList(window.coursesModule.courses.find(c => c.id === '${course.id}'))" class="${isSaved ? 'btn-ghost' : 'btn-primary'}" style="flex: 1; padding: 8px; font-size: 12px; justify-content: center; ${isSaved ? 'color:#34d399; border-color:rgba(52,211,153,0.4);' : ''}">
+          <div style="display: flex; gap: 10px; margin-top: 14px;">
+            <a href="${course.url}" target="_blank" class="btn-ghost" style="flex: 1; text-align: center; text-decoration: none; padding: 10px 14px; font-size: 12px; font-weight: 600; border-radius: var(--radius-pill);">Explore</a>
+            <button onclick="window.coursesModule.saveToBuyList(window.coursesModule.courses.find(c => c.id === '${course.id}'))" class="${isSaved ? 'btn-ghost' : 'btn-primary'}" style="flex: 1; padding: 10px 14px; font-size: 12px; justify-content: center; border-radius: var(--radius-pill); ${isSaved ? 'color:#34d399; border-color:rgba(52,211,153,0.4);' : ''}">
               ${isSaved ? '✅ Saved' : '🛒 Save to Buy List'}
             </button>
           </div>
