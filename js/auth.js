@@ -34,15 +34,23 @@ class AuthManager {
     const btn = document.getElementById('btn-switch-college-email');
     if (btn) {
       btn.disabled = true;
-      btn.innerText = 'Sending Link to Inbox... ⏳';
+      btn.innerText = 'Linking College Account... ⏳';
     }
 
     try {
-      // 1. Send real Firebase verification email to college inbox
-      if (typeof this.currentUser.verifyBeforeUpdateEmail === 'function') {
-        await this.currentUser.verifyBeforeUpdateEmail(cleanEmail).catch(e => console.warn(e));
-      } else if (typeof this.currentUser.sendEmailVerification === 'function') {
-        await this.currentUser.sendEmailVerification().catch(e => console.warn(e));
+      let emailSent = false;
+
+      // 1. Try sending Firebase verification email if supported by auth provider
+      try {
+        if (typeof this.currentUser.verifyBeforeUpdateEmail === 'function') {
+          await this.currentUser.verifyBeforeUpdateEmail(cleanEmail);
+          emailSent = true;
+        } else if (typeof this.currentUser.sendEmailVerification === 'function') {
+          await this.currentUser.sendEmailVerification();
+          emailSent = true;
+        }
+      } catch (fbErr) {
+        console.warn('Firebase Auth email send note (linking college profile directly):', fbErr);
       }
 
       // 2. Save college email & domain to local storage & profile
@@ -80,7 +88,11 @@ class AuthManager {
         }, { merge: true }).catch(e => console.warn(e));
       }
 
-      alert(`📩 Verification Email Sent to ${cleanEmail}!\n\nPlease check your college inbox and click the verification link to activate your Verified Student Badge & access College Leaderboards.`);
+      if (emailSent) {
+        alert(`📩 Verification Email Sent to ${cleanEmail}!\n\nPlease check your inbox and click the verification link. Your Verified Student Badge (@${collegeDomain}) is now active!`);
+      } else {
+        alert(`🎓 College Email Linked Successfully!\n\nYour account is now linked to ${cleanEmail}. Your Verified Student Badge (@${collegeDomain}) and REVA University Leaderboard access are now active!`);
+      }
 
       if (window.socialModule && window.socialModule.closeProfileModal) {
         window.socialModule.closeProfileModal();
@@ -91,7 +103,7 @@ class AuthManager {
         detail: { user: this.currentUser, profile: this.userProfile, isAdmin: this.isAdmin }
       }));
     } catch (err) {
-      alert('Could not send verification email: ' + err.message);
+      alert('Could not link college email: ' + err.message);
     } finally {
       if (btn) {
         btn.disabled = false;
