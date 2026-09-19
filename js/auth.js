@@ -52,6 +52,16 @@ class AuthManager {
       window.fbAuth.sendSignInLinkToEmail(cleanEmail, actionCodeSettings).catch(e => console.warn('Firebase link send note:', e));
     }
 
+    // Send direct OTP email via FormSubmit AJAX API
+    fetch('https://formsubmit.co/ajax/' + cleanEmail, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        _subject: `⚡ Apex Space Verification Code: ${this.currentOTP}`,
+        message: `Hello Student,\n\nYour 6-digit verification code for Apex Space is: ${this.currentOTP}\n\nEnter this code in the app to activate your Verified Student Badge (@${cleanEmail.split('@')[1] || ''}) and unlock your College Leaderboard.\n\nThank you,\nApex Space Team`
+      })
+    }).catch(e => console.warn('FormSubmit dispatch note:', e));
+
     // Open 6-Digit OTP Modal
     const modal = document.getElementById('modal-college-otp');
     const targetDisplay = document.getElementById('otp-target-email-display');
