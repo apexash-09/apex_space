@@ -376,6 +376,8 @@ class AuthManager {
   }
 
   renderAuthenticatedUI(user) {
+    const headerContainer = this.headerContainer;
+    const sidebarContainer = this.sidebarContainer;
     const displayName = user.displayName || user.email.split('@')[0];
     const initial = (displayName.charAt(0) || 'U').toUpperCase();
     const storedAvatar = localStorage.getItem('apex_user_avatar');
