@@ -5,6 +5,18 @@
  */
 
 class ApexAIModule {
+  sanitizePII(text) {
+    if (!text || typeof text !== 'string') return text;
+    let sanitized = text;
+    // 1. Redact Email addresses
+    sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[REDACTED_EMAIL]');
+    // 2. Redact 10+ digit phone numbers
+    sanitized = sanitized.replace(/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[REDACTED_PHONE]');
+    // 3. Redact Credit Card / 16-digit sequences
+    sanitized = sanitized.replace(/\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g, '[REDACTED_CARD]');
+    return sanitized;
+  }
+
   constructor() {
     this.apiKey = localStorage.getItem('apex_gemini_api_key') || "";
     this.isOpen = false;
@@ -174,7 +186,8 @@ class ApexAIModule {
       if (!text) {
         promptText = "Give me 3 inspiring journal prompts to reflect on my day.";
       } else {
-        promptText = `Here is my journal entry for today:\n"${text}"\n\nPlease give me thoughtful reflection insights, key takeaways, and motivating advice.`;
+        const sanitizedText = this.sanitizePII(text);
+        promptText = `Here is my journal entry for today (Privacy Sanitized):\n"${sanitizedText}"\n\nPlease give me thoughtful reflection insights, key takeaways, and motivating advice.`;
       }
     } else if (type === 'notes') {
       const activeNoteMeta = document.getElementById('note-reader-title');
@@ -243,7 +256,10 @@ class ApexAIModule {
 Your mission is to help the user excel in their studies, software projects, college subjects, personal diary reflections, and daily habits.
 Keep answers structured, elegant, concise, and formatted in clear markdown with bullet points where helpful.`;
 
-    // Construct conversation history for Gemini
+    // Sanitize user query and context for Privacy Safeguards
+    const sanitizedQuery = this.sanitizePII(userQuery);
+
+    // Construct conversation history for Gemini with PII sanitization
     const contents = [];
 
     // Include recent context
@@ -251,14 +267,14 @@ Keep answers structured, elegant, concise, and formatted in clear markdown with 
     recentMessages.forEach((m) => {
       contents.push({
         role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.text }]
+        parts: [{ text: this.sanitizePII(m.text) }]
       });
     });
 
-    // Add current user query with system instructions
+    // Add current user query with privacy-aware system instructions
     contents.push({
       role: 'user',
-      parts: [{ text: `${systemPrompt}\n\nUser request: ${userQuery}` }]
+      parts: [{ text: `${systemPrompt}\n\nUser request (Privacy Filtered): ${sanitizedQuery}` }]
     });
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;

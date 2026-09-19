@@ -5,6 +5,22 @@
  */
 
 class AuthManager {
+  isEduEmail(email) {
+    if (!email) return false;
+    const domain = (email.split('@')[1] || '').toLowerCase();
+    return domain.endsWith('.edu.in') || domain.endsWith('.edu') || domain.endsWith('.ac.in') || domain.includes('.edu.') || domain.includes('.ac.');
+  }
+
+  async resendEmailVerification() {
+    if (!this.currentUser) return;
+    try {
+      await this.currentUser.sendEmailVerification();
+      alert(`✅ Verification email sent to ${this.currentUser.email}! Please check your inbox and spam folder.`);
+    } catch (err) {
+      alert(`⚠️ Could not resend email: ${err.message}`);
+    }
+  }
+
   constructor() {
     this.currentUser = null;
     this.userProfile = null;
@@ -96,8 +112,14 @@ class AuthManager {
           submitBtn.innerText = 'Creating Account...';
 
           const userCredential = await window.fbAuth.createUserWithEmailAndPassword(email, password);
-          if (name && userCredential.user) {
-            await userCredential.user.updateProfile({ displayName: name });
+          if (userCredential.user) {
+            if (name) {
+              await userCredential.user.updateProfile({ displayName: name });
+            }
+            if (this.isEduEmail(email)) {
+              await userCredential.user.sendEmailVerification().catch(err => console.warn('Verification email error:', err));
+              alert(`🎓 Welcome to Apex Space! A verification link was sent to ${email}. Please check your college email inbox to activate your Verified Student Badge.`);
+            }
           }
           this.closeAuthModal();
         } catch (err) {
@@ -155,6 +177,10 @@ class AuthManager {
         const storedAvatar = localStorage.getItem('apex_user_avatar');
         const activePhoto = storedAvatar || user.photoURL || '';
 
+        const isEdu = this.isEduEmail(user.email);
+        const isVerifiedEdu = isEdu && user.emailVerified;
+        const collegeDomain = isEdu ? (user.email.split('@')[1] || '').toLowerCase() : null;
+
         const profileData = {
           uid: user.uid,
           email: user.email,
@@ -162,6 +188,11 @@ class AuthManager {
           photoURL: activePhoto,
           role: this.isAdmin ? 'admin' : 'member',
           isAdmin: this.isAdmin,
+          isEduEmail: isEdu,
+          emailVerified: !!user.emailVerified,
+          isVerifiedEdu: isVerifiedEdu,
+          collegeDomain: collegeDomain,
+          badge: isVerifiedEdu ? '🎓 Verified Student' : (this.isAdmin ? '👑 Admin' : '👤 Member'),
           lastActive: firebase.firestore.FieldValue.serverTimestamp()
         };
 
@@ -194,6 +225,34 @@ class AuthManager {
     const storedAvatar = localStorage.getItem('apex_user_avatar');
     const photoURL = storedAvatar || user.photoURL || '';
 
+    // Render Educational Verification Banner if email is .edu.in / .edu / .ac.in but unverified
+    let eduBanner = document.getElementById('apex-edu-verification-banner');
+    const isEdu = this.isEduEmail(user.email);
+    const isVerifiedEdu = isEdu && user.emailVerified;
+
+    if (isEdu && !user.emailVerified) {
+      if (!eduBanner) {
+        eduBanner = document.createElement('div');
+        eduBanner.id = 'apex-edu-verification-banner';
+        eduBanner.style.cssText = 'background: rgba(255, 171, 0, 0.15); border: 1px solid rgba(255, 171, 0, 0.4); padding: 8px 16px; font-size: 12px; color: #ffd54f; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-radius: 8px; margin: 10px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);';
+        const mainContent = document.querySelector('.main-content') || document.body;
+        mainContent.insertBefore(eduBanner, mainContent.firstChild);
+      }
+      eduBanner.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span>🎓</span>
+          <span><strong>College Email Verification Required:</strong> A verification link was sent to <u>${this.escapeHtml(user.email)}</u>. Verify your inbox to activate your <strong>Verified Student Badge</strong> & access College Leaderboards.</span>
+        </div>
+        <button id="btn-resend-verification-link" class="btn-ghost" style="padding: 4px 10px; font-size: 11px; background: rgba(255,171,0,0.25); color: #fff; border: 1px solid rgba(255,171,0,0.5); border-radius: 6px; white-space: nowrap; cursor: pointer;">📩 Resend Link</button>
+      `;
+      const btnResend = eduBanner.querySelector('#btn-resend-verification-link');
+      if (btnResend) {
+        btnResend.addEventListener('click', () => this.resendEmailVerification());
+      }
+    } else if (eduBanner) {
+      eduBanner.remove();
+    }
+
     // Top Header User Widget (Clean, rounded, non-stretched pill)
     if (this.headerUserContainer) {
       this.headerUserContainer.innerHTML = `
@@ -202,7 +261,7 @@ class AuthManager {
             ${photoURL ? `<img src="${photoURL}" style="width: 100%; height: 100%; object-fit: cover;">` : initial}
           </div>
           <span style="font-size: 13px; font-weight: 600; color: #fff; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${this.escapeHtml(displayName)}</span>
-          ${this.isAdmin ? '<span class="badge badge-project" style="font-size: 8px; padding: 2px 5px; background: #ffffff; color: #000000; font-weight: 800;">ADMIN</span>' : ''}
+          ${isVerifiedEdu ? '<span class="badge" style="font-size: 8px; padding: 2px 5px; background: #00e676; color: #000000; font-weight: 800;" title="Verified College Student">🎓 VERIFIED</span>' : (this.isAdmin ? '<span class="badge badge-project" style="font-size: 8px; padding: 2px 5px; background: #ffffff; color: #000000; font-weight: 800;">ADMIN</span>' : '')}
           <button id="btn-header-signout" class="btn-ghost" style="padding: 3px 8px; font-size: 11px; border-radius: 12px; margin-left: 2px; line-height: 1; border: 1px solid rgba(255,255,255,0.25);" title="Sign Out">Sign out</button>
         </div>
       `;
