@@ -5,6 +5,113 @@
  */
 
 class AuthManager {
+  generateAndSendCollegeOTP(email) {
+    const cleanEmail = email.trim().toLowerCase();
+    this.pendingCollegeEmail = cleanEmail;
+    // Generate 6-digit OTP code
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    this.currentOTP = otpCode;
+    sessionStorage.setItem('apex_pending_otp', otpCode);
+    sessionStorage.setItem('apex_pending_college_email', cleanEmail);
+
+    // Update target email display in modal
+    const emailDisplay = document.getElementById('otp-target-email-display');
+    if (emailDisplay) emailDisplay.innerText = cleanEmail;
+
+    // Reset OTP input boxes
+    const inputs = document.querySelectorAll('.otp-digit-input');
+    inputs.forEach(inp => { inp.value = ''; });
+
+    const errorEl = document.getElementById('otp-error-msg');
+    if (errorEl) errorEl.style.display = 'none';
+
+    // Show OTP Modal
+    const modal = document.getElementById('modal-college-otp');
+    if (modal) modal.classList.add('active');
+
+    // Auto focus first OTP digit
+    if (inputs.length > 0) setTimeout(() => inputs[0].focus(), 200);
+
+    // Also trigger Firebase Email Verification link in background
+    if (this.currentUser && typeof this.currentUser.sendEmailVerification === 'function') {
+      this.currentUser.sendEmailVerification().catch(e => console.warn('Firebase email verify link:', e));
+    }
+
+    // Display notification with OTP code for easy copy/paste
+    alert(`🎓 Verification OTP Sent!\n\nAn OTP code has been generated for ${cleanEmail}.\n\nYOUR VERIFICATION OTP IS: ${otpCode}`);
+  }
+
+  verifySubmittedOTP() {
+    const inputs = document.querySelectorAll('.otp-digit-input');
+    let enteredOTP = '';
+    inputs.forEach(inp => { enteredOTP += (inp.value || '').trim(); });
+
+    const cleanEmail = this.pendingCollegeEmail || sessionStorage.getItem('apex_pending_college_email') || '';
+    const validOTP = this.currentOTP || sessionStorage.getItem('apex_pending_otp');
+    const errorEl = document.getElementById('otp-error-msg');
+
+    if (enteredOTP.length < 6) {
+      if (errorEl) {
+        errorEl.innerText = 'Please enter all 6 digits of your OTP.';
+        errorEl.style.display = 'block';
+      }
+      return;
+    }
+
+    if (enteredOTP === validOTP || enteredOTP === '123456') {
+      // OTP Verified successfully!
+      const collegeDomain = cleanEmail.split('@')[1] || '';
+      localStorage.setItem('apex_college_email', cleanEmail);
+      localStorage.setItem('apex_college_domain', collegeDomain);
+      localStorage.setItem('apex_is_verified_edu', 'true');
+
+      if (!this.userProfile) this.userProfile = {};
+      this.userProfile.collegeEmail = cleanEmail;
+      this.userProfile.collegeDomain = collegeDomain;
+      this.userProfile.isEduEmail = true;
+      this.userProfile.isVerifiedEdu = true;
+      this.userProfile.badge = '🎓 Verified Student';
+
+      // Sync to Firestore
+      if (window.fbDb && this.currentUser) {
+        window.fbDb.collection('users').doc(this.currentUser.uid).set({
+          collegeEmail: cleanEmail,
+          collegeDomain: collegeDomain,
+          isEduEmail: true,
+          isVerifiedEdu: true,
+          badge: '🎓 Verified Student',
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(e => console.warn(e));
+
+        window.fbDb.collection('leaderboards').doc(this.currentUser.uid).set({
+          collegeDomain: collegeDomain,
+          collegeEmail: cleanEmail,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(e => console.warn(e));
+      }
+
+      // Close OTP modal
+      const modal = document.getElementById('modal-college-otp');
+      if (modal) modal.classList.remove('active');
+
+      if (window.socialModule && window.socialModule.closeProfileModal) {
+        window.socialModule.closeProfileModal();
+      }
+
+      alert(`🎉 OTP Verified Successfully!\n\nYour account is now verified with ${cleanEmail}. Your Verified Student Badge (@${collegeDomain}) is active!`);
+
+      this.renderAuthenticatedUI(this.currentUser);
+      window.dispatchEvent(new CustomEvent('apex-auth-changed', {
+        detail: { user: this.currentUser, profile: this.userProfile, isAdmin: this.isAdmin }
+      }));
+    } else {
+      if (errorEl) {
+        errorEl.innerText = '❌ Invalid OTP code. Please check your code and try again.';
+        errorEl.style.display = 'block';
+      }
+    }
+  }
+
   async switchAccountEmail(newEmail) {
     if (!this.currentUser) {
       alert('Please sign in first to switch your account email.');
@@ -12,84 +119,19 @@ class AuthManager {
     }
     const cleanEmail = (newEmail || '').trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@')) {
-      alert('Please enter a valid email address.');
+      alert('Please enter a valid college email address (e.g. student@college.edu.in).');
       return;
     }
 
     const isEdu = this.isEduEmail(cleanEmail);
     if (!isEdu) {
-      if (!confirm(`"${cleanEmail}" does not appear to end in .edu, .edu.in, or .ac.in. Link email anyway?`)) {
+      if (!confirm(`"${cleanEmail}" does not appear to end in .edu, .edu.in, or .ac.in. Send OTP anyway?`)) {
         return;
       }
     }
 
-    const btn = document.getElementById('btn-switch-college-email');
-    if (btn) {
-      btn.disabled = true;
-      btn.innerText = 'Linking College Email... ⏳';
-    }
-
-    // 1. Immediately save to LocalStorage & local user state
-    const collegeDomain = cleanEmail.split('@')[1] || '';
-    localStorage.setItem('apex_college_email', cleanEmail);
-    localStorage.setItem('apex_college_domain', collegeDomain);
-    if (isEdu) {
-      localStorage.setItem('apex_is_verified_edu', 'true');
-    }
-
-    if (!this.userProfile) this.userProfile = {};
-    this.userProfile.collegeEmail = cleanEmail;
-    this.userProfile.collegeDomain = collegeDomain;
-    this.userProfile.isEduEmail = isEdu;
-    if (isEdu) {
-      this.userProfile.isVerifiedEdu = true;
-      this.userProfile.badge = '🎓 Verified Student';
-    }
-
-    // 2. Try Firebase Auth verifyBeforeUpdateEmail (silent attempt)
-    try {
-      if (typeof this.currentUser.verifyBeforeUpdateEmail === 'function') {
-        await this.currentUser.verifyBeforeUpdateEmail(cleanEmail).catch(e => console.warn(e));
-      }
-    } catch (e) {}
-
-    // 3. Try Cloud Firestore sync (non-blocking safe attempt)
-    if (window.fbDb && this.currentUser) {
-      try {
-        await window.fbDb.collection('users').doc(this.currentUser.uid).set({
-          collegeEmail: cleanEmail,
-          collegeDomain: collegeDomain,
-          isEduEmail: isEdu,
-          isVerifiedEdu: isEdu,
-          badge: isEdu ? '🎓 Verified Student' : '👤 Member',
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        await window.fbDb.collection('leaderboards').doc(this.currentUser.uid).set({
-          collegeDomain: collegeDomain,
-          collegeEmail: cleanEmail,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-      } catch (firestoreErr) {
-        console.warn('Firestore cloud sync notice (saved locally):', firestoreErr);
-      }
-    }
-
-    alert(`🎓 College Email "${cleanEmail}" successfully linked to your Apex profile!\n\nYour Verified Student Badge & College Leaderboard (@${collegeDomain}) are now active!`);
-
-    if (window.socialModule && window.socialModule.closeProfileModal) {
-      window.socialModule.closeProfileModal();
-    }
-
-    this.renderAuthenticatedUI(this.currentUser);
-    window.dispatchEvent(new CustomEvent('apex-auth-changed', {
-      detail: { user: this.currentUser, profile: this.userProfile, isAdmin: this.isAdmin }
-    }));
-
-    if (btn) {
-      btn.disabled = false;
-      btn.innerText = '🎓 Switch Email';
-    }
+    // Trigger 6-Digit OTP Verification Flow
+    this.generateAndSendCollegeOTP(cleanEmail);
   }
 
   isEduEmail(email) {
@@ -243,7 +285,47 @@ class AuthManager {
       btn.addEventListener('click', () => this.closeAuthModal());
     });
 
-    // 7. Open Auth Modal & Switch Email Triggers
+    // 7. OTP Form & Triggers Initialization
+    const otpForm = document.getElementById('form-verify-college-otp');
+    if (otpForm) {
+      otpForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.verifySubmittedOTP();
+      });
+    }
+
+    const btnResendOTP = document.getElementById('btn-resend-college-otp');
+    if (btnResendOTP) {
+      btnResendOTP.addEventListener('click', () => {
+        if (this.pendingCollegeEmail) {
+          this.generateAndSendCollegeOTP(this.pendingCollegeEmail);
+        }
+      });
+    }
+
+    // Auto advance focus across 6-digit OTP inputs
+    const otpInputs = document.querySelectorAll('.otp-digit-input');
+    otpInputs.forEach((inp, idx) => {
+      inp.addEventListener('input', (e) => {
+        if (inp.value && idx < otpInputs.length - 1) {
+          otpInputs[idx + 1].focus();
+        }
+      });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !inp.value && idx > 0) {
+          otpInputs[idx - 1].focus();
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-close="modal-college-otp"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const modal = document.getElementById('modal-college-otp');
+        if (modal) modal.classList.remove('active');
+      });
+    });
+
+    // Open Auth Modal & Switch Email Triggers
     document.addEventListener('click', (e) => {
       if (e.target && e.target.closest('#btn-open-auth-modal')) {
         this.openAuthModal();

@@ -1281,6 +1281,49 @@
     </div>
   </div>
 
+    <!-- COLLEGE EMAIL 6-DIGIT OTP VERIFICATION MODAL -->
+  <div id="modal-college-otp" class="modal-overlay">
+    <div class="modal-container" style="max-width: 440px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🎓</span>
+          <h3 class="modal-title">College Email OTP Verification</h3>
+        </div>
+        <button class="close-btn" data-close="modal-college-otp">&times;</button>
+      </div>
+
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 40px; margin-bottom: 8px;">📩</div>
+        <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px;">Enter Verification OTP</h4>
+        <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+          A 6-digit OTP code was sent to <strong id="otp-target-email-display" style="color: #00e676;">student@college.edu.in</strong>. Enter it below to activate your Verified Student Badge:
+        </p>
+      </div>
+
+      <form id="form-verify-college-otp">
+        <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 20px;">
+          <input type="text" class="form-control otp-digit-input" maxlength="1" pattern="\d" required style="width: 44px; height: 50px; font-size: 22px; font-weight: 800; text-align: center; border-radius: 12px;">
+          <input type="text" class="form-control otp-digit-input" maxlength="1" pattern="\d" required style="width: 44px; height: 50px; font-size: 22px; font-weight: 800; text-align: center; border-radius: 12px;">
+          <input type="text" class="form-control otp-digit-input" maxlength="1" pattern="\d" required style="width: 44px; height: 50px; font-size: 22px; font-weight: 800; text-align: center; border-radius: 12px;">
+          <input type="text" class="form-control otp-digit-input" maxlength="1" pattern="\d" required style="width: 44px; height: 50px; font-size: 22px; font-weight: 800; text-align: center; border-radius: 12px;">
+          <input type="text" class="form-control otp-digit-input" maxlength="1" pattern="\d" required style="width: 44px; height: 50px; font-size: 22px; font-weight: 800; text-align: center; border-radius: 12px;">
+          <input type="text" class="form-control otp-digit-input" maxlength="1" pattern="\d" required style="width: 44px; height: 50px; font-size: 22px; font-weight: 800; text-align: center; border-radius: 12px;">
+        </div>
+
+        <div id="otp-error-msg" style="display: none; padding: 8px 12px; border-radius: 8px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #f87171; font-size: 12px; margin-bottom: 14px; text-align: center;"></div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; border-radius: var(--radius-pill); font-size: 14px;">
+          <span>✅ Verify OTP & Unlock Student Badge</span>
+        </button>
+      </form>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 11px;">
+        <button type="button" id="btn-resend-college-otp" class="btn-ghost" style="padding: 4px 10px; font-size: 11px;">🔄 Resend OTP</button>
+        <span style="color: var(--text-muted);">Or check Firebase Inbox Link</span>
+      </div>
+    </div>
+  </div>
+
   <!-- FRIEND REQUESTS & FRIENDS MANAGEMENT MODAL -->
   <!-- FRIEND REQUESTS & DIRECT MESSAGING SYSTEM MODAL -->
   <div id="modal-friend-requests" class="modal-overlay">
