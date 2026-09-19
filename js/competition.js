@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Apex Personal Dashboard - Competition Hub & Leaderboard Module
  * Allows students to link GitHub, LeetCode, and CodeChef profiles,
  * fetches public statistics, calculates Apex Score, and renders
@@ -112,6 +112,27 @@ class CompetitionModule {
     return parts[parts.length - 1].replace('@', '');
   }
 
+  getUserCollegeInfo() {
+    const currentUser = window.fbAuth ? window.fbAuth.currentUser : null;
+    const storedCollegeEmail = localStorage.getItem('apex_college_email');
+    const storedCollegeDomain = localStorage.getItem('apex_college_domain');
+    
+    const authProfile = window.authManager ? window.authManager.userProfile : null;
+    
+    const email = storedCollegeEmail || 
+                  (authProfile && authProfile.collegeEmail ? authProfile.collegeEmail : '') || 
+                  (currentUser ? currentUser.email : '');
+                  
+    let domain = storedCollegeDomain || 
+                 (authProfile && authProfile.collegeDomain ? authProfile.collegeDomain : '');
+                 
+    if (!domain && email && email.includes('@')) {
+      domain = email.split('@')[1];
+    }
+    
+    return { email, domain };
+  }
+
   async syncAndSaveProfiles() {
     const ghRaw = document.getElementById('input-github-handle')?.value || '';
     const lcRaw = document.getElementById('input-leetcode-handle')?.value || '';
@@ -205,8 +226,7 @@ class CompetitionModule {
     // Sync to Firestore leaderboards collection
     const currentUser = window.fbAuth ? window.fbAuth.currentUser : null;
     const userHandle = localStorage.getItem('apex_chat_handle') || (currentUser ? currentUser.displayName : 'Anonymous Student');
-    const userEmail = currentUser ? currentUser.email : '';
-    const userDomain = userEmail.includes('@') ? userEmail.split('@')[1] : '';
+    const { email: userEmail, domain: userDomain } = this.getUserCollegeInfo();
 
     if (window.fbDb && currentUser) {
       try {
@@ -276,8 +296,7 @@ class CompetitionModule {
 
     const currentUser = window.fbAuth ? window.fbAuth.currentUser : null;
     const userHandle = localStorage.getItem('apex_chat_handle') || (currentUser ? currentUser.displayName : 'You');
-    const userEmail = currentUser ? currentUser.email : '';
-    const userDomain = userEmail.includes('@') ? userEmail.split('@')[1] : '';
+    const { email: userEmail, domain: userDomain } = this.getUserCollegeInfo();
 
     return [
       {
@@ -302,9 +321,7 @@ class CompetitionModule {
     const container = document.getElementById('competition-leaderboard-list');
     if (!container) return;
 
-    const currentUser = window.fbAuth ? window.fbAuth.currentUser : null;
-    const myEmail = currentUser ? currentUser.email : '';
-    const myDomain = myEmail.includes('@') ? myEmail.split('@')[1] : '';
+    const { domain: myDomain } = this.getUserCollegeInfo();
 
     const list = this.leaderboardData.filter(item => {
       if (this.currentFilter === 'college') {

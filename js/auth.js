@@ -154,6 +154,9 @@ class AuthManager {
       alert(`🎉 Verification Successful!\n\nYour account is now verified with ${cleanEmail}. Your Verified Student Badge (@${collegeDomain}) and College Leaderboards are active!`);
 
       this.renderAuthenticatedUI(this.currentUser);
+      if (window.competitionModule && window.competitionModule.loadLeaderboard) {
+        window.competitionModule.loadLeaderboard();
+      }
       window.dispatchEvent(new CustomEvent('apex-auth-changed', {
         detail: { user: this.currentUser, profile: this.userProfile, isAdmin: this.isAdmin }
       }));
