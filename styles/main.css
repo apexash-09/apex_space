@@ -633,7 +633,7 @@ html, body {
   padding: 10px 14px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: 14px;
   color: #fff;
   font-size: 14px;
   line-height: 1.4;
@@ -1563,6 +1563,7 @@ select.form-control {
 
 .form-control, .search-input, .unlock-input {
   box-sizing: border-box !important;
+  border-radius: 14px !important;
   line-height: 1.4 !important;
   transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
