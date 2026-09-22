@@ -270,12 +270,12 @@ html, body {
 
 .btn-primary:hover {
   background: #f4f4f5;
-  transform: translateY(-2px) scale(1.025);
-  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25);
 }
 
 .btn-primary:active {
-  transform: translateY(0) scale(0.97);
+  transform: translateY(0);
 }
 
 .unlock-footer-note {
@@ -409,12 +409,12 @@ html, body {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.35);
-  transform: translateY(-2px) scale(1.025);
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
 }
 
 .btn-ghost:active {
-  transform: translateY(0) scale(0.97);
+  transform: translateY(0);
 }
 
 /* Main Content Area */
@@ -629,19 +629,25 @@ html, body {
 
 .form-control {
   width: 100%;
+  box-sizing: border-box;
   padding: 10px 14px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: #fff;
   font-size: 14px;
+  line-height: 1.4;
+  vertical-align: middle;
   outline: none;
   font-family: var(--font-body);
-  transition: border-color 0.2s;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transform: none !important;
 }
 
 .form-control:focus {
   border-color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.18);
+  transform: none !important;
 }
 
 textarea.form-control {
@@ -1543,7 +1549,7 @@ select.form-control {
 }
 
 .filter-chip:hover, .tab-btn:hover, .ai-chip:hover, .subtab-btn:hover {
-  transform: translateY(-2px) scale(1.03) !important;
+  transform: translateY(-1px) !important;
   box-shadow: 0 4px 15px rgba(255, 255, 255, 0.12) !important;
 }
 
@@ -1556,12 +1562,13 @@ select.form-control {
 }
 
 .form-control, .search-input, .unlock-input {
-  border-radius: 18px !important;
-  transition: var(--transition-smooth) !important;
+  box-sizing: border-box !important;
+  line-height: 1.4 !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 .form-control:focus, .search-input:focus, .unlock-input:focus {
   border-color: #ffffff !important;
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.22) !important;
-  transform: translateY(-1px) !important;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.18) !important;
+  transform: none !important;
 }
