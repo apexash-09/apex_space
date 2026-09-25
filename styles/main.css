@@ -1,40 +1,40 @@
 /* ==========================================================================
-   APEX PERSONAL DIARY & DASHBOARD - MONOCHROME BLACK & WHITE DESIGN SYSTEM
-   High-Contrast Luxury Dark Theme, Silver/White Accents & Glassmorphism
+   APEX PERSONAL DIARY & DASHBOARD - DESIGN SYSTEM
+   Obsidian Matte Dark (Default) + Gold + Lavender Themes
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
 
 :root, [data-theme="obsidian"] {
-  /* Theme 1: Obsidian Glass (Default High-Contrast Monochrome) */
-  --bg-deep: #030303;
-  --bg-surface: rgba(14, 14, 14, 0.75);
-  --bg-surface-hover: rgba(24, 24, 24, 0.9);
-  --bg-card: rgba(18, 18, 18, 0.7);
-  --bg-input: rgba(10, 10, 10, 0.85);
+  /* Theme 1: Obsidian Matte Dark (Vaulto-style — warm charcoal + red accent) */
+  --bg-deep: #0f0f0f;
+  --bg-surface: #1a1a1a;
+  --bg-surface-hover: #202020;
+  --bg-card: #181818;
+  --bg-input: #141414;
 
-  --border-subtle: rgba(255, 255, 255, 0.1);
-  --border-glow: rgba(255, 255, 255, 0.35);
-  --border-active: #ffffff;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-glow: rgba(224, 60, 49, 0.45);
+  --border-active: #e03c31;
 
-  --accent-white: #ffffff;
-  --accent-silver: #c0c0c0;
-  --accent-gray: #71717a;
-  --accent-dark-gray: #27272a;
-  --accent-red: #ff4d4d;
-  --accent-theme: #ffffff;
+  --accent-white: #e03c31;
+  --accent-silver: #ff6b5a;
+  --accent-gray: #6b6b6b;
+  --accent-dark-gray: #222222;
+  --accent-red: #e03c31;
+  --accent-theme: #e03c31;
 
-  --text-main: #f4f4f5;
-  --text-muted: #a1a1aa;
-  --text-dim: #52525b;
+  --text-main: #f0f0f0;
+  --text-muted: #8a8a8a;
+  --text-dim: #444444;
 
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code', monospace;
 
-  --glow-white: 0 0 20px rgba(255, 255, 255, 0.25);
-  --glow-subtle: 0 10px 40px 0 rgba(0, 0, 0, 0.8);
-  --panel-laser-glow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --glow-white: 0 0 20px rgba(224, 60, 49, 0.28);
+  --glow-subtle: 0 10px 40px 0 rgba(0, 0, 0, 0.85);
+  --panel-laser-glow: 0 4px 24px rgba(0, 0, 0, 0.75);
 
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -46,6 +46,59 @@
 
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   --transition-smooth: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Obsidian: Solid Matte Panels (no glassmorphism blur) ── */
+[data-theme="obsidian"] body {
+  background-color: #0f0f0f;
+  color: #f0f0f0;
+}
+
+[data-theme="obsidian"] .glass-panel {
+  background: #181818 !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="obsidian"] .btn-primary {
+  background: #e03c31 !important;
+  color: #ffffff !important;
+  border-color: #e03c31 !important;
+  box-shadow: 0 4px 20px rgba(224, 60, 49, 0.35) !important;
+}
+
+[data-theme="obsidian"] .btn-primary:hover {
+  background: #c43028 !important;
+  box-shadow: 0 6px 24px rgba(224, 60, 49, 0.5) !important;
+}
+
+[data-theme="obsidian"] .nav-item.active {
+  background: rgba(224, 60, 49, 0.12) !important;
+  color: #e03c31 !important;
+  border-left-color: #e03c31 !important;
+}
+
+[data-theme="obsidian"] .filter-chip.active,
+[data-theme="obsidian"] .tab-btn.active,
+[data-theme="obsidian"] .subtab-btn.active {
+  background: #e03c31 !important;
+  color: #ffffff !important;
+  border-color: #e03c31 !important;
+  box-shadow: 0 4px 16px rgba(224, 60, 49, 0.4) !important;
+}
+
+[data-theme="obsidian"] .form-control:focus {
+  border-color: #e03c31 !important;
+  box-shadow: 0 0 0 3px rgba(224, 60, 49, 0.15) !important;
+}
+
+[data-theme="obsidian"] .sidebar {
+  background: #111111 !important;
+  border-right-color: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 [data-theme="gold"] {
