@@ -83,8 +83,69 @@ class AppRouter {
       this.sidebarOverlay.addEventListener('click', () => this.closeMobileSidebar());
     }
 
-    // Dark Theme Default
-    document.documentElement.setAttribute('data-theme', 'dark');
+    // 8. Dashboard Theme Controller
+    const savedTheme = localStorage.getItem('apex_dashboard_theme') || 'obsidian';
+    this.setDashboardTheme(savedTheme);
+
+    const themeBtn = document.getElementById('theme-selector-btn');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'obsidian';
+        const themeCycle = ['obsidian', 'gold', 'lavender'];
+        const nextIdx = (themeCycle.indexOf(currentTheme) + 1) % themeCycle.length;
+        this.setDashboardTheme(themeCycle[nextIdx]);
+      });
+    }
+
+    // Theme card clicks inside profile modal
+    document.addEventListener('click', (e) => {
+      const themeCard = e.target.closest('.theme-card-option');
+      if (themeCard) {
+        const themeId = themeCard.getAttribute('data-theme-id');
+        if (themeId) this.setDashboardTheme(themeId);
+      }
+    });
+  }
+
+  setDashboardTheme(themeId) {
+    const validThemes = ['obsidian', 'gold', 'lavender'];
+    const activeTheme = validThemes.includes(themeId) ? themeId : 'obsidian';
+
+    document.documentElement.setAttribute('data-theme', activeTheme);
+    localStorage.setItem('apex_dashboard_theme', activeTheme);
+
+    // Update Header Button UI
+    const iconEl = document.getElementById('theme-btn-icon');
+    const textEl = document.getElementById('theme-btn-text');
+
+    const themeMeta = {
+      obsidian: { name: 'Obsidian', icon: '🌌' },
+      gold: { name: 'Gold Horizon', icon: '⚡' },
+      lavender: { name: 'Velvet Lavender', icon: '💜' }
+    };
+
+    const currentMeta = themeMeta[activeTheme];
+    if (iconEl) iconEl.innerText = currentMeta.icon;
+    if (textEl) textEl.innerText = currentMeta.name;
+
+    // Update Profile Modal Theme Cards Highlight
+    document.querySelectorAll('.theme-card-option').forEach(card => {
+      const cardTheme = card.getAttribute('data-theme-id');
+      if (cardTheme === activeTheme) {
+        card.style.borderColor = 'var(--border-active)';
+        card.style.boxShadow = 'var(--glow-white)';
+        card.classList.add('active');
+      } else {
+        card.style.borderColor = 'var(--border-subtle)';
+        card.style.boxShadow = 'none';
+        card.classList.remove('active');
+      }
+    });
+
+    // Re-render canvas background if initialized
+    if (window.bgMotion && window.bgMotion.isRunning) {
+      window.bgMotion.render();
+    }
   }
 
   toggleMobileSidebar() {

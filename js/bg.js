@@ -92,30 +92,59 @@ class MotionBackground {
     const { width, height } = this.canvas;
     const ctx = this.ctx;
 
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'obsidian';
+
     ctx.clearRect(0, 0, width, height);
 
-    // 1. Render Obsidian Cosmic Radial Dark Space
+    // Theme-specific Background & Lighting Colors
+    let bgColors, beamColorStart, beamColorMid, waveAlphaMult, particleRgb, particleShadow;
+
+    if (currentTheme === 'gold') {
+      bgColors = ['rgba(45, 30, 10, 0.85)', 'rgba(18, 12, 4, 0.95)', '#070503'];
+      beamColorStart = 'rgba(251, 191, 36, 0.16)';
+      beamColorMid = 'rgba(251, 191, 36, 0.03)';
+      waveAlphaMult = 1.4;
+      particleRgb = '251, 191, 36';
+      particleShadow = 'rgba(251, 191, 36, 0.8)';
+    } else if (currentTheme === 'lavender') {
+      bgColors = ['rgba(38, 28, 60, 0.85)', 'rgba(18, 14, 30, 0.95)', '#0c0a17'];
+      beamColorStart = 'rgba(192, 132, 252, 0.15)';
+      beamColorMid = 'rgba(192, 132, 252, 0.03)';
+      waveAlphaMult = 1.4;
+      particleRgb = '192, 132, 252';
+      particleShadow = 'rgba(192, 132, 252, 0.8)';
+    } else {
+      // Obsidian (Default Monochrome)
+      bgColors = ['rgba(24, 24, 28, 0.7)', 'rgba(10, 10, 12, 0.9)', '#030303'];
+      beamColorStart = 'rgba(255, 255, 255, 0.08)';
+      beamColorMid = 'rgba(255, 255, 255, 0.02)';
+      waveAlphaMult = 1.0;
+      particleRgb = '255, 255, 255';
+      particleShadow = 'rgba(255, 255, 255, 0.7)';
+    }
+
+    // 1. Render Cosmic Radial Dark Space
     const bgGradient = ctx.createRadialGradient(
       width * 0.5, height * 0.3, 50,
       width * 0.5, height * 0.5, Math.max(width, height) * 0.9
     );
-    bgGradient.addColorStop(0, 'rgba(24, 24, 28, 0.7)');
-    bgGradient.addColorStop(0.5, 'rgba(10, 10, 12, 0.9)');
-    bgGradient.addColorStop(1, '#030303');
+    bgGradient.addColorStop(0, bgColors[0]);
+    bgGradient.addColorStop(0.5, bgColors[1]);
+    bgGradient.addColorStop(1, bgColors[2]);
 
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Render Shimmering Diagonal Cosmic Light Beam / Comet Ray (Inspired by Comet Screenshot)
+    // 2. Render Shimmering Diagonal Cosmic Light Beam / Ray
     ctx.save();
     const beamAngle = Math.PI / 4;
     ctx.translate(width * 0.5, height * 0.3);
     ctx.rotate(beamAngle);
 
     const beamGradient = ctx.createLinearGradient(0, -300, 0, 600);
-    beamGradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
-    beamGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.02)');
-    beamGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    beamGradient.addColorStop(0, beamColorStart);
+    beamGradient.addColorStop(0.5, beamColorMid);
+    beamGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
     ctx.fillStyle = beamGradient;
     ctx.beginPath();
@@ -127,7 +156,7 @@ class MotionBackground {
     ctx.fill();
     ctx.restore();
 
-    // 3. Render Subtle Monochrome Fluid Topographic Wave Lines
+    // 3. Render Fluid Topographic Wave Lines
     const numLines = 8;
     const stepY = height / (numLines + 1);
 
@@ -135,8 +164,8 @@ class MotionBackground {
       ctx.beginPath();
       const baseY = i * stepY;
 
-      const alpha = 0.06 + Math.sin(this.time * 0.5 + i) * 0.03;
-      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+      const alpha = (0.05 + Math.sin(this.time * 0.5 + i) * 0.025) * waveAlphaMult;
+      ctx.strokeStyle = `rgba(${particleRgb}, ${alpha})`;
       ctx.lineWidth = 1.0;
 
       for (let x = 0; x <= width; x += 30) {
@@ -168,9 +197,9 @@ class MotionBackground {
 
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 255, 255, ${clampedAlpha})`;
+      ctx.fillStyle = `rgba(${particleRgb}, ${clampedAlpha})`;
       ctx.shadowBlur = 6;
-      ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
+      ctx.shadowColor = particleShadow;
       ctx.fill();
       ctx.shadowBlur = 0;
     }

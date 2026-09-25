@@ -5,8 +5,8 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
 
-:root {
-  /* High-Contrast Monochrome Color Palette (Dark Default) */
+:root, [data-theme="obsidian"] {
+  /* Theme 1: Obsidian Glass (Default High-Contrast Monochrome) */
   --bg-deep: #030303;
   --bg-surface: rgba(14, 14, 14, 0.75);
   --bg-surface-hover: rgba(24, 24, 24, 0.9);
@@ -22,21 +22,20 @@
   --accent-gray: #71717a;
   --accent-dark-gray: #27272a;
   --accent-red: #ff4d4d;
+  --accent-theme: #ffffff;
 
   --text-main: #f4f4f5;
   --text-muted: #a1a1aa;
   --text-dim: #52525b;
 
-  /* Typography */
   --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code', monospace;
 
-  /* Shadows & Glows */
   --glow-white: 0 0 20px rgba(255, 255, 255, 0.25);
   --glow-subtle: 0 10px 40px 0 rgba(0, 0, 0, 0.8);
+  --panel-laser-glow: 0 8px 32px rgba(0, 0, 0, 0.6);
 
-  /* Geometry & Spacing - Curved Design System */
   --radius-sm: 12px;
   --radius-md: 18px;
   --radius-lg: 24px;
@@ -45,72 +44,130 @@
   --radius-pill: 50px;
   --sidebar-width: 260px;
 
-  /* Smooth Micro-Animation Timing */
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   --transition-smooth: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[data-theme="light"] {
-  --bg-deep: #f2f3f5;
-  --bg-surface: rgba(255, 255, 255, 0.88);
-  --bg-surface-hover: rgba(240, 242, 245, 0.95);
-  --bg-card: rgba(255, 255, 255, 0.9);
-  --bg-input: rgba(245, 246, 248, 0.95);
+[data-theme="gold"] {
+  /* Theme 2: Gold Horizon (Cyber Gold Laser Glow - Inspired by Image 1) */
+  --bg-deep: #070503;
+  --bg-surface: rgba(22, 16, 8, 0.82);
+  --bg-surface-hover: rgba(35, 26, 12, 0.92);
+  --bg-card: rgba(28, 20, 10, 0.78);
+  --bg-input: rgba(18, 12, 5, 0.9);
 
-  --border-subtle: rgba(0, 0, 0, 0.12);
-  --border-glow: rgba(0, 0, 0, 0.25);
-  --border-active: #000000;
+  --border-subtle: rgba(251, 191, 36, 0.28);
+  --border-glow: rgba(251, 191, 36, 0.65);
+  --border-active: #fbbf24;
 
-  --accent-white: #000000;
-  --accent-silver: #4b5563;
-  --accent-gray: #6b7280;
-  --accent-dark-gray: #e5e7eb;
-  --accent-red: #ef4444;
+  --accent-white: #fbbf24;
+  --accent-silver: #f59e0b;
+  --accent-gray: #d97706;
+  --accent-dark-gray: #451a03;
+  --accent-red: #ff4d4d;
+  --accent-theme: #fbbf24;
 
-  --text-main: #0f172a;
-  --text-muted: #475569;
-  --text-dim: #64748b;
+  --text-main: #fef3c7;
+  --text-muted: #fde68a;
+  --text-dim: #b45309;
 
-  --glow-white: 0 0 20px rgba(0, 0, 0, 0.12);
-  --glow-subtle: 0 10px 30px 0 rgba(0, 0, 0, 0.08);
+  --glow-white: 0 0 25px rgba(251, 191, 36, 0.35);
+  --glow-subtle: 0 10px 40px 0 rgba(0, 0, 0, 0.9);
+  --panel-laser-glow: 0 0 20px rgba(245, 158, 11, 0.22), 0 8px 32px rgba(0, 0, 0, 0.7);
 }
 
-[data-theme="light"] body {
-  background-color: #f2f3f5;
-  color: #0f172a;
+[data-theme="gold"] body {
+  background-color: #070503;
+  color: #fef3c7;
 }
 
-[data-theme="light"] .glass-panel {
-  background: rgba(255, 255, 255, 0.82) !important;
-  border-color: rgba(0, 0, 0, 0.1) !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06) !important;
+[data-theme="gold"] .glass-panel {
+  background: rgba(22, 16, 8, 0.82) !important;
+  border-color: rgba(251, 191, 36, 0.3) !important;
+  box-shadow: var(--panel-laser-glow) !important;
 }
 
-[data-theme="light"] .form-control {
-  background: #ffffff !important;
-  border-color: rgba(0, 0, 0, 0.18) !important;
-  color: #0f172a !important;
+[data-theme="gold"] .btn-primary {
+  background: #fbbf24 !important;
+  color: #000000 !important;
+  border-color: #fbbf24 !important;
+  box-shadow: 0 4px 20px rgba(251, 191, 36, 0.4) !important;
 }
 
-[data-theme="light"] .modal-container {
-  background: #ffffff !important;
-  border-color: rgba(0, 0, 0, 0.15) !important;
-  color: #0f172a !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+[data-theme="gold"] .nav-item.active {
+  background: rgba(251, 191, 36, 0.15) !important;
+  color: #fbbf24 !important;
+  border-left-color: #fbbf24 !important;
 }
 
-[data-theme="light"] .modal-title, 
-[data-theme="light"] .section-title {
-  color: #0f172a !important;
+[data-theme="gold"] .filter-chip.active, 
+[data-theme="gold"] .tab-btn.active, 
+[data-theme="gold"] .subtab-btn.active {
+  background: #fbbf24 !important;
+  color: #000000 !important;
+  border-color: #fbbf24 !important;
+  box-shadow: 0 4px 20px rgba(251, 191, 36, 0.4) !important;
 }
 
-[data-theme="light"] .btn-ghost {
-  color: #334155 !important;
+[data-theme="lavender"] {
+  /* Theme 3: Velvet Lavender (Soft Slate Violet Clay - Inspired by Image 2) */
+  --bg-deep: #0c0a17;
+  --bg-surface: rgba(25, 20, 42, 0.82);
+  --bg-surface-hover: rgba(38, 30, 62, 0.92);
+  --bg-card: rgba(30, 24, 50, 0.78);
+  --bg-input: rgba(18, 14, 32, 0.9);
+
+  --border-subtle: rgba(192, 132, 252, 0.25);
+  --border-glow: rgba(192, 132, 252, 0.6);
+  --border-active: #c084fc;
+
+  --accent-white: #c084fc;
+  --accent-silver: #a78bfa;
+  --accent-gray: #8b5cf6;
+  --accent-dark-gray: #3b0764;
+  --accent-red: #ff4d4d;
+  --accent-theme: #c084fc;
+
+  --text-main: #f3e8ff;
+  --text-muted: #e9d5ff;
+  --text-dim: #7e22ce;
+
+  --glow-white: 0 0 25px rgba(192, 132, 252, 0.35);
+  --glow-subtle: 0 10px 40px 0 rgba(0, 0, 0, 0.9);
+  --panel-laser-glow: 0 0 20px rgba(192, 132, 252, 0.2), 0 8px 32px rgba(0, 0, 0, 0.7);
 }
 
-[data-theme="light"] .btn-ghost:hover {
-  background: rgba(0, 0, 0, 0.06) !important;
-  color: #0f172a !important;
+[data-theme="lavender"] body {
+  background-color: #0c0a17;
+  color: #f3e8ff;
+}
+
+[data-theme="lavender"] .glass-panel {
+  background: rgba(25, 20, 42, 0.82) !important;
+  border-color: rgba(192, 132, 252, 0.28) !important;
+  box-shadow: var(--panel-laser-glow) !important;
+}
+
+[data-theme="lavender"] .btn-primary {
+  background: #c084fc !important;
+  color: #000000 !important;
+  border-color: #c084fc !important;
+  box-shadow: 0 4px 20px rgba(192, 132, 252, 0.4) !important;
+}
+
+[data-theme="lavender"] .nav-item.active {
+  background: rgba(192, 132, 252, 0.15) !important;
+  color: #c084fc !important;
+  border-left-color: #c084fc !important;
+}
+
+[data-theme="lavender"] .filter-chip.active, 
+[data-theme="lavender"] .tab-btn.active, 
+[data-theme="lavender"] .subtab-btn.active {
+  background: #c084fc !important;
+  color: #000000 !important;
+  border-color: #c084fc !important;
+  box-shadow: 0 4px 20px rgba(192, 132, 252, 0.4) !important;
 }
 
 * {

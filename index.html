@@ -168,6 +168,11 @@
             <span id="header-streak-count">0 Days Streak</span>
           </div>
 
+          <button id="theme-selector-btn" class="power-toggle-btn" title="Choose Dashboard Theme (Click to switch)">
+            <span id="theme-btn-icon">🌌</span>
+            <span id="theme-btn-text">Obsidian</span>
+          </button>
+
           <button id="toggle-motion-btn" class="power-toggle-btn" title="Toggle Motion Animation (Battery Saver)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
             <span id="motion-btn-text">Motion ON</span>
@@ -1183,6 +1188,33 @@
       <div style="margin-bottom: 18px;">
         <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Or Choose Preset Avatar</label>
         <div id="preset-avatars-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;"></div>
+      </div>
+
+      <!-- Dashboard Custom Theme Selector -->
+      <div style="margin-bottom: 18px;">
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">🎨 Select Dashboard Theme</label>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <!-- Theme 1: Obsidian Glass -->
+          <div class="theme-card-option" data-theme-id="obsidian" style="cursor: pointer; padding: 12px 10px; border-radius: 14px; background: rgba(14, 14, 14, 0.9); border: 2px solid rgba(255, 255, 255, 0.2); text-align: center; transition: all 0.2s;">
+            <div style="width: 26px; height: 26px; border-radius: 50%; background: #030303; border: 2px solid #ffffff; margin: 0 auto 6px auto; box-shadow: 0 0 12px rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; font-size: 12px;">🌌</div>
+            <div style="font-size: 12px; font-weight: 700; color: #ffffff;">Obsidian</div>
+            <div style="font-size: 10px; color: #a1a1aa; margin-top: 2px;">Default Glass</div>
+          </div>
+
+          <!-- Theme 2: Gold Horizon -->
+          <div class="theme-card-option" data-theme-id="gold" style="cursor: pointer; padding: 12px 10px; border-radius: 14px; background: rgba(22, 16, 8, 0.9); border: 2px solid rgba(251, 191, 36, 0.2); text-align: center; transition: all 0.2s;">
+            <div style="width: 26px; height: 26px; border-radius: 50%; background: #070503; border: 2px solid #fbbf24; margin: 0 auto 6px auto; box-shadow: 0 0 12px rgba(251, 191, 36, 0.5); display: flex; align-items: center; justify-content: center; font-size: 12px;">⚡</div>
+            <div style="font-size: 12px; font-weight: 700; color: #fbbf24;">Gold Horizon</div>
+            <div style="font-size: 10px; color: #fde68a; margin-top: 2px;">Cyber Laser</div>
+          </div>
+
+          <!-- Theme 3: Velvet Lavender -->
+          <div class="theme-card-option" data-theme-id="lavender" style="cursor: pointer; padding: 12px 10px; border-radius: 14px; background: rgba(25, 20, 42, 0.9); border: 2px solid rgba(192, 132, 252, 0.2); text-align: center; transition: all 0.2s;">
+            <div style="width: 26px; height: 26px; border-radius: 50%; background: #0c0a17; border: 2px solid #c084fc; margin: 0 auto 6px auto; box-shadow: 0 0 12px rgba(192, 132, 252, 0.5); display: flex; align-items: center; justify-content: center; font-size: 12px;">💜</div>
+            <div style="font-size: 12px; font-weight: 700; color: #c084fc;">Velvet Lavender</div>
+            <div style="font-size: 10px; color: #e9d5ff; margin-top: 2px;">Soft Neo-Clay</div>
+          </div>
+        </div>
       </div>
 
       <!-- College Email Verification & Switcher Box -->
