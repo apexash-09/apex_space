@@ -329,13 +329,17 @@ class LibraryModule {
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Uploading…'; }
 
     try {
-      // 1. Upload to Cloudinary
+      // 1. Upload to Cloudinary (use 'image' endpoint for photos, 'raw' endpoint for PDFs & docs)
+      const isImage = file.type && file.type.startsWith('image/');
+      const resourceType = isImage ? 'image' : 'raw';
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/${resourceType}/upload`;
+
       const fd = new FormData();
       fd.append('file', file);
       fd.append('upload_preset', CLOUDINARY_PRESET);
       fd.append('folder', `apex_space/${domain}`);
 
-      const res = await fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: fd });
+      const res = await fetch(uploadUrl, { method: 'POST', body: fd });
       if (!res.ok) throw new Error(`Cloudinary error ${res.status}`);
       const data = await res.json();
 
