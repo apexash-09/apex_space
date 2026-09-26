@@ -114,13 +114,13 @@ class MotionBackground {
       particleRgb = '192, 132, 252';
       particleShadow = 'rgba(192, 132, 252, 0.8)';
     } else {
-      // Obsidian Matte Dark (Vaulto-style — warm charcoal, near-invisible canvas)
-      bgColors = ['rgba(22, 20, 20, 0.9)', 'rgba(14, 13, 13, 0.97)', '#0f0f0f'];
-      beamColorStart = 'rgba(224, 60, 49, 0.05)';
-      beamColorMid = 'rgba(224, 60, 49, 0.01)';
-      waveAlphaMult = 0.25;
-      particleRgb = '180, 170, 170';
-      particleShadow = 'rgba(200, 180, 180, 0.15)';
+      // Obsidian (Default Monochrome)
+      bgColors = ['rgba(24, 24, 28, 0.7)', 'rgba(10, 10, 12, 0.9)', '#030303'];
+      beamColorStart = 'rgba(255, 255, 255, 0.08)';
+      beamColorMid = 'rgba(255, 255, 255, 0.02)';
+      waveAlphaMult = 1.0;
+      particleRgb = '255, 255, 255';
+      particleShadow = 'rgba(255, 255, 255, 0.7)';
     }
 
     // 1. Render Cosmic Radial Dark Space
