@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -771,17 +771,134 @@
 
         <!-- DIGITAL LIBRARY VIEW -->
         <section id="view-library" class="view-panel">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">Digital Library & Textbooks</h2>
-              <p class="section-desc">Open access academic textbooks, research papers, & computer science references.</p>
+
+          <!-- Sub-tab bar -->
+          <div style="display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; align-items:center;">
+            <button class="filter-chip active" id="lib-tab-books" onclick="window.libraryModule && window.libraryModule.switchLibTab('books')">📖 Textbooks</button>
+            <button class="filter-chip" id="lib-tab-hub" onclick="window.libraryModule && window.libraryModule.switchLibTab('hub')">📂 Notes &amp; Papers</button>
+          </div>
+
+          <!-- TEXTBOOKS PANEL -->
+          <div id="lib-panel-books">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">Digital Library &amp; Textbooks</h2>
+                <p class="section-desc">Open access academic textbooks, research papers, &amp; computer science references.</p>
+              </div>
+            </div>
+            <div id="library-books-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;">
+              <!-- Dynamically populated -->
             </div>
           </div>
 
-          <div id="library-books-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;">
-            <!-- Dynamically populated -->
+          <!-- NOTES & PAPERS HUB PANEL -->
+          <div id="lib-panel-hub" style="display:none;">
+            <!-- Gate: not verified -->
+            <div id="hub-gate" style="display:none; flex-direction:column; align-items:center; justify-content:center; min-height:320px; gap:16px; text-align:center;">
+              <div style="font-size:52px;">🔒</div>
+              <h3 style="font-size:20px; font-weight:700; color:var(--text-main);">College Email Verification Required</h3>
+              <p style="font-size:14px; color:var(--text-muted); max-width:360px;">Verify your college email in your Profile to access and upload notes &amp; question papers for your college.</p>
+              <button class="btn-primary" style="padding:12px 28px; border-radius:var(--radius-pill);" onclick="document.getElementById('modal-profile')?.classList.add('active')">Go to Profile →</button>
+            </div>
+            <!-- Main hub -->
+            <div id="hub-section" style="display:none;">
+              <div class="section-header" style="flex-wrap:wrap; gap:12px;">
+                <div>
+                  <h2 class="section-title">Notes &amp; Question Papers</h2>
+                  <p class="section-desc">Shared by students of <span id="hub-domain-badge" style="color:var(--accent-white); font-weight:700;"></span></p>
+                </div>
+                <button id="btn-hub-upload" class="btn-primary" style="padding:11px 22px; border-radius:var(--radius-pill); display:flex; align-items:center; gap:8px; font-size:13px; white-space:nowrap;">
+                  <span>📤</span> Upload File
+                </button>
+              </div>
+              <!-- Filters -->
+              <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:20px;">
+                <button class="filter-chip hub-filter-type active" data-type="all">All</button>
+                <button class="filter-chip hub-filter-type" data-type="notes">📄 Notes</button>
+                <button class="filter-chip hub-filter-type" data-type="qpaper">📝 Question Papers</button>
+                <div style="width:1px; height:20px; background:var(--border-subtle); margin:0 4px;"></div>
+                <button class="filter-chip hub-filter-sem active" data-sem="all">All Sems</button>
+                <button class="filter-chip hub-filter-sem" data-sem="1">Sem 1</button>
+                <button class="filter-chip hub-filter-sem" data-sem="2">Sem 2</button>
+                <button class="filter-chip hub-filter-sem" data-sem="3">Sem 3</button>
+                <button class="filter-chip hub-filter-sem" data-sem="4">Sem 4</button>
+                <button class="filter-chip hub-filter-sem" data-sem="5">Sem 5</button>
+                <button class="filter-chip hub-filter-sem" data-sem="6">Sem 6</button>
+                <button class="filter-chip hub-filter-sem" data-sem="7">Sem 7</button>
+                <button class="filter-chip hub-filter-sem" data-sem="8">Sem 8</button>
+              </div>
+              <!-- Empty state -->
+              <div id="hub-empty" style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:280px; gap:14px; text-align:center;">
+                <div style="font-size:48px;">📭</div>
+                <h3 style="font-size:18px; font-weight:700; color:var(--text-muted);">No uploads yet</h3>
+                <p style="font-size:13px; color:var(--text-dim);">Be the first to share notes or question papers with your college!</p>
+              </div>
+              <!-- Uploads grid -->
+              <div id="hub-uploads-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;"></div>
+            </div>
           </div>
         </section>
+
+        <!-- Upload Modal -->
+        <div id="modal-hub-upload" class="modal-overlay">
+          <div class="modal-container" style="max-width:500px;">
+            <div class="modal-header">
+              <h3 class="modal-title">📤 Upload Notes or Question Paper</h3>
+              <button class="close-btn" id="btn-hub-upload-close">&#x00D7;</button>
+            </div>
+            <form id="form-hub-upload">
+              <div class="form-group">
+                <label>Type</label>
+                <div style="display:flex; gap:8px; margin-top:6px;">
+                  <button type="button" class="hub-type-btn filter-chip active" data-type="notes" style="flex:1;">📄 Notes</button>
+                  <button type="button" class="hub-type-btn filter-chip" data-type="qpaper" style="flex:1;">📝 Question Paper</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="hub-title">Title</label>
+                <input type="text" id="hub-title" class="form-control" required placeholder="e.g. Data Structures Unit 3 Notes">
+              </div>
+              <div class="form-group">
+                <label for="hub-subject">Subject</label>
+                <input type="text" id="hub-subject" class="form-control" required placeholder="e.g. Data Structures &amp; Algorithms">
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="form-group">
+                  <label for="hub-semester">Semester</label>
+                  <select id="hub-semester" class="form-control" required>
+                    <option value="">Select Sem</option>
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                    <option value="3">Semester 3</option>
+                    <option value="4">Semester 4</option>
+                    <option value="5">Semester 5</option>
+                    <option value="6">Semester 6</option>
+                    <option value="7">Semester 7</option>
+                    <option value="8">Semester 8</option>
+                  </select>
+                </div>
+                <div class="form-group" id="hub-year-row" style="display:none;">
+                  <label for="hub-year">Exam Year</label>
+                  <input type="text" id="hub-year" class="form-control" placeholder="e.g. 2023">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>File <span style="color:var(--text-muted); font-size:11px;">(PDF, JPG, PNG — max 25MB)</span></label>
+                <div id="hub-drop-zone" style="border:2px dashed var(--border-subtle); border-radius:var(--radius-md); padding:28px 16px; text-align:center; cursor:pointer; transition:all 0.2s; color:var(--text-muted); font-size:13px; margin-top:6px;">
+                  <div id="hub-drop-label">
+                    <span style="font-size:28px;">📂</span><br>
+                    Click or drag &amp; drop your file here<br>
+                    <span style="font-size:11px; color:var(--text-dim);">PDF, JPG, PNG — max 25MB</span>
+                  </div>
+                </div>
+                <input type="file" id="hub-file-input" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none;">
+              </div>
+              <button type="submit" id="btn-hub-submit" class="btn-primary" style="width:100%; padding:13px; border-radius:var(--radius-pill); font-size:14px; font-weight:700; margin-top:4px;">
+                📤 Upload
+              </button>
+            </form>
+          </div>
+        </div>
 
       </main>
   </div>

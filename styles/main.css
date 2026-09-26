@@ -1630,3 +1630,13 @@ select.form-control {
   box-shadow: 0 0 15px rgba(255, 255, 255, 0.18) !important;
   transform: none !important;
 }
+
+/* ── Notes & Papers Hub ── */
+#hub-drop-zone:hover {
+  border-color: var(--accent-white) !important;
+  background: rgba(255, 255, 255, 0.03);
+}
+#hub-drop-zone.dragging {
+  border-color: var(--accent-white) !important;
+  background: rgba(255, 255, 255, 0.06);
+}
