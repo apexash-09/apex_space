@@ -1603,6 +1603,11 @@ select.form-control {
 .filter-chip, .tab-btn, .ai-chip, .subtab-btn, .btn-reaction {
   border-radius: var(--radius-pill) !important;
   transition: var(--transition-smooth) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 9px 18px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
 }
 
 .filter-chip:hover, .tab-btn:hover, .ai-chip:hover, .subtab-btn:hover {
