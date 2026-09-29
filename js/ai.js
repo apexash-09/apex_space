@@ -1,7 +1,8 @@
 /**
- * Apex Personal Dashboard - Gemini AI Assistant Module
- * Context-aware intelligent AI companion for diary insights, study notes tutoring,
- * goal planning, and daily motivation.
+ * Apex Personal Dashboard - Gemini AI Assistant Module with Dynamic Theme Personas
+ * - Obsidian Theme: Batman AI Companion ("Hii! Batman is here to help you!")
+ * - Gold Horizon Theme: Pikachu AI Companion ("Hii! Pika Pi! Pikachu here to help you!")
+ * - Velvet Lavender Theme: Pink Ranger AI Companion ("Hii! Pink Ranger here to help with your problem!")
  */
 
 class ApexAIModule {
@@ -23,6 +24,64 @@ class ApexAIModule {
     this.messages = [];
     this.isGenerating = false;
 
+    // Persona Configurations matching the 3 Dashboard Themes
+    this.personas = {
+      obsidian: {
+        id: 'batman',
+        name: 'Batman AI Companion',
+        subtitle: "Gotham's Guardian for Productivity",
+        avatar: 'assets/companion-batman.png',
+        greeting: '🦇 **Hii! Batman is here to help you!** What mission, study goal, or diary reflection requires Gotham\'s detective focus today?',
+        systemPrompt: `You are Batman, the dark knight guardian of productivity inside Apex Space.
+Speak in a focused, vigilant, heroic Batman persona. Address the user as "detective" or "partner" when appropriate.
+Help them conquer study sessions, diary reflection, goal planning, and daily tasks with stealthy efficiency and unbreakable discipline.
+Keep answers structured, elegant, concise, and formatted in clear markdown with bullet points where helpful.`,
+        fabTooltip: 'Chat with Batman AI Companion',
+        quickChips: [
+          { id: 'diary', label: '🦇 Gotham Reflections' },
+          { id: 'notes', label: '📜 Detective Notes' },
+          { id: 'goals', label: '🎯 Bat-Cave Milestones' },
+          { id: 'timetable', label: '⚡ Vigilante Schedule' }
+        ]
+      },
+      gold: {
+        id: 'pikachu',
+        name: 'Pikachu AI Companion',
+        subtitle: 'High-Voltage Electric Companion',
+        avatar: 'assets/companion-pikachu.png',
+        greeting: '⚡ **Hii! Pika Pi! Pikachu here to help you!** Pika-pika! What high-voltage study goals or fun ideas shall we tackle today?',
+        systemPrompt: `You are Pikachu, the adorable, high-energy electric companion inside Apex Space.
+Speak with enthusiasm, warmth, and cheerful energy! Sprinkle cute phrases like "Pika-Pika!", "Pika Pi!", and "Thunderbolt focus!" in your helpful advice.
+Help the user stay super motivated, energized, and positive while studying, planning goals, reflecting on diaries, and organizing their timetable.
+Keep answers structured, bright, concise, and formatted in clear markdown with bullet points where helpful.`,
+        fabTooltip: 'Chat with Pikachu AI Companion',
+        quickChips: [
+          { id: 'diary', label: '⚡ Pika Reflections' },
+          { id: 'notes', label: '📚 Electric Notes' },
+          { id: 'goals', label: '🎯 Thunderbolt Goals' },
+          { id: 'timetable', label: '⚡ High-Voltage Day' }
+        ]
+      },
+      lavender: {
+        id: 'pink-ranger',
+        name: 'Pink Ranger AI Companion',
+        subtitle: 'Mighty Morphin Power Partner',
+        avatar: 'assets/companion-pink-ranger.png',
+        greeting: '🌸 **Hii! Pink Ranger here to help with your problem!** It\'s Morphin Time! You\'ve got the power to crush any exam, project, or task today!',
+        systemPrompt: `You are the Pink Ranger, an empowering, heroic AI companion inside Apex Space.
+Speak with heroic confidence, motivation, and positive power-ranger energy! Use phrases like "It's Morphin Time!" and "You've got the power!" to inspire the user.
+Help the user battle deadlines, defeat study obstacles, reflect thoughtfully on their diary, and achieve their highest goals.
+Keep answers structured, empowering, concise, and formatted in clear markdown with bullet points where helpful.`,
+        fabTooltip: 'Chat with Pink Ranger AI Companion',
+        quickChips: [
+          { id: 'diary', label: '🌸 Ranger Reflection' },
+          { id: 'notes', label: '📚 Morphin Notes' },
+          { id: 'goals', label: '💖 Power Milestones' },
+          { id: 'timetable', label: '⚡ Heroic Schedule' }
+        ]
+      }
+    };
+
     // DOM Elements
     this.toggleBtn = document.getElementById('ai-fab-btn');
     this.chatWidget = document.getElementById('ai-chat-widget');
@@ -32,16 +91,26 @@ class ApexAIModule {
     this.closeBtn = document.getElementById('ai-close-btn');
     this.clearBtn = document.getElementById('ai-clear-btn');
     this.keyBtn = document.getElementById('ai-key-btn');
-    this.quickChips = document.querySelectorAll('.ai-chip');
 
     this.init();
   }
 
+  getPersona() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'obsidian';
+    return this.personas[currentTheme] || this.personas.obsidian;
+  }
+
   init() {
-    // 1. Load saved chat history
+    // 1. Initialize Persona for active theme
+    const activeTheme = document.documentElement.getAttribute('data-theme') || 'obsidian';
+
+    // 2. Load saved chat history
     this.loadHistory();
 
-    // 2. Toggle Chat Window
+    // 3. Sync UI with active persona
+    this.updateThemePersona(activeTheme);
+
+    // 4. Toggle Chat Window
     if (this.toggleBtn) {
       this.toggleBtn.addEventListener('click', () => this.toggleChat());
     }
@@ -58,7 +127,7 @@ class ApexAIModule {
       this.keyBtn.addEventListener('click', () => this.promptApiKey());
     }
 
-    // 3. Form Submit
+    // 5. Form Submit
     if (this.chatForm) {
       this.chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -66,7 +135,7 @@ class ApexAIModule {
       });
     }
 
-    // 4. Keyboard Send on Enter (Shift+Enter for newline)
+    // 6. Keyboard Send on Enter (Shift+Enter for newline)
     if (this.chatInput) {
       this.chatInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -75,14 +144,52 @@ class ApexAIModule {
         }
       });
     }
+  }
 
-    // 5. Quick Action Suggestion Chips
-    this.quickChips.forEach((chip) => {
-      chip.addEventListener('click', () => {
-        const promptType = chip.getAttribute('data-prompt');
-        this.handleQuickPrompt(promptType);
+  updateThemePersona(themeId) {
+    const activeTheme = themeId || document.documentElement.getAttribute('data-theme') || 'obsidian';
+    const persona = this.personas[activeTheme] || this.personas.obsidian;
+
+    // 1. Update FAB Button Image & Tooltip
+    if (this.toggleBtn) {
+      this.toggleBtn.title = persona.fabTooltip;
+      const fabImg = document.getElementById('ai-fab-img') || this.toggleBtn.querySelector('img');
+      if (fabImg) fabImg.src = persona.avatar;
+    }
+
+    // 2. Update Header elements
+    const headerImg = document.getElementById('ai-header-img');
+    if (headerImg) headerImg.src = persona.avatar;
+
+    const nameEl = document.getElementById('ai-persona-name');
+    if (nameEl) nameEl.innerText = persona.name;
+
+    const subEl = document.getElementById('ai-persona-subtitle');
+    if (subEl) subEl.innerText = persona.subtitle;
+
+    // 3. Update Quick Chips
+    const chipsContainer = document.querySelector('.ai-quick-chips');
+    if (chipsContainer && persona.quickChips) {
+      chipsContainer.innerHTML = persona.quickChips.map(c => 
+        `<button class="ai-chip" data-prompt="${c.id}">${c.label}</button>`
+      ).join('');
+
+      chipsContainer.querySelectorAll('.ai-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          const promptType = chip.getAttribute('data-prompt');
+          this.handleQuickPrompt(promptType);
+        });
       });
-    });
+    }
+
+    // 4. Update initial welcome greeting if history hasn't started user conversation yet
+    if (this.messages.length === 1 && this.messages[0].role === 'model') {
+      this.messages[0].text = persona.greeting;
+      this.saveHistory();
+    }
+
+    // 5. Re-render chat messages with updated avatar
+    this.renderMessages();
   }
 
   promptApiKey() {
@@ -114,6 +221,7 @@ class ApexAIModule {
   }
 
   loadHistory() {
+    const persona = this.getPersona();
     try {
       const saved = localStorage.getItem('apex_ai_chat_history');
       if (saved) {
@@ -122,12 +230,17 @@ class ApexAIModule {
         this.messages = [
           {
             role: 'model',
-            text: "👋 Welcome to **Apex AI**. I am your personal intelligent productivity companion. How can I help you study, reflect on your diary, or plan your goals today?"
+            text: persona.greeting
           }
         ];
       }
     } catch (e) {
-      this.messages = [];
+      this.messages = [
+        {
+          role: 'model',
+          text: persona.greeting
+        }
+      ];
     }
     this.renderMessages();
   }
@@ -139,11 +252,12 @@ class ApexAIModule {
   }
 
   clearHistory() {
-    if (!confirm('Clear AI conversation history?')) return;
+    const persona = this.getPersona();
+    if (!confirm(`Clear ${persona.name} conversation history?`)) return;
     this.messages = [
       {
         role: 'model',
-        text: "✨ Conversation cleared. What would you like to work on now?"
+        text: persona.greeting
       }
     ];
     this.saveHistory();
@@ -153,6 +267,7 @@ class ApexAIModule {
   renderMessages() {
     if (!this.chatMessagesContainer) return;
     this.chatMessagesContainer.innerHTML = '';
+    const persona = this.getPersona();
 
     this.messages.forEach((msg) => {
       const msgDiv = document.createElement('div');
@@ -161,7 +276,7 @@ class ApexAIModule {
       if (msg.role === 'model') {
         msgDiv.innerHTML = `
           <div class="ai-avatar-mini">
-            <img src="assets/apex-logo.png" alt="Apex Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+            <img src="${persona.avatar}" alt="${persona.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
           </div>
           <div class="ai-bubble markdown-body">${this.parseMarkdown(msg.text)}</div>
         `;
@@ -178,13 +293,14 @@ class ApexAIModule {
   }
 
   async handleQuickPrompt(type) {
+    const persona = this.getPersona();
     let promptText = '';
 
     if (type === 'diary') {
       const currentDiary = document.getElementById('diary-content-input');
       const text = currentDiary ? currentDiary.value.trim() : '';
       if (!text) {
-        promptText = "Give me 3 inspiring journal prompts to reflect on my day.";
+        promptText = `Give me 3 inspiring journal prompts to reflect on my day (${persona.name} style).`;
       } else {
         const sanitizedText = this.sanitizePII(text);
         promptText = `Here is my journal entry for today (Privacy Sanitized):\n"${sanitizedText}"\n\nPlease give me thoughtful reflection insights, key takeaways, and motivating advice.`;
@@ -229,9 +345,10 @@ class ApexAIModule {
     } catch (err) {
       console.error('Gemini AI error:', err);
       this.removeTypingIndicator();
+      const persona = this.getPersona();
       this.messages.push({
         role: 'model',
-        text: `⚠️ **AI Notice**: ${err.message || 'Please check your connection and API key.'}`
+        text: `⚠️ **${persona.name} Notice**: ${err.message || 'Please check your connection and API key.'}`
       });
       this.renderMessages();
     } finally {
@@ -240,9 +357,11 @@ class ApexAIModule {
   }
 
   async callGeminiAPI(userQuery) {
+    const persona = this.getPersona();
+
     if (!this.apiKey) {
       const key = prompt(
-        "To activate Apex AI, please enter your Google Gemini API key:\n(This is saved locally in your browser's private storage)"
+        `To activate ${persona.name}, please enter your Google Gemini API key:\n(This is saved locally in your browser's private storage)`
       );
       if (key && key.trim()) {
         this.apiKey = key.trim();
@@ -252,9 +371,8 @@ class ApexAIModule {
       }
     }
 
-    const systemPrompt = `You are Apex AI, an elite, motivational, and highly intelligent AI productivity partner inside Apex Space.
-Your mission is to help the user excel in their studies, software projects, college subjects, personal diary reflections, and daily habits.
-Keep answers structured, elegant, concise, and formatted in clear markdown with bullet points where helpful.`;
+    const systemPrompt = `${persona.systemPrompt}
+Always keep answers structured, elegant, concise, and formatted in clean markdown with bullet points where helpful.`;
 
     // Sanitize user query and context for Privacy Safeguards
     const sanitizedQuery = this.sanitizePII(userQuery);
@@ -296,17 +414,18 @@ Keep answers structured, elegant, concise, and formatted in clear markdown with 
       return data.candidates[0].content.parts.map(p => p.text).join('\n');
     }
 
-    return "No response received from Apex AI.";
+    return `No response received from ${persona.name}.`;
   }
 
   showTypingIndicator() {
     if (!this.chatMessagesContainer) return;
+    const persona = this.getPersona();
     const typingDiv = document.createElement('div');
     typingDiv.id = 'ai-typing-indicator';
     typingDiv.className = 'ai-message model';
     typingDiv.innerHTML = `
       <div class="ai-avatar-mini">
-        <img src="assets/apex-logo.png" alt="Apex Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+        <img src="${persona.avatar}" alt="${persona.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
       </div>
       <div class="ai-bubble" style="display: flex; gap: 4px; align-items: center; padding: 12px 16px;">
         <span class="typing-dot"></span>

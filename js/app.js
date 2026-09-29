@@ -142,6 +142,11 @@ class AppRouter {
       }
     });
 
+    // Update AI Companion Persona to match active theme
+    if (window.apexAI && typeof window.apexAI.updateThemePersona === 'function') {
+      window.apexAI.updateThemePersona(activeTheme);
+    }
+
     // Re-render canvas background if initialized
     if (window.bgMotion && window.bgMotion.isRunning) {
       window.bgMotion.render();

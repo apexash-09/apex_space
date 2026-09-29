@@ -924,9 +924,9 @@ select.form-control {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: #000000;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.35), 0 8px 30px rgba(0, 0, 0, 0.9);
+  background: var(--bg-deep, #000000);
+  border: 2px solid var(--border-active, #ffffff);
+  box-shadow: var(--glow-white), 0 8px 30px rgba(0, 0, 0, 0.9);
   cursor: pointer;
   z-index: 140;
   display: flex;
@@ -934,12 +934,12 @@ select.form-control {
   justify-content: center;
   padding: 0;
   overflow: hidden;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .ai-fab-floating:hover {
   transform: scale(1.1) translateY(-3px);
-  box-shadow: 0 0 35px rgba(255, 255, 255, 0.6), 0 12px 35px rgba(0, 0, 0, 0.95);
+  box-shadow: 0 0 35px var(--border-glow), 0 12px 35px rgba(0, 0, 0, 0.95);
 }
 
 .ai-fab-floating.hidden {
@@ -996,7 +996,7 @@ select.form-control {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1.5px solid var(--border-glow, rgba(255, 255, 255, 0.4));
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -1005,8 +1005,8 @@ select.form-control {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 0 8px #ffffff;
+  background: var(--accent-white, #ffffff);
+  box-shadow: 0 0 8px var(--accent-white, #ffffff);
   display: inline-block;
 }
 
