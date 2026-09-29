@@ -110,64 +110,64 @@
 }
 
 [data-theme="lavender"] {
-  /* Theme 3: Velvet Lavender (Soft Slate Violet Clay - Inspired by Image 2) */
-  --bg-deep: #0c0a17;
-  --bg-surface: rgba(25, 20, 42, 0.82);
-  --bg-surface-hover: rgba(38, 30, 62, 0.92);
-  --bg-card: rgba(30, 24, 50, 0.78);
-  --bg-input: rgba(18, 14, 32, 0.9);
+  /* Theme 3: Velvet Baby Pink (Sakura Rose Ambient Glow — Pink Ranger Theme) */
+  --bg-deep: #140910;
+  --bg-surface: rgba(45, 20, 38, 0.85);
+  --bg-surface-hover: rgba(62, 28, 52, 0.95);
+  --bg-card: rgba(48, 22, 40, 0.8);
+  --bg-input: rgba(28, 12, 24, 0.92);
 
-  --border-subtle: rgba(192, 132, 252, 0.25);
-  --border-glow: rgba(192, 132, 252, 0.6);
-  --border-active: #c084fc;
+  --border-subtle: rgba(244, 114, 182, 0.28);
+  --border-glow: rgba(244, 114, 182, 0.65);
+  --border-active: #f472b6;
 
-  --accent-white: #c084fc;
-  --accent-silver: #a78bfa;
-  --accent-gray: #8b5cf6;
-  --accent-dark-gray: #3b0764;
+  --accent-white: #f472b6;
+  --accent-silver: #fb7185;
+  --accent-gray: #e879f9;
+  --accent-dark-gray: #500724;
   --accent-red: #ff4d4d;
-  --accent-theme: #c084fc;
+  --accent-theme: #f472b6;
 
-  --text-main: #f3e8ff;
-  --text-muted: #e9d5ff;
-  --text-dim: #7e22ce;
+  --text-main: #fdf2f8;
+  --text-muted: #fbcfe8;
+  --text-dim: #be185d;
 
-  --glow-white: 0 0 25px rgba(192, 132, 252, 0.35);
+  --glow-white: 0 0 25px rgba(244, 114, 182, 0.4);
   --glow-subtle: 0 10px 40px 0 rgba(0, 0, 0, 0.9);
-  --panel-laser-glow: 0 0 20px rgba(192, 132, 252, 0.2), 0 8px 32px rgba(0, 0, 0, 0.7);
+  --panel-laser-glow: 0 0 22px rgba(244, 114, 182, 0.25), 0 8px 32px rgba(0, 0, 0, 0.8);
 }
 
 [data-theme="lavender"] body {
-  background-color: #0c0a17;
-  color: #f3e8ff;
+  background-color: #140910;
+  color: #fdf2f8;
 }
 
 [data-theme="lavender"] .glass-panel {
-  background: rgba(25, 20, 42, 0.82) !important;
-  border-color: rgba(192, 132, 252, 0.28) !important;
+  background: rgba(45, 20, 38, 0.85) !important;
+  border-color: rgba(244, 114, 182, 0.3) !important;
   box-shadow: var(--panel-laser-glow) !important;
 }
 
 [data-theme="lavender"] .btn-primary {
-  background: #c084fc !important;
+  background: #f472b6 !important;
   color: #000000 !important;
-  border-color: #c084fc !important;
-  box-shadow: 0 4px 20px rgba(192, 132, 252, 0.4) !important;
+  border-color: #f472b6 !important;
+  box-shadow: 0 4px 20px rgba(244, 114, 182, 0.45) !important;
 }
 
 [data-theme="lavender"] .nav-item.active {
-  background: rgba(192, 132, 252, 0.15) !important;
-  color: #c084fc !important;
-  border-left-color: #c084fc !important;
+  background: rgba(244, 114, 182, 0.16) !important;
+  color: #f472b6 !important;
+  border-left-color: #f472b6 !important;
 }
 
 [data-theme="lavender"] .filter-chip.active, 
 [data-theme="lavender"] .tab-btn.active, 
 [data-theme="lavender"] .subtab-btn.active {
-  background: #c084fc !important;
+  background: #f472b6 !important;
   color: #000000 !important;
-  border-color: #c084fc !important;
-  box-shadow: 0 4px 20px rgba(192, 132, 252, 0.4) !important;
+  border-color: #f472b6 !important;
+  box-shadow: 0 4px 20px rgba(244, 114, 182, 0.45) !important;
 }
 
 * {

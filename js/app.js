@@ -121,7 +121,7 @@ class AppRouter {
     const themeMeta = {
       obsidian: { name: 'Obsidian', icon: '🌌' },
       gold: { name: 'Gold Horizon', icon: '⚡' },
-      lavender: { name: 'Velvet Lavender', icon: '💜' }
+      lavender: { name: 'Velvet Pink', icon: '🌸' }
     };
 
     const currentMeta = themeMeta[activeTheme];

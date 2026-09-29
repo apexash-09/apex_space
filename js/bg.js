@@ -107,12 +107,12 @@ class MotionBackground {
       particleRgb = '251, 191, 36';
       particleShadow = 'rgba(251, 191, 36, 0.8)';
     } else if (currentTheme === 'lavender') {
-      bgColors = ['rgba(38, 28, 60, 0.85)', 'rgba(18, 14, 30, 0.95)', '#0c0a17'];
-      beamColorStart = 'rgba(192, 132, 252, 0.15)';
-      beamColorMid = 'rgba(192, 132, 252, 0.03)';
+      bgColors = ['rgba(55, 25, 48, 0.85)', 'rgba(24, 12, 20, 0.95)', '#140910'];
+      beamColorStart = 'rgba(244, 114, 182, 0.18)';
+      beamColorMid = 'rgba(244, 114, 182, 0.04)';
       waveAlphaMult = 1.4;
-      particleRgb = '192, 132, 252';
-      particleShadow = 'rgba(192, 132, 252, 0.8)';
+      particleRgb = '244, 114, 182';
+      particleShadow = 'rgba(244, 114, 182, 0.85)';
     } else {
       // Obsidian (Default Monochrome)
       bgColors = ['rgba(24, 24, 28, 0.7)', 'rgba(10, 10, 12, 0.9)', '#030303'];
