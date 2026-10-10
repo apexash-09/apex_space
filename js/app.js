@@ -23,6 +23,9 @@ class AppRouter {
   }
 
   async init() {
+    // 0. Cinematic Welcome Intro Splash (Only on first visit per session)
+    this.initIntroSplash();
+
     // 1. Check if PIN setting exists
     try {
       const pinSetting = await window.db.get('settings', 'security_pin');
@@ -239,6 +242,56 @@ class AppRouter {
     if (targetTab === 'buylist' && window.buyListModule) window.buyListModule.renderBuyList();
     if (targetTab === 'songs' && window.songsModule) window.songsModule.renderPlaylist();
     if (targetTab === 'streak' && window.streakModule) window.streakModule.renderHeatmap();
+  }
+
+  initIntroSplash() {
+    const splash = document.getElementById('apex-intro-overlay');
+    if (!splash) return;
+
+    // Only animate when someone visits the website (once per browser session)
+    const hasSeen = sessionStorage.getItem('apex_intro_shown');
+    if (hasSeen) {
+      splash.style.display = 'none';
+      return;
+    }
+
+    splash.style.display = 'flex';
+    const statusText = document.getElementById('apex-intro-status-text');
+    const skipBtn = document.getElementById('apex-intro-skip-btn');
+
+    let dismissed = false;
+    const dismissIntro = () => {
+      if (dismissed) return;
+      dismissed = true;
+      sessionStorage.setItem('apex_intro_shown', 'true');
+      splash.classList.add('fade-out');
+      setTimeout(() => {
+        splash.style.display = 'none';
+      }, 650);
+    };
+
+    if (skipBtn) {
+      skipBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismissIntro();
+      });
+    }
+
+    splash.addEventListener('click', dismissIntro);
+
+    // Dynamic high-tech status transitions
+    setTimeout(() => {
+      if (statusText && !dismissed) statusText.innerText = 'CALIBRATING PRODUCTIVITY MATRIX...';
+    }, 700);
+
+    setTimeout(() => {
+      if (statusText && !dismissed) statusText.innerText = 'SYSTEMS ONLINE • WELCOME';
+    }, 1500);
+
+    // Auto-dismiss smoothly after 2.3 seconds
+    setTimeout(() => {
+      dismissIntro();
+    }, 2300);
   }
 
   async exportBackup() {

@@ -19,6 +19,29 @@
 </head>
 <body>
 
+  <!-- APEX SPACE CINEMATIC INTRO OVERLAY (First visit per session) -->
+  <div id="apex-intro-overlay" class="apex-intro-container" style="display: none;">
+    <div class="apex-intro-bg-glow"></div>
+    <div class="apex-intro-content">
+      <!-- Animated Hologram Crest -->
+      <div class="apex-intro-crest-wrap">
+        <div class="apex-intro-ring"></div>
+        <div class="apex-intro-ring-outer"></div>
+        <div class="apex-intro-logo">▲</div>
+      </div>
+      <!-- Animated Title & Tagline -->
+      <div class="apex-intro-title">APEX SPACE</div>
+      <div class="apex-intro-tagline">PERSONAL INTELLIGENCE &amp; PRODUCTIVITY SANCTUARY</div>
+      <!-- Cyber Status Line -->
+      <div class="apex-intro-status">
+        <span class="apex-intro-dot"></span>
+        <span id="apex-intro-status-text">INITIALIZING SYSTEMS...</span>
+      </div>
+      <!-- Skip button -->
+      <button id="apex-intro-skip-btn" class="apex-intro-skip" type="button">Skip Intro ➔</button>
+    </div>
+  </div>
+
   <!-- Dynamic Motion Background Canvas -->
   <canvas id="bg-canvas"></canvas>
 
@@ -260,16 +283,38 @@
             <!-- Main Document Reader Screen -->
             <div id="note-reader-card" class="glass-panel" style="display: flex; flex-direction: column; height: 100%; position: relative;">
 
+              <!-- Persistent Floating Fullscreen Minimize Button (Guaranteed visibility in Fullscreen) -->
+              <button id="btn-floating-minimize-note" class="floating-minimize-note" style="display: none;" title="Minimize Note / Exit Full Screen (or press Esc)">
+                <span style="font-size: 16px;">🗗</span>
+                <span>Minimize (Esc)</span>
+              </button>
+
               <!-- Header Bar with Title, Meta, and Persistent Floating Action Toolbar -->
               <div class="note-reader-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; gap: 12px; flex-wrap: wrap; position: relative; z-index: 100010; pointer-events: all;">
-                <div style="min-width: 0; flex: 1;">
-                  <h3 id="note-reader-title" style="font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Select a Note to Read</h3>
-                  <p id="note-reader-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Click any note from your college library on the left</p>
+                <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+                  <button id="btn-back-to-notes" class="btn-ghost" style="display: none; padding: 6px 12px; font-size: 12px; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-subtle); color: var(--accent-white); white-space: nowrap; flex-shrink: 0;" title="Return to Subject Notes List">
+                    ← Back to Notes
+                  </button>
+                  <div style="min-width: 0; flex: 1;">
+                    <h3 id="note-reader-title" style="font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Select a Note to Read</h3>
+                    <p id="note-reader-meta" style="font-size: 12px; color: var(--text-muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Click any note from your college library on the left</p>
+                  </div>
                 </div>
                 
                 <!-- Quick Navigation & Reader Control Toolbar -->
                 <div id="note-reader-controls" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; position: relative; z-index: 100011; pointer-events: all;">
-                  <!-- Quick Tab Jumpers (Active when reading note or in fullscreen) -->
+                  <!-- Fullscreen / Minimize Toggle Button (FIRST for guaranteed visibility) -->
+                  <button id="btn-fullscreen-note" class="btn-ghost" style="padding: 7px 14px; font-size: 12px; font-weight: 700; background: rgba(139,92,246,0.3); border: 1px solid rgba(139,92,246,0.7); color: #ffffff; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;" title="Toggle Full Screen / Normal View (Esc)">
+                    <span id="fullscreen-btn-icon">⛶</span>
+                    <span id="fullscreen-btn-text">Full Screen</span>
+                  </button>
+
+                  <!-- Close Document Button (SECOND) -->
+                  <button id="btn-close-note-reader" class="btn-ghost" style="display: none; padding: 7px 14px; font-size: 12px; font-weight: 700; border: 1px solid rgba(255,80,80,0.5); background: rgba(239,68,68,0.2); color: #ff6b6b; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="Close PDF/Note & Return to Library">
+                    <span>✕ Close Note</span>
+                  </button>
+
+                  <!-- Quick Tab Jumpers -->
                   <div class="reader-quick-tabs" style="display: flex; align-items: center; gap: 6px;">
                     <button type="button" class="btn-ghost" onclick="if(window.appRouter) { if(window.notesModule && window.notesModule.isFullscreen) window.notesModule.toggleFullscreen(false); window.appRouter.switchTab('social'); }" style="padding: 6px 12px; font-size: 11px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Go to Social Hub">
                       💬 Social Hub
@@ -281,17 +326,6 @@
                       📅 Timetable
                     </button>
                   </div>
-
-                  <!-- Fullscreen / Minimize Toggle Button -->
-                  <button id="btn-fullscreen-note" class="btn-ghost" style="padding: 6px 14px; font-size: 12px; font-weight: 700; background: rgba(139,92,246,0.22); border: 1px solid rgba(139,92,246,0.6); color: #c4b5fd; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" title="Toggle Full Screen / Normal View">
-                    <span id="fullscreen-btn-icon">⛶</span>
-                    <span id="fullscreen-btn-text">Full Screen</span>
-                  </button>
-
-                  <!-- Close Document Button -->
-                  <button id="btn-close-note-reader" class="btn-ghost" style="display: none; padding: 6px 14px; font-size: 12px; font-weight: 700; border: 1px solid rgba(255,80,80,0.5); background: rgba(239,68,68,0.2); color: #ff6b6b; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Close PDF/Note & Return to Library">
-                    <span>✕ Close Note</span>
-                  </button>
                 </div>
               </div>
 

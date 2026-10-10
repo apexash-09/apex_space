@@ -24,6 +24,8 @@ class NotesModule {
     this.fullscreenText = document.getElementById('fullscreen-btn-text');
     this.closeReaderBtn = document.getElementById('btn-close-note-reader');
     this.shrinkBtn = document.getElementById('btn-shrink-fullscreen');
+    this.floatingMinimizeBtn = document.getElementById('btn-floating-minimize-note');
+    this.backToNotesBtn = document.getElementById('btn-back-to-notes');
 
     this.titleInput = document.getElementById('note-title');
     this.subjectInput = document.getElementById('note-subject');
@@ -57,6 +59,17 @@ class NotesModule {
 
     if (this.fullscreenBtn) {
       this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+    }
+
+    if (this.floatingMinimizeBtn) {
+      this.floatingMinimizeBtn.addEventListener('click', () => this.toggleFullscreen(false));
+    }
+
+    if (this.backToNotesBtn) {
+      this.backToNotesBtn.addEventListener('click', () => {
+        if (this.isFullscreen) this.toggleFullscreen(false);
+        this.closeReader();
+      });
     }
 
     if (this.closeReaderBtn) {
@@ -109,20 +122,26 @@ class NotesModule {
       if (this.fullscreenText) this.fullscreenText.innerText = '🗗 Minimize';
       if (this.fullscreenIcon) this.fullscreenIcon.innerText = '🗗';
       if (this.fullscreenBtn) {
-        this.fullscreenBtn.style.background = 'rgba(139,92,246,0.45)';
-        this.fullscreenBtn.style.borderColor = '#a78bfa';
+        this.fullscreenBtn.style.background = 'rgba(239, 68, 68, 0.4)';
+        this.fullscreenBtn.style.borderColor = '#ff6b6b';
         this.fullscreenBtn.style.color = '#ffffff';
-        this.fullscreenBtn.title = 'Minimize / Exit Full Screen Mode';
+        this.fullscreenBtn.title = 'Minimize / Exit Full Screen Mode (Esc)';
+      }
+      if (this.floatingMinimizeBtn) {
+        this.floatingMinimizeBtn.style.display = 'inline-flex';
       }
     } else {
       readerCard.classList.remove('note-reader-fullscreen');
       if (this.fullscreenText) this.fullscreenText.innerText = 'Full Screen';
       if (this.fullscreenIcon) this.fullscreenIcon.innerText = '⛶';
       if (this.fullscreenBtn) {
-        this.fullscreenBtn.style.background = 'rgba(139,92,246,0.22)';
-        this.fullscreenBtn.style.borderColor = 'rgba(139,92,246,0.6)';
-        this.fullscreenBtn.style.color = '#c4b5fd';
-        this.fullscreenBtn.title = 'Toggle Full Screen View';
+        this.fullscreenBtn.style.background = 'rgba(139,92,246,0.3)';
+        this.fullscreenBtn.style.borderColor = 'rgba(139,92,246,0.7)';
+        this.fullscreenBtn.style.color = '#ffffff';
+        this.fullscreenBtn.title = 'Toggle Full Screen View (Esc)';
+      }
+      if (this.floatingMinimizeBtn) {
+        this.floatingMinimizeBtn.style.display = 'none';
       }
     }
   }
@@ -135,6 +154,12 @@ class NotesModule {
     }
     if (this.isFullscreen) {
       this.toggleFullscreen(false);
+    }
+    if (this.floatingMinimizeBtn) {
+      this.floatingMinimizeBtn.style.display = 'none';
+    }
+    if (this.backToNotesBtn) {
+      this.backToNotesBtn.style.display = 'none';
     }
     if (this.readerViewer) {
       this.readerViewer.style.display = 'none';
@@ -216,6 +241,7 @@ class NotesModule {
       this.readerViewer.style.display = 'block';
       this.readerViewer.innerHTML = '';
       if (this.closeReaderBtn) this.closeReaderBtn.style.display = 'inline-flex';
+      if (this.backToNotesBtn) this.backToNotesBtn.style.display = 'inline-flex';
 
       if (note.fileBlob) {
         this.activeBlobUrl = URL.createObjectURL(note.fileBlob);

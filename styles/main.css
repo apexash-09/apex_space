@@ -1645,3 +1645,234 @@ select.form-control {
   border-color: var(--accent-white) !important;
   background: rgba(255, 255, 255, 0.06);
 }
+
+/* ── Floating Fullscreen Exit Control ── */
+.floating-minimize-note {
+  position: fixed !important;
+  top: 14px !important;
+  right: 20px !important;
+  z-index: 100050 !important;
+  background: rgba(14, 14, 20, 0.94) !important;
+  border: 2px solid var(--accent-white, #ffffff) !important;
+  color: #ffffff !important;
+  padding: 8px 18px !important;
+  border-radius: var(--radius-pill) !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.9), var(--glow-white) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  pointer-events: auto !important;
+}
+
+.floating-minimize-note:hover {
+  transform: scale(1.06) translateY(-2px) !important;
+  background: var(--bg-surface-hover, rgba(30, 24, 50, 0.95)) !important;
+  box-shadow: 0 6px 30px var(--border-glow, rgba(255, 255, 255, 0.5)) !important;
+}
+
+/* Ensure note-reader-header has space on the right so controls are never pushed off screen */
+.note-reader-fullscreen .note-reader-header {
+  padding-right: 180px !important;
+}
+
+/* ── APEX SPACE CINEMATIC INTRO SPLASH OVERLAY ── */
+.apex-intro-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999999;
+  background: radial-gradient(circle at center, rgba(16, 12, 28, 0.98) 0%, rgba(5, 5, 8, 0.99) 70%, #000000 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+  cursor: pointer;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.6s ease;
+}
+
+.apex-intro-container.fade-out {
+  opacity: 0;
+  transform: scale(1.05);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.apex-intro-bg-glow {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-white, #ffffff) 0%, var(--border-glow, rgba(255, 255, 255, 0.2)) 35%, transparent 70%);
+  opacity: 0.18;
+  filter: blur(50px);
+  animation: introBgPulse 3s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.apex-intro-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+}
+
+/* Animated Hologram Crest */
+.apex-intro-crest-wrap {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.apex-intro-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px dashed var(--accent-white, #ffffff);
+  opacity: 0.7;
+  animation: introSpin 8s linear infinite;
+}
+
+.apex-intro-ring-outer {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.2));
+  border-top-color: var(--accent-white, #ffffff);
+  border-bottom-color: var(--accent-white, #ffffff);
+  animation: introSpinReverse 5s linear infinite;
+}
+
+.apex-intro-logo {
+  font-size: 42px;
+  color: var(--accent-white, #ffffff);
+  text-shadow: 0 0 25px var(--accent-white, #ffffff), 0 0 50px var(--border-glow, rgba(255, 255, 255, 0.5));
+  animation: introLogoPulse 2s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+/* Typographic Reveal */
+.apex-intro-title {
+  font-size: 34px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--accent-white, #ffffff) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: introTitleReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.apex-intro-tagline {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted, #a1a1aa);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: introFadeIn 1s ease 0.4s forwards;
+}
+
+/* Status Line */
+.apex-intro-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  font-size: 11px;
+  font-family: monospace, sans-serif;
+  color: var(--accent-white, #ffffff);
+  letter-spacing: 1px;
+  opacity: 0;
+  animation: introFadeIn 1s ease 0.7s forwards;
+}
+
+.apex-intro-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-white, #ffffff);
+  box-shadow: 0 0 8px var(--accent-white, #ffffff);
+  animation: introDotPulse 1s ease infinite;
+}
+
+.apex-intro-skip {
+  margin-top: 32px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #a1a1aa);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.apex-intro-skip:hover {
+  opacity: 1;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@keyframes introSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes introSpinReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes introLogoPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px var(--accent-white, #ffffff)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 28px var(--accent-white, #ffffff)); }
+}
+
+@keyframes introBgPulse {
+  0% { transform: scale(0.9); opacity: 0.12; }
+  100% { transform: scale(1.2); opacity: 0.25; }
+}
+
+@keyframes introTitleReveal {
+  0% { opacity: 0; transform: translateY(14px) scale(0.95); letter-spacing: 2px; }
+  100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 6px; }
+}
+
+@keyframes introFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes introDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
