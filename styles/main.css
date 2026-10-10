@@ -1688,7 +1688,7 @@ select.form-control {
   width: 100vw;
   height: 100vh;
   z-index: 9999999;
-  background: radial-gradient(circle at center, rgba(16, 12, 28, 0.98) 0%, rgba(5, 5, 8, 0.99) 70%, #000000 100%);
+  background: radial-gradient(circle at center, rgba(18, 12, 32, 0.98) 0%, rgba(6, 6, 10, 0.99) 65%, #000000 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1696,26 +1696,40 @@ select.form-control {
   overflow: hidden;
   user-select: none;
   cursor: pointer;
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.6s ease;
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), filter 0.7s ease;
 }
 
 .apex-intro-container.fade-out {
   opacity: 0;
-  transform: scale(1.05);
-  filter: blur(8px);
+  transform: scale(1.06);
+  filter: blur(10px);
   pointer-events: none;
 }
 
 .apex-intro-bg-glow {
   position: absolute;
-  width: 480px;
-  height: 480px;
+  width: 650px;
+  height: 650px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--accent-white, #ffffff) 0%, var(--border-glow, rgba(255, 255, 255, 0.2)) 35%, transparent 70%);
-  opacity: 0.18;
-  filter: blur(50px);
-  animation: introBgPulse 3s ease-in-out infinite alternate;
+  background: radial-gradient(circle, var(--accent-white, #ffffff) 0%, var(--border-glow, rgba(255, 255, 255, 0.3)) 40%, transparent 70%);
+  opacity: 0.16;
+  filter: blur(70px);
+  animation: introBgPulse 3.5s ease-in-out infinite alternate;
   pointer-events: none;
+}
+
+/* Subtle Sci-Fi Perspective Grid */
+.apex-intro-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.4;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
 }
 
 .apex-intro-content {
@@ -1725,32 +1739,71 @@ select.form-control {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 24px;
+  padding: 30px;
+  max-width: 90vw;
 }
 
-/* Animated Hologram Crest */
+/* Header Tech Badge */
+.apex-intro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: monospace, sans-serif;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--accent-white, #ffffff);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.2));
+  padding: 6px 16px;
+  border-radius: 20px;
+  margin-bottom: 28px;
+  opacity: 0;
+  animation: introFadeIn 0.8s ease 0.2s forwards;
+}
+
+.apex-intro-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00e676;
+  box-shadow: 0 0 8px #00e676;
+  animation: introDotPulse 1.2s infinite;
+}
+
+/* Bigger Animated Hologram Crest */
 .apex-intro-crest-wrap {
   position: relative;
-  width: 100px;
-  height: 100px;
+  width: 150px;
+  height: 150px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 26px;
 }
 
 .apex-intro-ring {
   position: absolute;
-  inset: 0;
+  inset: 12px;
   border-radius: 50%;
   border: 2px dashed var(--accent-white, #ffffff);
-  opacity: 0.7;
-  animation: introSpin 8s linear infinite;
+  opacity: 0.75;
+  animation: introSpin 7s linear infinite;
+}
+
+.apex-intro-ring-mid {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-left-color: var(--accent-white, #ffffff);
+  border-right-color: var(--accent-white, #ffffff);
+  animation: introSpinReverse 9s linear infinite;
+  opacity: 0.6;
 }
 
 .apex-intro-ring-outer {
   position: absolute;
-  inset: -12px;
+  inset: -16px;
   border-radius: 50%;
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.2));
   border-top-color: var(--accent-white, #ffffff);
@@ -1759,39 +1812,76 @@ select.form-control {
 }
 
 .apex-intro-logo {
-  font-size: 42px;
+  font-size: 64px;
   color: var(--accent-white, #ffffff);
-  text-shadow: 0 0 25px var(--accent-white, #ffffff), 0 0 50px var(--border-glow, rgba(255, 255, 255, 0.5));
-  animation: introLogoPulse 2s ease-in-out infinite;
+  text-shadow: 0 0 25px var(--accent-white, #ffffff), 0 0 60px var(--border-glow, rgba(255, 255, 255, 0.6)), 0 0 90px var(--border-active, #ffffff);
+  animation: introLogoPulse 2.2s ease-in-out infinite;
   display: flex;
   align-items: center;
   justify-content: center;
   transform-origin: center;
 }
 
-/* Typographic Reveal */
+/* Bigger Typographic Reveal */
 .apex-intro-title {
-  font-size: 34px;
+  font-size: 48px;
   font-weight: 900;
   color: #ffffff;
-  letter-spacing: 6px;
+  letter-spacing: 12px;
   text-transform: uppercase;
-  margin-bottom: 8px;
-  background: linear-gradient(180deg, #ffffff 0%, var(--accent-white, #ffffff) 100%);
+  margin: 0 0 10px 0;
+  background: linear-gradient(180deg, #ffffff 10%, var(--accent-white, #ffffff) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: introTitleReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.35);
+}
+
+@media (max-width: 600px) {
+  .apex-intro-title {
+    font-size: 32px;
+    letter-spacing: 6px;
+  }
+  .apex-intro-crest-wrap {
+    width: 120px;
+    height: 120px;
+  }
+  .apex-intro-logo {
+    font-size: 50px;
+  }
 }
 
 .apex-intro-tagline {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  color: var(--text-muted, #a1a1aa);
-  letter-spacing: 3px;
+  color: var(--text-muted, #d4d4d8);
+  letter-spacing: 4px;
   text-transform: uppercase;
-  margin-bottom: 24px;
+  margin: 0 0 24px 0;
   opacity: 0;
   animation: introFadeIn 1s ease 0.4s forwards;
+}
+
+/* Progress Track Bar */
+.apex-intro-progress-wrap {
+  width: 340px;
+  max-width: 80vw;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  opacity: 0;
+  animation: introFadeIn 0.8s ease 0.5s forwards;
+}
+
+.apex-intro-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--border-glow, #ffffff), var(--accent-white, #ffffff));
+  box-shadow: 0 0 14px var(--accent-white, #ffffff);
+  border-radius: 10px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Status Line */
@@ -1799,46 +1889,48 @@ select.form-control {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 16px;
+  padding: 8px 20px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.18));
   font-size: 11px;
   font-family: monospace, sans-serif;
   color: var(--accent-white, #ffffff);
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
   opacity: 0;
-  animation: introFadeIn 1s ease 0.7s forwards;
+  animation: introFadeIn 1s ease 0.6s forwards;
 }
 
 .apex-intro-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--accent-white, #ffffff);
-  box-shadow: 0 0 8px var(--accent-white, #ffffff);
+  box-shadow: 0 0 10px var(--accent-white, #ffffff);
   animation: introDotPulse 1s ease infinite;
 }
 
 .apex-intro-skip {
-  margin-top: 32px;
+  margin-top: 28px;
   background: transparent;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-muted, #a1a1aa);
-  font-size: 12px;
-  letter-spacing: 1.5px;
+  font-size: 11px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   cursor: pointer;
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: 20px;
   transition: all 0.2s ease;
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .apex-intro-skip:hover {
   opacity: 1;
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 @keyframes introSpin {
@@ -1852,27 +1944,27 @@ select.form-control {
 }
 
 @keyframes introLogoPulse {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px var(--accent-white, #ffffff)); }
-  50% { transform: scale(1.1); filter: drop-shadow(0 0 28px var(--accent-white, #ffffff)); }
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px var(--accent-white, #ffffff)); }
+  50% { transform: scale(1.12); filter: drop-shadow(0 0 35px var(--accent-white, #ffffff)); }
 }
 
 @keyframes introBgPulse {
   0% { transform: scale(0.9); opacity: 0.12; }
-  100% { transform: scale(1.2); opacity: 0.25; }
+  100% { transform: scale(1.25); opacity: 0.24; }
 }
 
 @keyframes introTitleReveal {
-  0% { opacity: 0; transform: translateY(14px) scale(0.95); letter-spacing: 2px; }
-  100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 6px; }
+  0% { opacity: 0; transform: translateY(18px) scale(0.92); letter-spacing: 4px; }
+  100% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 12px; }
 }
 
 @keyframes introFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes introDotPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.7); }
+  50% { opacity: 0.4; transform: scale(0.65); }
 }
 

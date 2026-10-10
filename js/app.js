@@ -6,7 +6,7 @@
 class AppRouter {
   constructor() {
     this.activeTab = 'diary';
-    this.isUnlocked = false;
+    this.isUnlocked = true;
 
     this.unlockScreen = document.getElementById('unlock-screen');
     this.unlockForm = document.getElementById('unlock-form');
@@ -30,8 +30,8 @@ class AppRouter {
     try {
       const pinSetting = await window.db.get('settings', 'security_pin');
       if (pinSetting && pinSetting.value) {
-        this.pinGroup.style.display = 'block';
-        this.pinInput.required = true;
+        if (this.pinGroup) this.pinGroup.style.display = 'block';
+        if (this.pinInput) this.pinInput.required = true;
       }
     } catch (e) {
       console.warn('Could not read PIN setting:', e);
@@ -173,7 +173,7 @@ class AppRouter {
   async attemptUnlock() {
     try {
       const pinSetting = await window.db.get('settings', 'security_pin');
-      if (pinSetting && pinSetting.value) {
+      if (pinSetting && pinSetting.value && this.pinInput) {
         if (this.pinInput.value !== pinSetting.value) {
           alert('Incorrect PIN. Please try again.');
           return;
@@ -181,17 +181,17 @@ class AppRouter {
       }
 
       this.isUnlocked = true;
-      this.unlockScreen.classList.add('hidden');
+      if (this.unlockScreen) this.unlockScreen.classList.add('hidden');
     } catch (err) {
       console.error('Unlock error:', err);
-      this.unlockScreen.classList.add('hidden');
+      if (this.unlockScreen) this.unlockScreen.classList.add('hidden');
     }
   }
 
   lockApp() {
     this.isUnlocked = false;
     if (this.pinInput) this.pinInput.value = '';
-    this.unlockScreen.classList.remove('hidden');
+    if (this.unlockScreen) this.unlockScreen.classList.remove('hidden');
   }
 
   switchTab(targetTab) {
@@ -257,6 +257,7 @@ class AppRouter {
 
     splash.style.display = 'flex';
     const statusText = document.getElementById('apex-intro-status-text');
+    const progressBar = document.getElementById('apex-intro-progress-bar');
     const skipBtn = document.getElementById('apex-intro-skip-btn');
 
     let dismissed = false;
@@ -267,7 +268,7 @@ class AppRouter {
       splash.classList.add('fade-out');
       setTimeout(() => {
         splash.style.display = 'none';
-      }, 650);
+      }, 700);
     };
 
     if (skipBtn) {
@@ -279,19 +280,34 @@ class AppRouter {
 
     splash.addEventListener('click', dismissIntro);
 
-    // Dynamic high-tech status transitions
-    setTimeout(() => {
-      if (statusText && !dismissed) statusText.innerText = 'CALIBRATING PRODUCTIVITY MATRIX...';
-    }, 700);
+    // Initial state
+    if (progressBar) progressBar.style.width = '8%';
 
+    // Stage 1: Initializing quantum engine
     setTimeout(() => {
-      if (statusText && !dismissed) statusText.innerText = 'SYSTEMS ONLINE • WELCOME';
-    }, 1500);
+      if (dismissed) return;
+      if (statusText) statusText.innerText = 'CALIBRATING PRODUCTIVITY & INTELLIGENCE MATRIX...';
+      if (progressBar) progressBar.style.width = '38%';
+    }, 800);
 
-    // Auto-dismiss smoothly after 2.3 seconds
+    // Stage 2: Syncing secure environment & companion models
+    setTimeout(() => {
+      if (dismissed) return;
+      if (statusText) statusText.innerText = 'SYNCHRONIZING SECURE WORKSPACE & COMPANIONS...';
+      if (progressBar) progressBar.style.width = '72%';
+    }, 1800);
+
+    // Stage 3: All systems operational
+    setTimeout(() => {
+      if (dismissed) return;
+      if (statusText) statusText.innerText = 'ALL SYSTEMS ONLINE • WELCOME TO APEX SPACE';
+      if (progressBar) progressBar.style.width = '100%';
+    }, 2800);
+
+    // Auto-dismiss smoothly after extended presentation (~3.7s)
     setTimeout(() => {
       dismissIntro();
-    }, 2300);
+    }, 3700);
   }
 
   async exportBackup() {
